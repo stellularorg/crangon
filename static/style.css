@@ -1,0 +1,21 @@
+/* https://codeberg.org/hkau/fusion */
+@import url("./css/fusion.css");
+
+.tab-container {
+    background: var(--background-surface1);
+    transition: background 0.15s;
+    padding: 1.5rem !important;
+    height: 78dvh;
+    overflow-y: auto;
+    max-height: 90vh;
+    margin-bottom: 0.5rem;
+    max-width: 100vw;
+    min-height: 15rem;
+}
+
+@media screen and (max-width: 900px) {
+    .tab-container {
+        max-height: 65vh;
+        padding: 1rem;
+    }
+}
