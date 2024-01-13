@@ -4,42 +4,15 @@ pub fn parse_markdown(input: String) -> String {
     let mut out: String = input;
 
     // escape < and >
-    let binding = RegexBuilder::new("<")
-        .build()
-        .unwrap()
-        .replace_all(&out, "&lt;");
-    out = binding.to_string();
-
-    let binding = RegexBuilder::new(">")
-        .build()
-        .unwrap()
-        .replace_all(&out, "&gt;");
-    out = binding.to_string();
+    out = regex_replace(&out, "<", "&lt;");
+    out = regex_replace(&out, ">", "&gt;");
 
     // unescape arrow alignment
-    let binding = RegexBuilder::new("-&gt;&gt;")
-        .build()
-        .unwrap()
-        .replace_all(&out, "->>");
-    out = binding.to_string();
+    out = regex_replace(&out, "-&gt;&gt;", "->>");
+    out = regex_replace(&out, "&lt;&lt;-", "<<-");
 
-    let binding = RegexBuilder::new("&lt;&lt-")
-        .build()
-        .unwrap()
-        .replace_all(&out, "<<-");
-    out = binding.to_string();
-
-    let binding = RegexBuilder::new("-&gt;")
-        .build()
-        .unwrap()
-        .replace_all(&out, "->");
-    out = binding.to_string();
-
-    let binding = RegexBuilder::new("&lt;-")
-        .build()
-        .unwrap()
-        .replace_all(&out, "<-");
-    out = binding.to_string();
+    out = regex_replace(&out, "-&gt;", "->");
+    out = regex_replace(&out, "&lt;-", "<-");
 
     // allowed elements
     let allowed_elements: Vec<&str> = Vec::from([
@@ -47,28 +20,95 @@ pub fn parse_markdown(input: String) -> String {
     ]);
 
     for element in allowed_elements {
-        let binding = RegexBuilder::new(&format!("&lt;{}&gt;", element))
-            .build()
-            .unwrap()
-            .replace_all(&out, &format!("<{}>", element));
+        out = regex_replace(
+            &out,
+            &format!("&lt;{}&gt;", element),
+            &format!("<{}>", element),
+        );
 
-        out = binding.to_string();
-
-        let binding = RegexBuilder::new(&format!("&lt;/{}&gt;", element))
-            .build()
-            .unwrap()
-            .replace_all(&out, &format!("</{}>", element));
-
-        out = binding.to_string();
+        out = regex_replace(
+            &out,
+            &format!("&lt;/{}&gt;", element),
+            &format!("<{}>", element),
+        );
     }
 
     // HTML escapes
-    let binding = RegexBuilder::new("(&!)(.*?);")
+    out = regex_replace(&out, "(&!)(.*?);", "&$2;");
+
+    // backslash line continuation
+    // out = regex_replace(&out, "\\\n", "");
+
+    // fenced code blocks
+    let mut fenced_code_block_count: i32 = 0;
+    let fenced_code_block_regex = RegexBuilder::new("^(`{3})(.*?)\\n(.*?)(`{3})$")
+        .multi_line(true)
+        .dot_matches_new_line(true)
         .build()
-        .unwrap()
-        .replace_all(&out, "&$2;");
-    out = binding.to_string();
+        .unwrap();
+
+    for capture in fenced_code_block_regex.captures(&out.clone()).iter() {
+        let lang = capture.get(2).unwrap().as_str();
+        let content = capture.get(3).unwrap().as_str();
+
+        fenced_code_block_count += 1;
+
+        // build line numbers
+        let mut line_numbers: String = String::new();
+        let mut _current_ln: i32 = 0;
+
+        for line in content.split("\n") {
+            if line.is_empty() {
+                continue;
+            };
+
+            _current_ln += 1;
+
+            line_numbers = format!(
+                "{}<a class=\"line-number\" href=\"#B{}L{}\" id=\"B{}L{}\">{}</a>\n",
+                line_numbers,
+                fenced_code_block_count,
+                _current_ln,
+                fenced_code_block_count,
+                _current_ln,
+                _current_ln
+            );
+        }
+
+        // replace
+        out = regex_replace(&out, capture.get(1).unwrap().as_str(), &format!("<pre class=\"flex\" style=\"position: relative;\">
+            <div class=\"line-numbers code\">{line_numbers}</div>
+            <code class=\"language-${lang}\" id=\"B{fenced_code_block_count}C\" style=\"display: block;\">{content}</code>
+            <button 
+                onclick=\"window.navigator.clipboard.writeText(document.getElementById('B${fenced_code_block_count}C').innerText);\"
+                class=\"secondary copy-button\"
+                title=\"Copy Code\"
+            >
+                <svg
+                    xmlns=\"http://www.w3.org/2000/svg\"
+                    viewBox=\"0 0 16 16\"
+                    width=\"16\"
+                    height=\"16\"
+                >
+                    <path d=\"M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z\"></path>
+                    <path d=\"M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z\"></path>
+                </svg>
+            </button>
+        </pre>\n"));
+    }
+
+    // inline code block
+    out = regex_replace(&out, "(`{1,2,3})(.*?)(`{1,2,3})", "<code>$2</code>");
 
     // return
     return out.to_string();
+}
+
+#[allow(dead_code)]
+fn regex_replace(input: &str, pattern: &str, replace_with: &str) -> String {
+    return RegexBuilder::new(pattern)
+        .build()
+        .unwrap()
+        .replace_all(input, replace_with)
+        .to_string();
 }

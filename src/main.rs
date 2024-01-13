@@ -1,13 +1,19 @@
 use actix_files as fs;
-use actix_web::{App, HttpServer};
+use actix_web::HttpResponse;
+use actix_web::{web, App, HttpServer};
+
+use yew::ServerRenderer;
 
 mod config;
+mod db;
 mod utility;
 
 mod components;
 mod pages;
 
 mod markdown;
+
+use crate::db::bundlesdb::create_database;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -20,10 +26,8 @@ async fn main() -> std::io::Result<()> {
         port = port_search.unwrap().parse::<u16>().unwrap();
     }
 
-    println!(
-        "{}",
-        markdown::parse_markdown("Hello, <friend>! <style>test</style> &!ast;".to_string())
-    );
+    // create database
+    create_database();
 
     // start server
     println!("Starting server at: http://localhost:{port}");
@@ -33,6 +37,14 @@ async fn main() -> std::io::Result<()> {
             .service(fs::Files::new("/static", "./static").show_files_listing())
             // GET root
             .service(crate::pages::home::home_request)
+            .service(crate::pages::paste_view::paste_view_request) // must be run last as it matches all other paths!
+            // ERRORS
+            .default_service(web::to(|| async {
+                let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();
+
+                return HttpResponse::NotFound()
+                    .body(utility::format_html(renderer.render().await));
+            }))
     })
     .bind(("127.0.0.1", port))?
     .run()

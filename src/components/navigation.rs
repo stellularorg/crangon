@@ -24,37 +24,41 @@ pub fn Footer() -> Html {
             </ul>
 
             <p style="font-size: 12px; margin: 0.4rem 0 0 0;">
-                {"bundles - Markdown Delivery Service"}
+                <a href="https://codeberg.org/SentryTwo/bundlrs">{"bundlrs"}</a>
+                {" - Markdown Delivery Service"}
             </p>
 
-            <style>{".__footernav {
-                    display: flex;
-                    gap: 0.25rem;
-                }
-                
-                .__footernav li {
-                    list-style-type: \"·\";
-                    padding: 0 0.25rem;
-                }
+            <style>
+                {
+                    ".__footernav {
+                        display: flex;
+                        gap: 0.25rem;
+                    }
+                    
+                    .__footernav li {
+                        list-style-type: \"·\";
+                        padding: 0 0.25rem;
+                    }
 
-                .__footernav li:first-child {
-                   margin-left: -0.25rem;
+                    .__footernav li:first-child {
+                    margin-left: -0.25rem;
+                    }
+                    
+                    .__footernav li:first-child {
+                        list-style-type: none;
+                    }
+                    
+                    .__footer_cardbtn {
+                        width: calc(33% - 0.25rem);
+                        height: 10rem !important;
+                        display: flex;
+                        flex-direction: column;
+                        justify-content: center;
+                        align-items: center;
+                        gap: 0.5rem;
+                        border-radius: 0.4rem;
+                    }"
                 }
-                
-                .__footernav li:first-child {
-                    list-style-type: none;
-                }
-                
-                .__footer_cardbtn {
-                    width: calc(33% - 0.25rem);
-                    height: 10rem !important;
-                    display: flex;
-                    flex-direction: column;
-                    justify-content: center;
-                    align-items: center;
-                    gap: 0.5rem;
-                    border-radius: 0.4rem;
-                }"}
             </style>
 
             // <ThemeButton>
