@@ -1,5 +1,3 @@
-use sqlx::Connection;
-
 pub struct DatabaseOpts {
     pub _type: Option<String>,
     pub host: Option<String>,
@@ -9,8 +7,9 @@ pub struct DatabaseOpts {
 }
 
 // ...
+#[derive(Clone)]
 pub struct Database {
-    pub client: sqlx::AnyConnection,
+    pub client: sqlx::AnyPool,
     pub _type: String,
 }
 
@@ -25,7 +24,7 @@ pub async fn create_db(options: DatabaseOpts) -> Database {
     // create client
     if _type.unwrap() == "sqlite" {
         // sqlite
-        let client = sqlx::AnyConnection::connect("sqlite::memory:").await;
+        let client = sqlx::AnyPool::connect("sqlite::memory:").await;
 
         if client.is_err() {
             panic!("Failed to connect to database!");
@@ -37,7 +36,7 @@ pub async fn create_db(options: DatabaseOpts) -> Database {
         };
     } else {
         // postgres
-        let client = sqlx::AnyConnection::connect(&format!(
+        let client = sqlx::AnyPool::connect(&format!(
             "postgres://{}:{}@{}/{}",
             options.user,
             options.pass,

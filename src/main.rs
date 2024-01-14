@@ -2,6 +2,7 @@ use actix_files as fs;
 use actix_web::HttpResponse;
 use actix_web::{web, App, HttpServer};
 
+use sqlx;
 use yew::ServerRenderer;
 
 mod config;
@@ -13,10 +14,8 @@ mod pages;
 
 mod markdown;
 
-use crate::db::bundlesdb::BundlesDB;
+use crate::db::bundlesdb::{AppData, BundlesDB};
 use crate::db::sql::DatabaseOpts;
-
-use sqlx;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -68,10 +67,15 @@ async fn main() -> std::io::Result<()> {
 
     db.init().await;
 
+    // db aliases
+
     // start server
     println!("Starting server at: http://localhost:{port}");
-    HttpServer::new(|| {
+
+    // serve routes
+    HttpServer::new(move || {
         App::new()
+            .app_data(web::Data::new(AppData { db: db.clone() }))
             // static dir
             .service(fs::Files::new("/static", "./static").show_files_listing())
             // GET root

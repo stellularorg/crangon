@@ -1,7 +1,14 @@
 use regex::RegexBuilder;
 
-pub fn parse_markdown(input: String) -> String {
-    let mut out: String = input;
+#[allow(dead_code)]
+struct Heading<'l> {
+    pub text: &'l str,
+    pub level: usize,
+    pub id: String,
+}
+
+pub fn parse_markdown(input: &String) -> String {
+    let mut out: String = input.to_owned();
 
     // escape < and >
     out = regex_replace(&out, "<", "&lt;");
@@ -98,7 +105,52 @@ pub fn parse_markdown(input: String) -> String {
     }
 
     // inline code block
-    out = regex_replace(&out, "(`{1,2,3})(.*?)(`{1,2,3})", "<code>$2</code>");
+    out = regex_replace(&out, "(`{1})(.*?)(`{1})", "<code>$2</code>");
+
+    // headings
+    // TODO: fix
+    let table_of_contents: &mut Vec<Heading> = &mut Vec::new();
+    let heading_regex = RegexBuilder::new("^(\\#+)\\s(.*?)$")
+        .multi_line(true)
+        .build()
+        .unwrap();
+
+    for capture in heading_regex.captures(&out.clone()).iter() {
+        let heading_type = capture.get(1).unwrap().as_str().len();
+        let content = capture.get(2).unwrap().as_str();
+
+        // get suffix
+        // (get all headings with the same text, suffix is the number of those)
+        // (helps prevent duplicate ids)
+        let same_headings = table_of_contents.iter().filter(|h| h.text == content);
+        let count = same_headings.count() as i32;
+
+        let suffix = if &count == &0 {
+            "".to_string()
+        } else {
+            format!("-{}", count)
+        };
+
+        // add to TOC
+        let heading_id = regex_replace(
+            &format!("{content}{suffix}").to_lowercase(),
+            "[^A-Za-z0-9-]",
+            "",
+        );
+
+        table_of_contents.push(Heading {
+            text: content,
+            level: heading_type,
+            id: heading_id.clone(),
+        });
+
+        // return
+        out = regex_replace(
+            &out,
+            capture.get(0).unwrap().as_str(),
+            format!("<h{heading_type} id=\"{heading_id}\">{content}</h{heading_type}>").as_str(),
+        )
+    }
 
     // return
     return out.to_string();

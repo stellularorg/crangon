@@ -1,3 +1,14 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
+pub fn unix_epoch_timestamp() -> u128 {
+    let right_now = SystemTime::now();
+    let time_since = right_now
+        .duration_since(UNIX_EPOCH)
+        .expect("Time travel is not allowed");
+    
+    return time_since.as_millis();
+}
+
 pub fn format_html(input: String) -> String {
     return format!(
         "<!DOCTYPE html>

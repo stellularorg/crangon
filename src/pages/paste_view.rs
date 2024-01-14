@@ -1,10 +1,11 @@
-use actix_web::HttpRequest;
-use actix_web::{get, HttpResponse, Responder};
+use actix_web::HttpResponse;
+use actix_web::{get, web, HttpRequest, Responder};
 
 use yew::prelude::*;
 use yew::ServerRenderer;
 
-use crate::db::bundlesdb::Paste;
+use crate::db::bundlesdb::{self, AppData, Paste};
+use crate::markdown;
 use crate::utility::format_html;
 
 use crate::components::navigation::Footer;
@@ -18,12 +19,12 @@ struct Props {
 fn PasteView(props: &Props) -> Html {
     return html! {
         <main class="flex flex-column g-4" style="height: 100dvh;">
-            <div 
+            <div
                 id="editor-tab-preview"
-                class="card round border secondary tab-container secondary round" 
+                class="card round border secondary tab-container secondary round"
                 style="height: max-content; max-height: initial; margin-bottom: 0px;"
             >
-                {&props.paste.custom_url}
+                {markdown::parse_markdown(&props.paste.content)}
             </div>
 
             <Footer />
@@ -36,13 +37,23 @@ fn build_renderer_with_props(props: Props) -> ServerRenderer<PasteView> {
 }
 
 #[get("/{url:.*}")]
-pub async fn paste_view_request(req: HttpRequest) -> impl Responder {
+pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
     // get paste
     let url: String = req.match_info().get("url").unwrap().to_string();
+    let paste: bundlesdb::DefaultReturn<Option<Paste>> = if url == String::from("d") {
+        bundlesdb::create_dummy(Option::Some("dummy-paste"))
+    } else {
+        // fetch paste
+        data.db.get_paste_by_url(url).await
+    };
+
+    if paste.success == false {
+        return HttpResponse::NotFound().body(paste.message);
+    }
 
     // ...
     let renderer = build_renderer_with_props(Props {
-        paste: crate::db::bundlesdb::create_dummy(Option::Some(&url)),
+        paste: paste.payload.unwrap(),
     });
 
     let render = renderer.render();
