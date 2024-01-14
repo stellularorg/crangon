@@ -17,6 +17,10 @@ struct Props {
 
 #[function_component]
 fn PasteView(props: &Props) -> Html {
+    let content = Html::from_html_unchecked(AttrValue::from(markdown::parse_markdown(
+        &props.paste.content,
+    )));
+
     return html! {
         <main class="flex flex-column g-4" style="height: 100dvh;">
             <div
@@ -24,7 +28,7 @@ fn PasteView(props: &Props) -> Html {
                 class="card round border secondary tab-container secondary round"
                 style="height: max-content; max-height: initial; margin-bottom: 0px;"
             >
-                {markdown::parse_markdown(&props.paste.content)}
+                {content}
             </div>
 
             <Footer />

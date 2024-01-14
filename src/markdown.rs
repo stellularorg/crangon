@@ -83,7 +83,7 @@ pub fn parse_markdown(input: &String) -> String {
         }
 
         // replace
-        out = regex_replace(&out, capture.get(1).unwrap().as_str(), &format!("<pre class=\"flex\" style=\"position: relative;\">
+        out = regex_replace_one(&out, capture.get(1).unwrap().as_str(), &format!("<pre class=\"flex\" style=\"position: relative;\">
             <div class=\"line-numbers code\">{line_numbers}</div>
             <code class=\"language-${lang}\" id=\"B{fenced_code_block_count}C\" style=\"display: block;\">{content}</code>
             <button 
@@ -108,14 +108,13 @@ pub fn parse_markdown(input: &String) -> String {
     out = regex_replace(&out, "(`{1})(.*?)(`{1})", "<code>$2</code>");
 
     // headings
-    // TODO: fix
     let table_of_contents: &mut Vec<Heading> = &mut Vec::new();
     let heading_regex = RegexBuilder::new("^(\\#+)\\s(.*?)$")
         .multi_line(true)
         .build()
         .unwrap();
 
-    for capture in heading_regex.captures(&out.clone()).iter() {
+    for capture in heading_regex.captures_iter(&out.clone()) {
         let heading_type = capture.get(1).unwrap().as_str().len();
         let content = capture.get(2).unwrap().as_str();
 
@@ -145,7 +144,7 @@ pub fn parse_markdown(input: &String) -> String {
         });
 
         // return
-        out = regex_replace(
+        out = regex_replace_one(
             &out,
             capture.get(0).unwrap().as_str(),
             format!("<h{heading_type} id=\"{heading_id}\">{content}</h{heading_type}>").as_str(),
@@ -162,5 +161,14 @@ fn regex_replace(input: &str, pattern: &str, replace_with: &str) -> String {
         .build()
         .unwrap()
         .replace_all(input, replace_with)
+        .to_string();
+}
+
+#[allow(dead_code)]
+fn regex_replace_one(input: &str, pattern: &str, replace_with: &str) -> String {
+    return RegexBuilder::new(pattern)
+        .build()
+        .unwrap()
+        .replace(input, replace_with)
         .to_string();
 }

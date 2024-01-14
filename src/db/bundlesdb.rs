@@ -26,6 +26,17 @@ pub struct Paste {
     pub metadata: String, // JSON Object
 }
 
+#[derive(Default, PartialEq, sqlx::FromRow, Clone)]
+pub struct Log {
+    // selectors
+    pub id: String,
+    pub logtype: String,
+    // dates
+    pub timestamp: u128,
+    // ...
+    pub content: String,
+}
+
 // ...
 #[derive(Clone)]
 pub struct BundlesDB {
@@ -48,18 +59,107 @@ impl BundlesDB {
         // ...
 
         // create tables
-        let query: &str = "CREATE TABLE IF NOT EXISTS \"Pastes\" (
-            custom_url TEXT NOT NULL,
-            id TEXT NOT NULL,
-            edit_password TEXT NOT NULL,
-            pub_date: int,
-            edit_date: int,
-            content: TEXT NOT NULL,
-            metadata: TEXT NOT NULL,
-        )";
-
         let c = &mut self.db.client;
-        c.execute(sqlx::query(query));
+
+        c.execute(sqlx::query(
+            "CREATE TABLE IF NOT EXISTS \"Pastes\" (
+                custom_url TEXT NOT NULL,
+                id TEXT NOT NULL,
+                edit_password TEXT NOT NULL,
+                pub_date int,
+                edit_date int,
+                content TEXT NOT NULL,
+                metadata TEXT NOT NULL,
+            )",
+        ));
+
+        c.execute(sqlx::query(
+            "CREATE TABLE IF NOT EXISTS \"Logs\" (
+                id TEXT NOT NULL,
+                logtype TEXT NOT NULL,
+                timestamp float,
+                content TEXT NOT NULL
+            )",
+        ));
+    }
+
+    // logs
+
+    // GET
+    pub async fn get_log_by_id(&self, id: String) -> DefaultReturn<Option<Log>> {
+        let query: &str = if self.db._type == "sqlite" {
+            "SELECT * FROM \"Logs\" WHERE \"id\" = ?"
+        } else {
+            "SELECT * FROM \"Logs\" WHERE \"id\" = $1"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query).bind(&id).fetch_one(c).await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Log does not exist"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let row = res.unwrap();
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Paste exists"),
+            payload: Option::Some(Log {
+                id: row.get("id"),
+                logtype: row.get("logtype"),
+                timestamp: row.get::<String, _>("timestamp").parse::<u128>().unwrap(),
+                content: row.get("content"),
+            }),
+        };
+    }
+
+    // SET
+    pub async fn create_log(
+        &self,
+        logtype: String,
+        content: String,
+    ) -> DefaultReturn<Option<String>> {
+        let query: &str = if self.db._type == "sqlite" {
+            "INSERT INTO \"Logs\" VALUES (?, ?, ?, ?)"
+        } else {
+            "INSERT INTO \"Logs\" VALUES ($1, $2, $3, $4)"
+        };
+
+        let log_id: String = utility::random_id();
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind(&log_id)
+            .bind(logtype)
+            .bind(utility::unix_epoch_timestamp().to_string())
+            .bind(content)
+            .fetch_one(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to create log"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let row = res.unwrap();
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Log created!"),
+            payload: Option::Some(log_id),
+        };
     }
 
     // pastes
@@ -103,15 +203,30 @@ impl BundlesDB {
     }
 
     // SET
-    pub async fn create_paste(&self, props: Paste) -> DefaultReturn<&str> {
+    pub async fn create_paste(&self, props: Paste) -> DefaultReturn<Option<String>> {
+        let p: &Paste = &props; // borrowed props
+
+        // make sure paste does not exist
+        let existing: DefaultReturn<Option<Paste>> =
+            self.get_paste_by_url(p.custom_url.to_owned()).await;
+        if existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Paste does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // create paste
         let query: &str = if self.db._type == "sqlite" {
             "INSERT INTO \"Pastes\" VALUES (?, ?, ?, ?, ?, ?, ?)"
         } else {
             "INSERT INTO \"Pastes\" VALUES ($1, $2, $3, $4, $5, $6, $7)"
         };
 
-        let c = &self.db.client;
-        let p = props.clone();
+        let c: &sqlx::Pool<sqlx::Any> = &self.db.client;
+        let p: &mut Paste = &mut props.clone();
+        p.id = utility::random_id();
 
         c.execute(
             sqlx::query(query)
@@ -121,14 +236,14 @@ impl BundlesDB {
                 .bind(&p.pub_date.to_string())
                 .bind(&p.edit_date.to_string())
                 .bind(&p.content)
-                .bind(json::stringify(p.metadata)),
+                .bind(json::stringify(p.metadata.as_str())),
         );
 
         // return
         return DefaultReturn {
             success: true,
             message: String::from("Paste created"),
-            payload: query,
+            payload: Option::Some(p.id.to_string()),
         };
     }
 }
