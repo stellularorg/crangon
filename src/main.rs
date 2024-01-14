@@ -13,7 +13,10 @@ mod pages;
 
 mod markdown;
 
-use crate::db::bundlesdb::create_database;
+use crate::db::bundlesdb::BundlesDB;
+use crate::db::sql::DatabaseOpts;
+
+use sqlx;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -27,7 +30,43 @@ async fn main() -> std::io::Result<()> {
     }
 
     // create database
-    create_database();
+    let db_type: Option<String> = config::get_named_argument(&args, "db-type");
+    let db_host: Option<String> = config::get_named_argument(&args, "db-host");
+    let db_user: Option<String> = config::get_named_argument(&args, "db-user");
+    let db_pass: Option<String> = config::get_named_argument(&args, "db-pass");
+    let db_name: Option<String> = config::get_named_argument(&args, "db-name");
+
+    let db_is_psql: bool = db_type
+        .clone()
+        .is_some_and(|x| x == String::from("postgres"));
+
+    if db_is_psql && (db_user.is_none() | db_pass.is_none() | db_name.is_none()) {
+        panic!("Missing required database config settings!");
+    }
+
+    sqlx::any::install_default_drivers(); // install database drivers
+    let mut db: BundlesDB = BundlesDB::new(DatabaseOpts {
+        _type: db_type,
+        host: db_host,
+        user: if db_is_psql {
+            db_user.unwrap()
+        } else {
+            String::new()
+        },
+        pass: if db_is_psql {
+            db_pass.unwrap()
+        } else {
+            String::new()
+        },
+        name: if db_is_psql {
+            db_name.unwrap()
+        } else {
+            String::new()
+        },
+    })
+    .await;
+
+    db.init().await;
 
     // start server
     println!("Starting server at: http://localhost:{port}");
