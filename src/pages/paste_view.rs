@@ -12,7 +12,7 @@ use crate::components::navigation::Footer;
 
 #[derive(Default, Properties, PartialEq)]
 struct Props {
-    pub paste: Paste,
+    pub paste: Paste<String>,
 }
 
 #[function_component]
@@ -22,7 +22,7 @@ fn PasteView(props: &Props) -> Html {
     )));
 
     return html! {
-        <main class="flex flex-column g-4" style="height: 100dvh;">
+        <main class="flex flex-column g-4">
             <div
                 id="editor-tab-preview"
                 class="card round border secondary tab-container secondary round"
@@ -44,7 +44,7 @@ fn build_renderer_with_props(props: Props) -> ServerRenderer<PasteView> {
 pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
     // get paste
     let url: String = req.match_info().get("url").unwrap().to_string();
-    let paste: bundlesdb::DefaultReturn<Option<Paste>> = if url == String::from("d") {
+    let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> = if url == String::from("d") {
         bundlesdb::create_dummy(Option::Some("dummy-paste"))
     } else {
         // fetch paste
