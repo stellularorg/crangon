@@ -2,7 +2,7 @@ use super::sql::{self, Database, DatabaseOpts};
 use sqlx::{Executor, Row};
 
 use crate::utility;
-use json;
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
 pub struct AppData {
@@ -10,6 +10,7 @@ pub struct AppData {
 }
 
 #[allow(dead_code)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct DefaultReturn<T> {
     pub success: bool,
     pub message: String,
@@ -17,7 +18,7 @@ pub struct DefaultReturn<T> {
 }
 
 // Paste and Group require the type of their metadata to be specified so it can be converted if needed
-#[derive(Default, PartialEq, sqlx::FromRow, Clone)]
+#[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
 pub struct Paste<M> {
     // selectors
     pub custom_url: String,
@@ -33,7 +34,12 @@ pub struct Paste<M> {
     pub metadata: M, // JSON Object
 }
 
-#[derive(Default, PartialEq, sqlx::FromRow, Clone)]
+#[derive(Clone, Serialize, Deserialize)]
+pub struct PasteMetadata {
+    pub owner: String,
+}
+
+#[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
 pub struct Group<M> {
     // selectors
     pub name: String,
@@ -43,7 +49,22 @@ pub struct Group<M> {
     pub metadata: M, // JSON Object
 }
 
-#[derive(Default, PartialEq, sqlx::FromRow, Clone)]
+#[derive(Clone, Serialize, Deserialize)]
+pub struct GroupMetadata {
+    pub owner: String, // custom_url of owner paste
+}
+
+#[derive(PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
+pub struct UserState {
+    // selectors
+    pub username: String,
+    pub id_hashed: String, // users use their UNHASHED id to login, it is used as their session id too!
+    //                        the hashed id is the only id that should ever be public!
+    // dates
+    pub timestamp: u128,
+}
+
+#[derive(PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
 pub struct Log {
     // selectors
     pub id: String,
@@ -71,36 +92,168 @@ impl BundlesDB {
         // ...
 
         // create tables
-        let c = &mut self.db.client;
+        let c = &self.db.client;
 
-        c.execute(sqlx::query(
+        let _ = sqlx::query(
             "CREATE TABLE IF NOT EXISTS \"Pastes\" (
                 custom_url TEXT NOT NULL,
                 id TEXT NOT NULL,
                 edit_password TEXT NOT NULL,
-                pub_date int,
-                edit_date int,
+                pub_date TEXT NOT NULL,
+                edit_date TEXT NOT NULL,
                 content TEXT NOT NULL,
-                metadata TEXT NOT NULL,
-            )",
-        ));
-
-        c.execute(sqlx::query(
-            "CREATE TABLE IF NOT EXISTS \"Groups\" (
-                name TEXT NOT NULL,
-                submit_password TEXT NOT NUL,,
                 metadata TEXT NOT NULL
             )",
-        ));
+        )
+        .execute(c)
+        .await;
 
-        c.execute(sqlx::query(
+        let _ = sqlx::query(
+            "CREATE TABLE IF NOT EXISTS \"Groups\" (
+                name TEXT NOT NULL,
+                submit_password TEXT NOT NULL,
+                metadata TEXT NOT NULL
+            )",
+        )
+        .execute(c)
+        .await;
+
+        let _ = sqlx::query(
+            "CREATE TABLE IF NOT EXISTS \"Users\" (
+                username TEXT NOT NULL,
+                id_hashed TEXT NOT NULL,
+                timestamp TEXT NOT NULL
+            )",
+        )
+        .execute(c)
+        .await;
+
+        let _ = sqlx::query(
             "CREATE TABLE IF NOT EXISTS \"Logs\" (
                 id TEXT NOT NULL,
                 logtype TEXT NOT NULL,
-                timestamp float,
+                timestamp  TEXT NOT NULL,
                 content TEXT NOT NULL
             )",
-        ));
+        )
+        .execute(c)
+        .await;
+    }
+
+    // users
+
+    // GET
+    pub async fn get_user_by_hashed(&self, hashed: String) -> DefaultReturn<Option<UserState>> {
+        let query: &str = if self.db._type == "sqlite" {
+            "SELECT * FROM \"Users\" WHERE \"id_hashed\" = ?"
+        } else {
+            "SELECT * FROM \"Users\" WHERE \"id_hashed\" = $1"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query).bind(&hashed).fetch_one(c).await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("User does not exist"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let row = res.unwrap();
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("User exists"),
+            payload: Option::Some(UserState {
+                username: row.get("username"),
+                id_hashed: row.get("id_hashed"),
+                timestamp: row.get::<String, _>("timestamp").parse::<u128>().unwrap(),
+            }),
+        };
+    }
+
+    pub async fn get_user_by_username(&self, username: String) -> DefaultReturn<Option<UserState>> {
+        let query: &str = if self.db._type == "sqlite" {
+            "SELECT * FROM \"Users\" WHERE \"username\" = ?"
+        } else {
+            "SELECT * FROM \"Users\" WHERE \"username\" = $1"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query).bind(&username).fetch_one(c).await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("User does not exist"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let row = res.unwrap();
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("User exists"),
+            payload: Option::Some(UserState {
+                username: row.get("username"),
+                id_hashed: row.get("id_hashed"),
+                timestamp: row.get::<String, _>("timestamp").parse::<u128>().unwrap(),
+            }),
+        };
+    }
+
+    // SET
+    pub async fn create_user(&self, username: String) -> DefaultReturn<Option<String>> {
+        // make sure user doesn't already exists
+        let existing = &self.get_user_by_username(username.clone()).await;
+        if existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("User already exists!"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let query: &str = if self.db._type == "sqlite" {
+            "INSERT INTO \"Users\" VALUES (?, ?, ?)"
+        } else {
+            "INSERT INTO \"Users\" VALUES ($1, $2, $3)"
+        };
+
+        let user_id_unhashed: String = utility::uuid();
+        let user_id_hashed: String = utility::hash(user_id_unhashed.clone());
+        let timestamp = utility::unix_epoch_timestamp().to_string();
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind(username)
+            .bind(&user_id_hashed)
+            .bind(&timestamp)
+            .execute(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to create user"),
+                payload: Option::None,
+            };
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: user_id_unhashed,
+            payload: Option::Some(user_id_hashed),
+        };
     }
 
     // logs
@@ -179,6 +332,47 @@ impl BundlesDB {
         };
     }
 
+    pub async fn edit_log(&self, id: String, content: String) -> DefaultReturn<Option<String>> {
+        // make sure log exists
+        let existing = &self.get_log_by_id(id.clone()).await;
+        if !existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Log does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // update log
+        let query: &str = if self.db._type == "sqlite" {
+            "UPDATE \"Logs\" SET (\"content\") = (?) WHERE \"id\" = ?"
+        } else {
+            "UPDATE \"Logs\" SET (\"content\") = ($1) WHERE \"id\" = $2"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind(&content)
+            .bind(&id)
+            .fetch_one(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to update log"),
+                payload: Option::None,
+            };
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Log updated!"),
+            payload: Option::Some(id),
+        };
+    }
+
     // pastes
 
     // GET
@@ -221,11 +415,8 @@ impl BundlesDB {
     }
 
     // SET
-    pub async fn create_paste(
-        &self,
-        props: Paste<json::object::Object>,
-    ) -> DefaultReturn<Option<String>> {
-        let p: &Paste<json::object::Object> = &props; // borrowed props
+    pub async fn create_paste(&self, props: Paste<PasteMetadata>) -> DefaultReturn<Option<String>> {
+        let p: &Paste<PasteMetadata> = &props; // borrowed props
 
         // make sure paste does not exist
         let existing: DefaultReturn<Option<Paste<String>>> =
@@ -234,9 +425,38 @@ impl BundlesDB {
         if existing.success {
             return DefaultReturn {
                 success: false,
-                message: String::from("Paste does not exist!"),
+                message: String::from("Paste already exists!"),
                 payload: Option::None,
             };
+        }
+
+        // if we're trying to create a paste in a group, make sure the group exists
+        // (create it if it doesn't)
+        if !props.group_name.is_empty() {
+            let n = &props.group_name;
+            let p = &props.edit_password;
+            let o = &props.custom_url;
+            let existing_group = self.get_group_by_name(n.to_string()).await;
+
+            if !existing_group.success {
+                let res = self
+                    .create_group(Group {
+                        name: n.to_string(),
+                        submit_password: p.to_string(), // groups will have the same password as their first paste
+                        metadata: GroupMetadata {
+                            owner: o.to_string(),
+                        },
+                    })
+                    .await;
+
+                if !res.success {
+                    return DefaultReturn {
+                        success: false,
+                        message: String::from("Failed to create group!"),
+                        payload: Option::None,
+                    };
+                }
+            }
         }
 
         // create paste
@@ -247,7 +467,7 @@ impl BundlesDB {
         };
 
         let c: &sqlx::Pool<sqlx::Any> = &self.db.client;
-        let p: &mut Paste<json::object::Object> = &mut props.clone();
+        let p: &mut Paste<PasteMetadata> = &mut props.clone();
         p.id = utility::random_id();
 
         c.execute(
@@ -258,7 +478,7 @@ impl BundlesDB {
                 .bind(&p.pub_date.to_string())
                 .bind(&p.edit_date.to_string())
                 .bind(&p.content)
-                .bind(p.metadata.dump()),
+                .bind(serde_json::to_string(&p.metadata).unwrap()),
         );
 
         // return
@@ -266,6 +486,51 @@ impl BundlesDB {
             success: true,
             message: String::from("Paste created"),
             payload: Option::Some(p.id.to_string()),
+        };
+    }
+
+    pub async fn edit_paste_by_url(
+        &self,
+        url: String,
+        content: String,
+    ) -> DefaultReturn<Option<String>> {
+        // make sure log exists
+        let existing = &self.get_paste_by_url(url.clone()).await;
+        if !existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Paste does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // update log
+        let query: &str = if self.db._type == "sqlite" {
+            "UPDATE \"Pastes\" SET (\"content\") = (?) WHERE \"custom_url\" = ?"
+        } else {
+            "UPDATE \"Pastes\" SET (\"content\") = ($1) WHERE \"custom_url\" = $2"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind(&content)
+            .bind(&url)
+            .fetch_one(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to update paste"),
+                payload: Option::None,
+            };
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Paste updated!"),
+            payload: Option::Some(url),
         };
     }
 
@@ -306,11 +571,8 @@ impl BundlesDB {
     }
 
     // SET
-    pub async fn create_group(
-        &self,
-        props: Group<json::object::Object>,
-    ) -> DefaultReturn<Option<String>> {
-        let p: &Group<json::object::Object> = &props; // borrowed props
+    pub async fn create_group(&self, props: Group<GroupMetadata>) -> DefaultReturn<Option<String>> {
+        let p: &Group<GroupMetadata> = &props; // borrowed props
 
         // make sure group does not exist
         let existing: DefaultReturn<Option<Group<String>>> =
@@ -319,7 +581,7 @@ impl BundlesDB {
         if existing.success {
             return DefaultReturn {
                 success: false,
-                message: String::from("Group does not exist!"),
+                message: String::from("Group already exists!"),
                 payload: Option::None,
             };
         }
@@ -332,13 +594,13 @@ impl BundlesDB {
         };
 
         let c: &sqlx::Pool<sqlx::Any> = &self.db.client;
-        let p: &mut Group<json::object::Object> = &mut props.clone();
+        let p: &mut Group<GroupMetadata> = &mut props.clone();
 
         c.execute(
             sqlx::query(query)
                 .bind(&p.name)
                 .bind(&p.submit_password)
-                .bind(p.metadata.dump()),
+                .bind(serde_json::to_string(&p.metadata).unwrap()),
         );
 
         // return
@@ -368,18 +630,7 @@ pub fn create_dummy(mut custom_url: Option<&str>) -> DefaultReturn<Option<Paste<
             pub_date: utility::unix_epoch_timestamp(),
             edit_date: utility::unix_epoch_timestamp(),
             // ...
-            content: format!(
-                "SentryTwo staff can be identified by the e\"[ class chip+badge ]\"staffe\"[ close class ]\" badge in the social section of the options modal of their paste (on the right when viewing their paste!). Anybody you see claiming to be staff without this badge should be immediately reported.
-
-                Staff can be contacted for help with URL issues.
-                
-                ***
-                
-                - **Contact** on the [discord](https://discord.gg/sntry), or email [feedback@sentrytwo.com](mailto:feedback@sentrytwo.com)
-                - **Socials**:
-                    - [Discord](https://discord.gg/sntry)
-                    - [Twitter (X)](https://x.com/sentrytwo)"
-            ),
+            content: "dummy paste".to_string(),
             metadata: "".to_string(),
         }),
     };

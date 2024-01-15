@@ -1,6 +1,5 @@
 use actix_files as fs;
-use actix_web::HttpResponse;
-use actix_web::{web, App, HttpServer};
+use actix_web::{web, App, HttpResponse, HttpServer};
 
 use sqlx;
 use yew::ServerRenderer;
@@ -9,6 +8,7 @@ mod config;
 mod db;
 mod utility;
 
+mod api;
 mod components;
 mod pages;
 
@@ -86,8 +86,17 @@ async fn main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(AppData { db: db.clone() }))
+            // middleware
+            .wrap(actix_web::middleware::Logger::default())
             // static dir
             .service(fs::Files::new("/static", "./static").show_files_listing())
+            // POST api
+            .service(crate::api::pastes::render_request)
+            .service(crate::api::auth::register)
+            .service(crate::api::auth::login)
+            // GET dashboard
+            .service(crate::pages::auth::register_request)
+            .service(crate::pages::auth::login_request)
             // GET root
             .service(crate::pages::home::home_request)
             .service(crate::pages::paste_view::paste_view_request) // must be run last as it matches all other paths!

@@ -26,7 +26,7 @@ pub async fn create_db(options: DatabaseOpts) -> Database {
     // create client
     if _type.unwrap() == "sqlite" {
         // sqlite
-        let client = sqlx::AnyPool::connect("sqlite::memory:").await;
+        let client = sqlx::AnyPool::connect("sqlite://test.db").await;
 
         if client.is_err() {
             panic!("Failed to connect to database!");

@@ -13,9 +13,177 @@
     min-height: 15rem;
 }
 
+.tabbar button:not(.full-normal), .tabbar .button:not(.full-normal) {
+    border-radius: var(--u-02) var(--u-02) 0 0;
+}
+
 @media screen and (max-width: 900px) {
     .tab-container {
         max-height: 65vh;
         padding: 1rem;
     }
+}
+
+.-editor:not(.active) {
+    display: none;
+}
+
+/* colors */
+:root {
+    /* default colors (light) */
+    --base-hue: 0;
+    --base-sat: 0%;
+    --base-lit: 92%;
+
+    --mod: -;
+    --diff: 9%;
+
+    /* main colors */
+    --primary: hsl(0, 100%, 80%);
+    --primary-low: hsl(0, 100%, 76%);
+
+    --secondary: hsl(41, 100%, 62%);
+    --secondary-low: hsl(41, 100%, 58%);
+}
+
+.dark-theme {
+    /* default colors (dark) */
+    --base-hue: 0;
+    --base-sat: 0%;
+    --base-lit: 15%;
+
+    --mod: +;
+    --diff: 0%;
+}
+
+*.round {
+    border-radius: var(--u-02) !important;
+}
+
+/* svg */
+svg {
+    fill: transparent;
+    stroke: currentColor;
+}
+
+/* button modifications */
+button,
+.button {
+    padding: var(--u-02) var(--u-08);
+    height: 35px !important;
+    user-select: none;
+}
+
+button.bundles-primary,
+.button.bundles-primary {
+    background: var(--primary);
+    color: black;
+}
+
+button.bundles-primary:hover,
+.button.bundles-primary:hover {
+    background: var(--primary-low);
+}
+
+button.bundles-secondary,
+.button.bundles-secondary {
+    background: var(--secondary);
+    color: white;
+}
+
+button.bundles-secondary:hover,
+.button.bundles-secondary:hover {
+    background: var(--secondary-low);
+}
+
+/* details */
+details summary {
+    background: transparent;
+    border: solid 1px var(--background-surface2a);
+    border-radius: var(--u-02) !important;
+}
+
+details summary svg {
+    transition: transform 0.15s;
+}
+
+details[open] summary svg {
+    transform: rotate(90deg);
+}
+
+details[open] summary {
+    background: var(--background-surface1);
+    box-shadow: none;
+    margin-bottom: 0 !important;
+    border-radius: var(--u-02) var(--u-02) 0 0 !important;
+}
+
+details summary + .content {
+    display: none;
+}
+
+details[open] summary + .content {
+    border: solid 1px var(--background-surface2a);
+    border-top: none;
+    padding: var(--u-08);
+    border-radius: 0 0 var(--u-02) var(--u-02);
+    display: block;
+}
+
+/* hr */
+hr {
+    border-color: var(--background-surface2a) !important;
+}
+
+/* input */
+input,
+textarea,
+select {
+    background: var(--background-surface) !important;
+    border: solid 1px var(--background-surface2a);
+}
+
+input.round,
+textarea.round,
+select.round {
+    border-radius: var(--u-02) !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+    background: var(--background-surface0-5) !important;
+}
+
+/* notes */
+.mdnote {
+    border-radius: var(--u-02) !important;
+}
+
+/* chips */
+.chip.mention {
+    border-radius: var(--u-02);
+    background: var(--background-surface2a);
+    border: solid 1px var(--background-surface2);
+    color: var(--text-color);
+}
+
+/* message */
+.message .message-content-body p:not(.mdnote p):not(.builder\:text) {
+    margin-bottom: 0;
+}
+
+.message .message-content-body pre .copy-button svg {
+    stroke: none;
+    fill: currentColor;
+}
+
+/* context menu */
+.context-menu .flex.flex-column.g-4 hr {
+    margin: 0 !important;
+}
+
+/* utility */
+.position\:relative {
+    position: relative;
 }

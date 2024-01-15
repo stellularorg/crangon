@@ -147,7 +147,7 @@ pub fn parse_markdown(input: &String) -> String {
         out = regex_replace_one(
             &out,
             capture.get(0).unwrap().as_str(),
-            format!("<h{heading_type} id=\"{heading_id}\">{content}</h{heading_type}>").as_str(),
+            format!("<h{heading_type} id=\"{heading_id}\">{content}</h{heading_type}>\n").as_str(),
         )
     }
 
@@ -161,25 +161,82 @@ pub fn parse_markdown(input: &String) -> String {
     );
 
     // horizontal rule
-    out = out.replace("(*{3,})", "<hr />");
-    regex_replace_exp(
-        &out,
-        RegexBuilder::new("^\\-{3}\\s*$").multi_line(true),
-        "\n<hr />\n",
-    );
+    out = regex_replace(&out, "^\\*{3,}", "\n<hr />\n");
+    out = regex_replace(&out, "^\\-{3,}", "\n<hr />\n");
+    out = regex_replace(&out, "^\\_{3,}", "\n<hr />\n");
 
-    regex_replace_exp(
-        &out,
-        RegexBuilder::new("^\\_{3}\\s*$").multi_line(true),
-        "\n<hr />\n",
-    );
+    // list
+    // lists **need** to know what's on the next and previous lines to know if they need to open or close,
+    // this means we need to iterate through lines for lists and make sure they start with "-" (trimmed)
+    // lists are the only thing matched by this parser that don't use regex
+    let cl = out.clone();
+    let out_lines: Vec<String> = cl.split("\n").map(|s| s.to_string()).collect();
+
+    for (i, line) in out_lines.iter().enumerate() {
+        if !line.trim().starts_with("-") | line.trim().starts_with("->") {
+            continue;
+        }
+
+        let mut split: Vec<&str> = line.split("-").collect::<Vec<&str>>();
+        let level = split.get(0).unwrap().len() / 4;
+
+        // ...
+        let previous: Option<&String> = if i > 0 {
+            let l = out_lines.get(i - 1);
+            let l_spl = if l.is_some() {
+                l.unwrap().split("-").collect::<Vec<&str>>()
+            } else {
+                Vec::new()
+            };
+
+            if l.is_some() && l_spl.get(1).is_some() {
+                l
+            } else {
+                Option::None
+            }
+        } else {
+            Option::None
+        };
+
+        let next: Option<&String> = if i < out_lines.len() {
+            let l = out_lines.get(i + 1);
+            let l_spl = if l.is_some() {
+                l.unwrap().split("-").collect::<Vec<&str>>()
+            } else {
+                Vec::new()
+            };
+
+            if l.is_some() && l_spl.get(1).is_some() {
+                l
+            } else {
+                Option::None
+            }
+        } else {
+            Option::None
+        };
+
+        // ...
+        split.remove(0); // remove everything before the first "-"
+        let result: String = format!(
+            "{}<li style=\"margin-left: {}px;\">{}</li>{}",
+            // if previous doesn't exist, this is the start of the list
+            if previous.is_none() { "<ul>" } else { "" },
+            // ...
+            level * 40,
+            split.join("-"), // join split back
+            // if next doesn't exist, this is the end of the list
+            if next.is_none() { "</ul>\n" } else { "" }
+        );
+
+        // ...
+        out = out.replace(line, &result);
+    }
 
     // special custom element syntax (rs)
-    let custom_element_regex =
-        RegexBuilder::new("(e\")\\[\\s(?<NAME>.*?)\\s(?<ATRS>.*?)(\\s\\])\"")
-            .multi_line(true)
-            .build()
-            .unwrap();
+    let custom_element_regex = RegexBuilder::new("(e\\#)(?<NAME>.*?)\\s(?<ATRS>.*?)\\#")
+        .multi_line(true)
+        .build()
+        .unwrap();
 
     for capture in custom_element_regex.captures_iter(&out.clone()) {
         let name = capture.name("NAME").unwrap().as_str();
@@ -245,7 +302,9 @@ pub fn parse_markdown(input: &String) -> String {
     // text color thing
     out = regex_replace_exp(
         &out,
-        RegexBuilder::new("\\%(?<COLOR>.*?)\\%\\s*(?<CONTENT>.*?)\\s*(\\%\\%)").multi_line(true),
+        RegexBuilder::new("\\%(?<COLOR>.*?)\\%\\s*(?<CONTENT>.*?)\\s*(\\%\\%)")
+            .multi_line(true)
+            .dot_matches_new_line(true),
         "<span style=\"color: $1;\" role=\"custom-color\">$2</span>",
     );
 
@@ -270,14 +329,14 @@ pub fn parse_markdown(input: &String) -> String {
         "<div class=\"mdnote note-$2\">
             <b class=\"mdnote-title\">$3</b>
             <p>$4</p>
-        </div>",
+        </div>\n",
     );
 
     out = regex_replace(
         // title only
         &out,
         "^(\\!{3})\\s(?<TYPE>.*?)\\s(?<TITLE>.*?)$",
-        "<div class=\"mdnote note-$2\"><b class=\"mdnote-title\">$3</b></div>",
+        "<div class=\"mdnote note-$2\"><b class=\"mdnote-title\">$3</b></div>\n",
     );
 
     // highlight
@@ -327,7 +386,7 @@ pub fn parse_markdown(input: &String) -> String {
 
         out = out.replace(
             _match,
-            &format!("<rf style=\"justify-content: {align}\">{content}</rf>"),
+            &format!("<rf style=\"justify-content: {align}\">{content}</rf>\n"),
         );
     }
 
@@ -350,16 +409,26 @@ pub fn parse_markdown(input: &String) -> String {
 
         out = out.replace(
             _match,
-            &format!("<r style=\"text-align: {align}\">{content}</r>"),
+            &format!("<r style=\"text-align: {align}\">{content}</r>\n"),
         );
     }
 
     // image with sizing
-    out = regex_replace(
-        &out,
-        "(!)\\[(.*?)\\]\\((.*?)\\)\\:\\{(.*?)x(.*?)\\}",
-        "<img alt=\"$2\" title=\"$2\" src=\"$3\" style=\"width: $4px; height: $5px\" />",
-    );
+    let image_sizing_regex = RegexBuilder::new("(!)\\[(.*?)\\]\\((.*?)\\)\\:\\{(.*?)x(.*?)\\}")
+        .multi_line(true)
+        .build()
+        .unwrap();
+
+    for capture in image_sizing_regex.captures_iter(&out.clone()) {
+        let title = capture.get(2).unwrap().as_str();
+        let src = capture.get(3).unwrap().as_str();
+
+        let width = capture.get(4).unwrap().as_str();
+        let height = capture.get(5).unwrap().as_str();
+
+        let result = &format!("<img alt=\"{title}\" title=\"{title}\" src=\"{src}\" style=\"width: {width}px; height: {height}px;\" />");
+        out = out.replace(capture.get(0).unwrap().as_str(), result);
+    }
 
     // normal image
     out = regex_replace(
@@ -371,8 +440,8 @@ pub fn parse_markdown(input: &String) -> String {
     // anchor (auto)
     out = regex_replace(
         &out,
-        "[^\"](https\\:\\/\\/)(.*?)\\s",
-        "<a href=\"https://$2\">https://$2</a>",
+        "([^\"\\(]|^)(https\\:\\/\\/)(.*?)\\s",
+        "<a href=\"https://$3\">https://$3</a>",
     );
 
     // anchor (attributes)
@@ -386,7 +455,7 @@ pub fn parse_markdown(input: &String) -> String {
     out = regex_replace(
         &out,
         "\\[(?<TEXT>.*?)\\]\\((?<URL>.*?)\\)",
-        "<a href=\"$1\">$1</a>",
+        "<a href=\"$2\">$1</a>",
     );
 
     // bath time
@@ -401,15 +470,16 @@ pub fn parse_markdown(input: &String) -> String {
     // auto paragraph
     out = regex_replace_exp(
         &out,
-        RegexBuilder::new("^(.*?)\\n{2,}")
+        RegexBuilder::new("^(.*?)\\s*(\\n{2,})")
             .multi_line(true)
             .dot_matches_new_line(true),
         "<p>\n$1\n</p>",
     );
 
+    // auto line break
     out = regex_replace_exp(
         &out,
-        RegexBuilder::new("(\\w|\\s|>)\\s*\\n")
+        RegexBuilder::new("([^\\d]|\\s|>)\\s*\\n")
             .multi_line(true)
             .dot_matches_new_line(true),
         "$1<br />",

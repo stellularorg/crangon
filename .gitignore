@@ -1,3 +1,8 @@
 /target
 /static/css
 Cargo.lock
+*.db
+
+# js
+node_modules/
+/static/js

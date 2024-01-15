@@ -6,6 +6,12 @@ use uuid::Uuid;
 
 // ids
 #[allow(dead_code)]
+pub fn uuid() -> String {
+    let uuid = Uuid::new_v4();
+    return uuid.to_string();
+}
+
+#[allow(dead_code)]
 pub fn hash(input: String) -> String {
     let mut hasher = <Sha256 as Digest>::new();
     hasher.update(input.into_bytes());
@@ -16,8 +22,7 @@ pub fn hash(input: String) -> String {
 
 #[allow(dead_code)]
 pub fn random_id() -> String {
-    let uuid = Uuid::new_v4();
-    return hash(uuid.to_string());
+    return hash(uuid());
 }
 
 pub fn unix_epoch_timestamp() -> u128 {

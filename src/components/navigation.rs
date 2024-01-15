@@ -61,7 +61,99 @@ pub fn Footer() -> Html {
                 }
             </style>
 
-            // <ThemeButton>
+            // theme
+            <div style="position: relative; width: 100%;">
+                <div style="position: absolute; bottom: 8px; right: 0;">
+                    <a
+                        id="ThemeButton"
+                        href="javascript:ToggleTheme()"
+                        title="Toggle Theme"
+                        style="color: var(--text-color-faded);"
+                    >
+                        <div id="theme-icon-sun">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+                        </div>
+
+                        <div id="theme-icon-moon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-moon"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <script>
+                {"window.SunIcon = document.getElementById(\"theme-icon-sun\");
+                window.MoonIcon = document.getElementById(\"theme-icon-moon\");
+                function ToggleTheme() {
+                    if (
+                        window.PASTE_USES_CUSTOM_THEME && 
+                        window.localStorage.getItem(\"bundles:user.ForceClientTheme\") !== \"true\"
+                    ) return;
+                    
+                    const current = window.localStorage.getItem(\"theme\");
+
+                    if (current === \"dark\") {
+                        /* set light */
+                        document.documentElement.classList.remove(\"dark-theme\");
+                        window.localStorage.setItem(\"theme\", \"light\");
+                        
+                        window.SunIcon.style.display = \"block\";
+                        window.MoonIcon.style.display = \"none\";
+                    } else {
+                        /* set dark */
+                        document.documentElement.classList.add(\"dark-theme\");
+                        window.localStorage.setItem(\"theme\", \"dark\");
+
+                        window.SunIcon.style.display = \"none\";
+                        window.MoonIcon.style.display = \"block\";
+                    }
+                }
+                
+                /* prefer theme */
+                if (
+                    window.matchMedia(\"(prefers-color-scheme: dark)\").matches && 
+                    !window.localStorage.getItem(\"theme\")
+                ) {
+                    document.documentElement.classList.add(\"dark-theme\");
+                    window.localStorage.setItem(\"theme\", \"dark\");
+                    window.SunIcon.style.display = \"none\";
+                    window.MoonIcon.style.display = \"block\";
+                } else if (
+                    window.matchMedia(\"(prefers-color-scheme: light)\").matches && 
+                    !window.localStorage.getItem(\"theme\")
+                ) {
+                    document.documentElement.classList.remove(\"dark-theme\");
+                    window.localStorage.setItem(\"theme\", \"light\");
+                    window.SunIcon.style.display = \"block\";
+                    window.MoonIcon.style.display = \"none\";
+                }
+                
+                /* restore theme */
+                else if (window.localStorage.getItem(\"theme\")) {
+                    const current = window.localStorage.getItem(\"theme\");
+                    document.documentElement.className = `${current}-theme`;
+                    
+                    if (current.includes(\"dark\")) {
+                        /* sun icon */
+                        window.SunIcon.style.display = \"none\";
+                        window.MoonIcon.style.display = \"block\";
+                    } else {
+                        /* moon icon */
+                        window.SunIcon.style.display = \"block\";
+                        window.MoonIcon.style.display = \"none\";
+                    }
+                }
+                
+                /* global css string */
+                if (
+                    !window.PASTE_USES_CUSTOM_THEME || 
+                    window.localStorage.getItem(\"bundles:user.ForceClientTheme\") === \"true\"
+                ) {
+                    const style = document.createElement(\"style\");
+                    style.innerHTML = window.localStorage.getItem(\"bundles:user.GlobalCSSString\");
+                    document.body.appendChild(style);
+                }"}
+            </script>
         </div>
     };
 }

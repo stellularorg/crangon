@@ -11,3 +11,4 @@ rm -r package
 rm ./fusion.tgz
 
 cd ../
+bun run static_build.ts
