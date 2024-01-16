@@ -18,7 +18,7 @@ pub struct DefaultReturn<T> {
 }
 
 // Paste and Group require the type of their metadata to be specified so it can be converted if needed
-#[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
 pub struct Paste<M> {
     // selectors
     pub custom_url: String,
@@ -34,7 +34,7 @@ pub struct Paste<M> {
     pub metadata: M, // JSON Object
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PasteMetadata {
     pub owner: String,
 }
@@ -98,6 +98,7 @@ impl BundlesDB {
             "CREATE TABLE IF NOT EXISTS \"Pastes\" (
                 custom_url TEXT NOT NULL,
                 id TEXT NOT NULL,
+                group_name TEXT NOT NULL,
                 edit_password TEXT NOT NULL,
                 pub_date TEXT NOT NULL,
                 edit_date TEXT NOT NULL,
@@ -217,6 +218,28 @@ impl BundlesDB {
             return DefaultReturn {
                 success: false,
                 message: String::from("User already exists!"),
+                payload: Option::None,
+            };
+        }
+
+        // check username
+        let regex = regex::RegexBuilder::new("^[\\w\\_\\-\\.\\!]+$")
+            .multi_line(true)
+            .build()
+            .unwrap();
+
+        if regex.captures(&username).iter().len() < 1 {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Username is invalid"),
+                payload: Option::None,
+            };
+        }
+
+        if (username.len() < 2) | (username.len() > 500) {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Username is invalid"),
                 payload: Option::None,
             };
         }
@@ -415,8 +438,11 @@ impl BundlesDB {
     }
 
     // SET
-    pub async fn create_paste(&self, props: Paste<PasteMetadata>) -> DefaultReturn<Option<String>> {
-        let p: &Paste<PasteMetadata> = &props; // borrowed props
+    pub async fn create_paste(
+        &self,
+        props: &mut Paste<PasteMetadata>,
+    ) -> DefaultReturn<Option<Paste<PasteMetadata>>> {
+        let p: &mut Paste<PasteMetadata> = props; // borrowed props
 
         // make sure paste does not exist
         let existing: DefaultReturn<Option<Paste<String>>> =
@@ -432,17 +458,18 @@ impl BundlesDB {
 
         // if we're trying to create a paste in a group, make sure the group exists
         // (create it if it doesn't)
-        if !props.group_name.is_empty() {
-            let n = &props.group_name;
-            let p = &props.edit_password;
-            let o = &props.custom_url;
+        if !p.group_name.is_empty() {
+            let n = &p.group_name;
+            let e = &p.edit_password;
+            let o = &p.custom_url;
+
             let existing_group = self.get_group_by_name(n.to_string()).await;
 
             if !existing_group.success {
                 let res = self
                     .create_group(Group {
                         name: n.to_string(),
-                        submit_password: p.to_string(), // groups will have the same password as their first paste
+                        submit_password: e.to_string(), // groups will have the same password as their first paste
                         metadata: GroupMetadata {
                             owner: o.to_string(),
                         },
@@ -457,35 +484,97 @@ impl BundlesDB {
                     };
                 }
             }
+
+            // append to custom_url
+            p.custom_url = format!("{}/{}", n, o);
+        }
+
+        // check values
+
+        // (check empty)
+        if p.custom_url.is_empty() {
+            p.custom_url = utility::random_id().chars().take(10).collect();
+        }
+
+        if p.edit_password.is_empty() {
+            p.edit_password = utility::random_id().chars().take(10).collect();
+        }
+
+        // (check length)
+        if (p.custom_url.len() < 2) | (p.custom_url.len() > 500) {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Custom URL is invalid"),
+                payload: Option::None,
+            };
+        }
+
+        // check content
+        if (p.content.len() < 1) | (p.content.len() > 400_000) {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Content is invalid"),
+                payload: Option::None,
+            };
+        }
+
+        // (characters used)
+        let regex = regex::RegexBuilder::new("^[\\w\\_\\-\\.\\!]+$")
+            .multi_line(true)
+            .build()
+            .unwrap();
+
+        if regex.captures(&p.custom_url).iter().len() < 1 {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Custom URL is invalid"),
+                payload: Option::None,
+            };
         }
 
         // create paste
         let query: &str = if self.db._type == "sqlite" {
-            "INSERT INTO \"Pastes\" VALUES (?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO \"Pastes\" VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
         } else {
-            "INSERT INTO \"Pastes\" VALUES ($1, $2, $3, $4, $5, $6, $7)"
+            "INSERT INTO \"Pastes\" VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
         };
 
         let c: &sqlx::Pool<sqlx::Any> = &self.db.client;
         let p: &mut Paste<PasteMetadata> = &mut props.clone();
         p.id = utility::random_id();
 
-        c.execute(
-            sqlx::query(query)
-                .bind(&p.custom_url)
-                .bind(&p.id)
-                .bind(&p.edit_password)
-                .bind(&p.pub_date.to_string())
-                .bind(&p.edit_date.to_string())
-                .bind(&p.content)
-                .bind(serde_json::to_string(&p.metadata).unwrap()),
-        );
+        let edit_password = &p.edit_password;
+        let edit_password_hash = utility::hash(edit_password.to_string());
+
+        let edit_date = &p.edit_date;
+        let pub_date = &p.pub_date;
+
+        let res = sqlx::query(query)
+            .bind(&p.custom_url)
+            .bind(&p.id)
+            .bind(&p.group_name)
+            .bind(&edit_password_hash)
+            .bind(pub_date.to_string())
+            .bind(edit_date.to_string())
+            .bind(&p.content)
+            .bind(serde_json::to_string(&p.metadata).unwrap())
+            .execute(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: res.err().unwrap().to_string(),
+                payload: Option::None,
+            };
+        }
 
         // return
+        let pass = &p.edit_password;
         return DefaultReturn {
             success: true,
-            message: String::from("Paste created"),
-            payload: Option::Some(p.id.to_string()),
+            message: pass.to_string(),
+            payload: Option::Some(p.to_owned()),
         };
     }
 
@@ -493,6 +582,9 @@ impl BundlesDB {
         &self,
         url: String,
         content: String,
+        edit_password: String,
+        new_url: Option<String>,
+        new_edit_password: Option<String>,
     ) -> DefaultReturn<Option<String>> {
         // make sure log exists
         let existing = &self.get_paste_by_url(url.clone()).await;
@@ -504,18 +596,48 @@ impl BundlesDB {
             };
         }
 
-        // update log
-        let query: &str = if self.db._type == "sqlite" {
-            "UPDATE \"Pastes\" SET (\"content\") = (?) WHERE \"custom_url\" = ?"
+        // verify password
+        let paste = &existing.payload.clone().unwrap();
+
+        if utility::hash(edit_password) != paste.edit_password {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Password invalid"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let edit_password_hash = if new_edit_password.is_some() {
+            utility::hash(new_edit_password.unwrap())
         } else {
-            "UPDATE \"Pastes\" SET (\"content\") = ($1) WHERE \"custom_url\" = $2"
+            // get old password
+            let edit_password = &paste.edit_password;
+            edit_password.to_owned()
+        };
+
+        let custom_url = if new_url.is_some() {
+            new_url.unwrap()
+        } else {
+            // get old custom url
+            let custom_url = &paste.custom_url;
+            custom_url.to_owned()
+        };
+
+        // update paste
+        let query: &str = if self.db._type == "sqlite" {
+            "UPDATE \"Pastes\" SET (\"content\", \"edit_password\", \"custom_url\") = (?, ?, ?) WHERE \"custom_url\" = ?"
+        } else {
+            "UPDATE \"Pastes\" SET (\"content\", \"edit_password\", \"custom_url\") = ($1, $2, $3) WHERE \"custom_url\" = $4"
         };
 
         let c = &self.db.client;
         let res = sqlx::query(query)
             .bind(&content)
+            .bind(&edit_password_hash)
+            .bind(&custom_url)
             .bind(&url)
-            .fetch_one(c)
+            .execute(c)
             .await;
 
         if res.is_err() {
@@ -530,6 +652,58 @@ impl BundlesDB {
         return DefaultReturn {
             success: true,
             message: String::from("Paste updated!"),
+            payload: Option::Some(custom_url),
+        };
+    }
+
+    pub async fn delete_paste_by_url(
+        &self,
+        url: String,
+        edit_password: String,
+    ) -> DefaultReturn<Option<String>> {
+        // make sure log exists
+        let existing = &self.get_paste_by_url(url.clone()).await;
+        if !existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Paste does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // verify password
+        let paste = &existing.payload.clone().unwrap();
+
+        if utility::hash(edit_password) != paste.edit_password {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Password invalid"),
+                payload: Option::None,
+            };
+        }
+
+        // delete paste
+        let query: &str = if self.db._type == "sqlite" {
+            "DELETE FROM \"Pastes\" WHERE \"custom_url\" = ?"
+        } else {
+            "DELETE FROM \"Pastes\" WHERE \"custom_url\" = $1"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query).bind(&url).execute(c).await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to delete paste"),
+                payload: Option::None,
+            };
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Paste deleted!"),
             payload: Option::Some(url),
         };
     }

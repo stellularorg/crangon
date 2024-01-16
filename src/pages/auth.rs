@@ -93,11 +93,11 @@ fn Login() -> Html {
 #[get("/d/auth/register")]
 pub async fn register_request() -> impl Responder {
     let renderer = ServerRenderer::<Register>::new();
-    return HttpResponse::Ok().body(format_html(renderer.render().await));
+    return HttpResponse::Ok().body(format_html(renderer.render().await, ""));
 }
 
 #[get("/d/auth/login")]
 pub async fn login_request() -> impl Responder {
     let renderer = ServerRenderer::<Login>::new();
-    return HttpResponse::Ok().body(format_html(renderer.render().await));
+    return HttpResponse::Ok().body(format_html(renderer.render().await, ""));
 }

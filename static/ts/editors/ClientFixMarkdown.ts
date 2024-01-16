@@ -11,6 +11,19 @@ import hljs from "highlight.js";
  * @export
  */
 export function HandleCustomElements() {
+    // handle SECRET
+    let p = new URLSearchParams(window.location.search);
+    if (p.get("SECRET")) {
+        const s = document.getElementById("secret");
+        if (!s) return;
+        s.innerHTML = `<div class="mdnote note-warn">
+            <b class="mdnote-title">Application Secret</b>
+            <p>Don't lose your edit password! <code>${p.get(
+                "SECRET"
+            )}</code></p>
+        </div>`;
+    }
+
     // handle style elements
     let style = "";
 
@@ -20,9 +33,15 @@ export function HandleCustomElements() {
 
     // ...theme customization
     if (CanSetCustomTheme) {
-        const hue = document.querySelector("#editor-tab-preview hue") as HTMLElement;
-        const sat = document.querySelector("#editor-tab-preview sat") as HTMLElement;
-        const lit = document.querySelector("#editor-tab-preview lit") as HTMLElement;
+        const hue = document.querySelector(
+            "#editor-tab-preview hue"
+        ) as HTMLElement;
+        const sat = document.querySelector(
+            "#editor-tab-preview sat"
+        ) as HTMLElement;
+        const lit = document.querySelector(
+            "#editor-tab-preview lit"
+        ) as HTMLElement;
 
         // ...
         if (hue) style += `--base-hue: ${hue.innerText};`;
@@ -74,7 +93,9 @@ export function HandleCustomElements() {
             image.src = "about:blank"; // this will force just the alt text to show
 
     // disable animations (if needed)
-    if (window.localStorage.getItem("bundles:user.DisableAnimations") === "true")
+    if (
+        window.localStorage.getItem("bundles:user.DisableAnimations") === "true"
+    )
         for (const element of document.querySelectorAll(
             ".anim"
         ) as any as HTMLElement[])
@@ -89,16 +110,23 @@ export function HandleCustomElements() {
         element.innerHTML = element.innerHTML.replaceAll("<br />", "\n"); // fix line breaks
         element.innerHTML = element.innerHTML.replaceAll(/\<(.*?)\>/g, ""); // remove html elements
         element.innerHTML = element.innerHTML.replaceAll(/-(.*?)\:/gm, "--$1:"); // fix variables
+        element.innerHTML = element.innerHTML.replaceAll(
+            /(\w)--(\w)(.*?)\:/gm,
+            "$1-$2$3:"
+        ); // fix property names with a hyphen in them
     }
 
     if (
-        window.localStorage.getItem("bundles:user.DisableCustomPasteCSS") === "true"
+        window.localStorage.getItem("bundles:user.DisableCustomPasteCSS") ===
+        "true"
     ) {
         for (const element of styleElements) element.remove();
 
         // disable custom-color
         for (const element of Array.from(
-            document.querySelectorAll('#editor-tab-preview [role="custom-color"]')
+            document.querySelectorAll(
+                '#editor-tab-preview [role="custom-color"]'
+            )
         ))
             (element as HTMLElement).style.color = "";
     }

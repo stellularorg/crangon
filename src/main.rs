@@ -91,9 +91,16 @@ async fn main() -> std::io::Result<()> {
             // static dir
             .service(fs::Files::new("/static", "./static").show_files_listing())
             // POST api
-            .service(crate::api::pastes::render_request)
+            // POST api::auth
             .service(crate::api::auth::register)
             .service(crate::api::auth::login)
+            // POST api::pastes
+            .service(crate::api::pastes::render_request)
+            .service(crate::api::pastes::create_request)
+            .service(crate::api::pastes::edit_request)
+            .service(crate::api::pastes::delete_request)
+            // GET api
+            .service(crate::api::pastes::exits_request)
             // GET dashboard
             .service(crate::pages::auth::register_request)
             .service(crate::pages::auth::login_request)
@@ -105,7 +112,7 @@ async fn main() -> std::io::Result<()> {
                 let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();
 
                 return HttpResponse::NotFound()
-                    .body(utility::format_html(renderer.render().await));
+                    .body(utility::format_html(renderer.render().await, ""));
             }))
     })
     .bind(("127.0.0.1", port))?

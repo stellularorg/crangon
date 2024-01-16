@@ -10,6 +10,7 @@ if (process.env.DO_NOT_CLEAR_DIST === undefined)
 const output = await build({
     entrypoints: [
         "./static/ts/editors/MarkdownEditor.ts",
+        "./static/ts/editors/ClientFixMarkdown.ts",
         "./static/ts/pages/AuthPages.ts",
     ],
     minify: {

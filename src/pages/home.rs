@@ -11,6 +11,7 @@ use crate::utility::format_html;
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 struct Props {
     pub editing: Option<String>,
+    pub starting_content: Option<String>,
 }
 
 #[function_component]
@@ -37,40 +38,95 @@ fn Home(props: &Props) -> Html {
                     <div id="editor-tab-preview" class="editor-tab -editor" />
                 </div>
 
-                <form class="flex flex-wrap mobile:justify-center justify-space-between g-4 align-center" action="/api/new" id="save-changes" data-edit={if props.editing.is_some() { "true" } else { "false" }}>
-                    <div class="mobile:justify-center flex g-4 justify-start">
-                        <button class="round">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                            {"Publish"}
-                        </button>
-                    </div>
+                <form class="flex flex-wrap mobile:justify-center justify-space-between g-4 align-center" action="/api/new" id="save-changes" data-edit={if props.editing.is_some() { props.editing.as_ref().unwrap().to_owned() } else { "false".to_string() }}>
+                    if props.editing.is_none() {
+                        <div class="mobile:justify-center flex g-4 justify-start">
+                            <button class="round">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                {"Publish"}
+                            </button>
+                        </div>
 
-                    <div class="mobile:justify-center flex-wrap flex g-4 justify-start">
-                        <input
-                            class="secondary round"
-                            type="text"
-                            placeholder="Custom URL"
-                            minlength="2"
-                            maxlength="500"
-                            name="custom_url"
-                            autocomplete="off"
-                        />
+                        <div class="mobile:justify-center flex-wrap flex g-4 justify-start">
+                            <input
+                                class="secondary round"
+                                type="text"
+                                placeholder="Custom URL"
+                                minlength="2"
+                                maxlength="500"
+                                name="custom_url"
+                                id="custom_url"
+                                autocomplete="off"
+                            />
 
-                        <input
-                            class="secondary round"
-                            type="text"
-                            placeholder="Edit Password"
-                            minlength="5"
-                            name="edit_password"
-                        />
-                    </div>
+                            <input
+                                class="secondary round"
+                                type="text"
+                                placeholder="Edit Password"
+                                minlength="5"
+                                name="edit_password"
+                            />
+                        </div>
+                    } else {
+                        <div class="mobile:justify-center flex g-4 justify-start full mobile:flex-column">
+                            <input
+                                class="secondary round full"
+                                type="text"
+                                placeholder="Edit Password"
+                                minlength="5"
+                                name="edit_password"
+                            />
+
+                            <input
+                                class="secondary round full"
+                                type="text"
+                                placeholder="New Edit Password (optional)"
+                                minlength="5"
+                                name="new_edit_password"
+                            />
+
+                            <input
+                                class="secondary round full"
+                                type="text"
+                                placeholder="New Custom URL (optional)"
+                                minlength="2"
+                                maxlength="500"
+                                name="new_custom_url"
+                                id="new_custom_url"
+                                autocomplete="off"
+                            />
+                        </div>
+
+                        <div  class="flex g-4 justify-space-between full">
+                            <div class="flex g-4 justify-start">
+                                <button class="green round">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                    {"Save"}
+                                </button>
+
+                                <a href="/" class="button round">{"Cancel"}</a>
+                            </div>
+
+                            <a href="javascript:" id="delete-btn" class="button round red">{"Delete"}</a>
+                        </div>
+                    }
+
                 </form>
 
                 <script type="module">
-                    {"import CreateEditor from \"/static/js/MarkdownEditor.js\"; CreateEditor(\"editor-tab-text\", ``);"}
+                    {format!(
+                        "import CreateEditor from \"/static/js/MarkdownEditor.js\"; CreateEditor(\"editor-tab-text\", `{}`);",
+                        if props.starting_content.is_some() {
+                            props.starting_content.as_ref().unwrap()
+                        } else {
+                            ""
+                        }
+                    )}
                 </script>
 
-                <Footer />
+                <div style={if props.editing.is_none() { "display: block;" } else { "display: none;" }}>
+                    <Footer />
+                </div>
             </main>
         </div>
     };
@@ -105,9 +161,25 @@ pub async fn home_request(
     let str = &info.editing;
     let renderer = build_renderer_with_props(Props {
         editing: str.to_owned(),
+        starting_content: if str.is_some() {
+            let paste = data.db.get_paste_by_url(str.to_owned().unwrap()).await;
+
+            if paste.success {
+                Option::Some(paste.payload.unwrap().content)
+            } else {
+                Option::None
+            }
+        } else {
+            Option::None
+        },
     });
 
     return HttpResponse::Ok()
         .append_header(("Set-Cookie", set_cookie))
-        .body(format_html(renderer.render().await));
+        .body(format_html(
+            renderer.render().await,
+            "<title>Bundlrs</title>
+<meta property=\"og:title\" content=\"Create a new paste...\" />
+<meta property=\"og:description\" content=\"Bundlrs, the open-source Rust rewrite of Bundles.\" />",
+        ));
 }

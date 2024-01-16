@@ -35,14 +35,18 @@ pub fn unix_epoch_timestamp() -> u128 {
 }
 
 // html
-pub fn format_html(input: String) -> String {
+pub fn format_html(input: String, head: &str) -> String {
     return format!(
         "<!DOCTYPE html>
 <html lang=\"en\">
     <head>
         <meta charset=\"UTF-8\" />
         <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />
-        <title>Document</title>
+        
+        <meta name=\"theme-color\" content=\"#ff9999\" />
+        <meta property=\"og:type\" content=\"website\" />
+        <meta property=\"og:site_name\" content=\"bundlrs\" />
+        {head}
 
         <link rel=\"stylesheet\" href=\"/static/style.css\" />
     </head>

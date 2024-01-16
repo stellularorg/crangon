@@ -681,4 +681,88 @@ const submit_form: HTMLFormElement = document.getElementById(
 
 if (submit_form.getAttribute("data-edit") === "false") {
     // create paste
+    submit_form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const res = await fetch("/api/new", {
+            method: "POST",
+            body: JSON.stringify({
+                custom_url: submit_form.custom_url.value,
+                edit_password: submit_form.edit_password.value,
+                content: (window as any).EditorContent,
+            }),
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        const json = await res.json();
+
+        if (json.success === false) {
+            return alert(json.message);
+        } else {
+            window.location.href = `/${json.payload.custom_url}?SECRET=${json.message}`; // message holds the unhashed edit password
+        }
+    });
+} else {
+    // edit paste
+    submit_form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const res = await fetch("/api/edit", {
+            method: "POST",
+            body: JSON.stringify({
+                custom_url: submit_form.getAttribute("data-edit"),
+                edit_password: submit_form.edit_password.value,
+                content: (window as any).EditorContent,
+                new_url: submit_form.new_custom_url.value || undefined,
+                new_edit_password:
+                    submit_form.new_edit_password.value || undefined,
+            }),
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        const json = await res.json();
+
+        if (json.success === false) {
+            return alert(json.message);
+        } else {
+            window.location.href = `/${json.payload}`;
+        }
+    });
+
+    // handle delete
+    const delete_btn: HTMLAnchorElement = document.getElementById(
+        "delete-btn"
+    ) as HTMLAnchorElement;
+
+    delete_btn.addEventListener("click", async () => {
+        const _confirm = confirm(
+            "Are you sure you would like to do this? This URL will be available for anybody to claim."
+        );
+        if (!_confirm) return;
+        const edit_password = prompt(
+            "Please enter this paste's edit password:"
+        );
+        if (!edit_password) return;
+
+        const res = await fetch("/api/delete", {
+            method: "POST",
+            body: JSON.stringify({
+                custom_url: submit_form.getAttribute("data-edit"),
+                edit_password: edit_password,
+            }),
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        const json = await res.json();
+
+        if (json.success === false) {
+            return alert(json.message);
+        } else {
+            window.location.href = "/";
+        }
+    });
 }
