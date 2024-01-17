@@ -4,8 +4,6 @@ pub struct DatabaseOpts {
     pub user: String,
     pub pass: String,
     pub name: String,
-    // logging
-    pub log_types: Vec<String>,
 }
 
 // ...

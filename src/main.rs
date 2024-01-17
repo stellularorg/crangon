@@ -43,8 +43,6 @@ async fn main() -> std::io::Result<()> {
         panic!("Missing required database config settings!");
     }
 
-    let log_types: Option<String> = config::get_named_argument(&args, "log-types");
-
     sqlx::any::install_default_drivers(); // install database drivers
     let mut db: BundlesDB = BundlesDB::new(DatabaseOpts {
         _type: db_type,
@@ -63,16 +61,6 @@ async fn main() -> std::io::Result<()> {
             db_name.unwrap()
         } else {
             String::new()
-        },
-        // logging
-        log_types: if log_types.is_some() {
-            log_types
-                .unwrap()
-                .split(",")
-                .map(|s| s.to_string())
-                .collect()
-        } else {
-            Vec::new()
         },
     })
     .await;
@@ -101,6 +89,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::pastes::delete_request)
             // GET api
             .service(crate::api::pastes::exits_request)
+            .service(crate::api::auth::logout)
             // GET dashboard
             .service(crate::pages::auth::register_request)
             .service(crate::pages::auth::login_request)

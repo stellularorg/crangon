@@ -1,4 +1,4 @@
-use actix_web::{get, HttpResponse, Responder};
+use actix_web::{get, HttpRequest, HttpResponse, Responder};
 
 use yew::prelude::*;
 use yew::ServerRenderer;
@@ -42,7 +42,7 @@ fn Register() -> Html {
                     {"import AuthPages from \"/static/js/AuthPages.js\";"}
                 </script>
 
-                <Footer />
+                <Footer auth_state={Option::None} />
             </main>
         </div>
     };
@@ -84,20 +84,36 @@ fn Login() -> Html {
                     {"import AuthPages from \"/static/js/AuthPages.js\";"}
                 </script>
 
-                <Footer />
+                <Footer auth_state={Option::None} />
             </main>
         </div>
     };
 }
 
 #[get("/d/auth/register")]
-pub async fn register_request() -> impl Responder {
+pub async fn register_request(req: HttpRequest) -> impl Responder {
+    if req.cookie("__Secure-Token").is_some() {
+        return HttpResponse::NotFound().body("You're already signed in.");
+    }
+
+    // ...
     let renderer = ServerRenderer::<Register>::new();
-    return HttpResponse::Ok().body(format_html(renderer.render().await, ""));
+    return HttpResponse::Ok().body(format_html(
+        renderer.render().await,
+        "<title>Register - Bundlrs</title>",
+    ));
 }
 
 #[get("/d/auth/login")]
-pub async fn login_request() -> impl Responder {
+pub async fn login_request(req: HttpRequest) -> impl Responder {
+    if req.cookie("__Secure-Token").is_some() {
+        return HttpResponse::NotFound().body("You're already signed in.");
+    }
+
+    // ...
     let renderer = ServerRenderer::<Login>::new();
-    return HttpResponse::Ok().body(format_html(renderer.render().await, ""));
+    return HttpResponse::Ok().body(format_html(
+        renderer.render().await,
+        "<title>Login - Bundlrs</title>",
+    ));
 }

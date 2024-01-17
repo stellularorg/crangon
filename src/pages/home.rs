@@ -5,13 +5,15 @@ use yew::prelude::*;
 use yew::ServerRenderer;
 
 use crate::components::navigation::Footer;
-use crate::db;
+use crate::db::{self, bundlesdb};
 use crate::utility::format_html;
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 struct Props {
     pub editing: Option<String>,
     pub starting_content: Option<String>,
+    pub password_not_needed: Option<bool>,
+    pub auth_state: Option<bool>,
 }
 
 #[function_component]
@@ -75,6 +77,12 @@ fn Home(props: &Props) -> Html {
                                 placeholder="Edit Password"
                                 minlength="5"
                                 name="edit_password"
+                                disabled={props.password_not_needed.is_some()}
+                                value={if props.password_not_needed.is_some() && props.password_not_needed.unwrap() == true {
+                                    "not needed, you're the owner!"
+                                } else {
+                                    ""
+                                }}
                             />
 
                             <input
@@ -125,7 +133,7 @@ fn Home(props: &Props) -> Html {
                 </script>
 
                 <div style={if props.editing.is_none() { "display: block;" } else { "display: none;" }}>
-                    <Footer />
+                    <Footer auth_state={props.auth_state} />
                 </div>
             </main>
         </div>
@@ -146,31 +154,62 @@ pub async fn home_request(
     let token_cookie = req.cookie("__Secure-Token");
     let mut set_cookie: &str = "";
 
-    if token_cookie.is_some() {
-        let res = data
-            .db
-            .get_user_by_hashed(token_cookie.unwrap().value().to_string())
-            .await;
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
 
-        if res.success == false {
+    if token_user.is_some() {
+        // make sure user exists, refresh token if not
+        if token_user.as_ref().unwrap().success == false {
             set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
         }
     }
 
     // ...
-    let str = &info.editing;
+    let str: &Option<String> = &info.editing;
+
+    let paste = if str.is_some() {
+        Option::Some(data.db.get_paste_by_url(str.to_owned().unwrap()).await)
+    } else {
+        Option::None
+    };
+
+    let metadata = if paste.is_some() {
+        Option::Some(serde_json::from_str::<bundlesdb::PasteMetadata>(
+            &paste.as_ref().unwrap().payload.as_ref().unwrap().metadata,
+        ))
+    } else {
+        Option::None
+    };
+
     let renderer = build_renderer_with_props(Props {
         editing: str.to_owned(),
-        starting_content: if str.is_some() {
-            let paste = data.db.get_paste_by_url(str.to_owned().unwrap()).await;
-
-            if paste.success {
-                Option::Some(paste.payload.unwrap().content)
+        starting_content: if paste.is_some() {
+            if paste.as_ref().unwrap().success {
+                Option::Some(paste.unwrap().payload.unwrap().content)
             } else {
                 Option::None
             }
         } else {
             Option::None
+        },
+        password_not_needed: if metadata.is_some() && token_user.is_some() {
+            Option::Some(
+                metadata.unwrap().unwrap().owner == token_user.unwrap().payload.unwrap().username,
+            )
+        } else {
+            Option::None
+        },
+        auth_state: if req.cookie("__Secure-Token").is_some() {
+            Option::Some(true)
+        } else {
+            Option::Some(false)
         },
     });
 

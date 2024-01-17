@@ -13,6 +13,7 @@ use crate::components::navigation::Footer;
 #[derive(Default, Properties, PartialEq)]
 struct Props {
     pub paste: Paste<String>,
+    pub auth_state: Option<bool>,
 }
 
 #[function_component]
@@ -20,6 +21,8 @@ fn PasteView(props: &Props) -> Html {
     let content = Html::from_html_unchecked(AttrValue::from(markdown::parse_markdown(
         &props.paste.content,
     )));
+
+    let metadata = serde_json::from_str::<bundlesdb::PasteMetadata>(&props.paste.metadata).unwrap();
 
     return html! {
         <main class="flex flex-column g-4">
@@ -38,9 +41,18 @@ fn PasteView(props: &Props) -> Html {
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                     {"Edit"}
                 </a>
+
+                <div class="flex flex-column g-2 text-right" style="color: var(--text-color-faded);">
+                    <span>{"Pub: "}<span class="date-time-to-localize">{&props.paste.pub_date}</span></span>
+                    <span>{"Edit: "}<span class="date-time-to-localize">{&props.paste.edit_date}</span></span>
+                    if &metadata.owner.is_empty() == &false {
+                        <span>{"Owner: "} <span id="data-time-to-localize">{&metadata.owner}</span></span>
+                    }
+                    <span>{"Views: "}{&props.paste.views}</span>
+                </div>
             </div>
 
-            <Footer />
+            <Footer auth_state={props.auth_state} />
 
             <script type="module">
                 {"import ClientFixMarkdown from \"/static/js/ClientFixMarkdown.js\"; ClientFixMarkdown();"}
@@ -70,18 +82,52 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
         return HttpResponse::NotFound().body(paste.message);
     }
 
+    // verify auth status
+    let token_cookie = req.cookie("__Secure-Token");
+    let mut set_cookie: &str = "";
+
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists, refresh token if not
+        if token_user.as_ref().unwrap().success == false {
+            set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+        }
+
+        // count view (this will check for an existing view!)
+        let payload = &token_user.as_ref().unwrap().payload;
+        data.db
+            .add_view_to_url(&url_c, &payload.as_ref().unwrap().username)
+            .await;
+    }
+
     // ...
     let renderer = build_renderer_with_props(Props {
         paste: paste.payload.unwrap(),
+        auth_state: if req.cookie("__Secure-Token").is_some() {
+            Option::Some(req.cookie("__Secure-Token").is_some())
+        } else {
+            Option::Some(false)
+        },
     });
 
     let render = renderer.render();
-    return HttpResponse::Ok().body(format_html(
-        render.await,
-        &format!("<title>{}</title>
-<meta property=\"og:url\" content=\"{}\" />
-<meta property=\"og:title\" content=\"{}\" />
-<meta property=\"og:description\" content=\"Bundlrs doesn't support description yet! Don't worry, this is coming soon.\" />
-", &url_c, &format!("{}{}", req.headers().get("Host").unwrap().to_str().unwrap(), req.head().uri.to_string()), &url_c),
-    ));
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .body(format_html(
+            render.await,
+            &format!("<title>{}</title>
+    <meta property=\"og:url\" content=\"{}\" />
+    <meta property=\"og:title\" content=\"{}\" />
+    <meta property=\"og:description\" content=\"Bundlrs doesn't support description yet! Don't worry, this is coming soon.\" />
+    ", &url_c, &format!("{}{}", req.headers().get("Host").unwrap().to_str().unwrap(), req.head().uri.to_string()), &url_c),
+        ));
 }

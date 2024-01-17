@@ -1,4 +1,4 @@
-use actix_web::{post, web, HttpResponse, Responder};
+use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
 
 use crate::{db::bundlesdb::AppData, utility};
 
@@ -51,4 +51,27 @@ pub async fn login(body: web::Json<LoginInfo>, data: web::Data<AppData>) -> impl
     return HttpResponse::Ok()
         .append_header(("Set-Cookie", if res.success { &set_cookie } else { "" }))
         .body(serde_json::to_string(&res).unwrap());
+}
+
+#[get("/api/auth/logout")]
+pub async fn logout(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
+    let cookie = req.cookie("__Secure-Token");
+
+    if cookie.is_none() {
+        return HttpResponse::NotAcceptable().body("Missing token");
+    }
+
+    let res = data
+        .db
+        .get_user_by_hashed(cookie.unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+        .await;
+
+    if !res.success {
+        return HttpResponse::NotAcceptable().body("Invalid token");
+    }
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0"))
+        .body("You have been signed out. You can now close this tab.");
 }

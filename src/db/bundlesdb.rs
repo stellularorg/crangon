@@ -10,7 +10,7 @@ pub struct AppData {
 }
 
 #[allow(dead_code)]
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DefaultReturn<T> {
     pub success: bool,
     pub message: String,
@@ -32,6 +32,7 @@ pub struct Paste<M> {
     // ...
     pub content: String,
     pub metadata: M, // JSON Object
+    pub views: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -396,6 +397,43 @@ impl BundlesDB {
         };
     }
 
+    pub async fn delete_log(&self, id: String) -> DefaultReturn<Option<String>> {
+        // make sure log exists
+        let existing = &self.get_log_by_id(id.clone()).await;
+        if !existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Log does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // update log
+        let query: &str = if self.db._type == "sqlite" {
+            "DELETE FROM \"Logs\" WHERE \"id\" = ?"
+        } else {
+            "DELETE FROM \"Logs\" WHERE \"id\" = $1"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query).bind(&id).fetch_one(c).await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to delete log"),
+                payload: Option::None,
+            };
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Log deleted!"),
+            payload: Option::Some(id),
+        };
+    }
+
     // pastes
 
     // GET
@@ -420,6 +458,26 @@ impl BundlesDB {
         // ...
         let row = res.unwrap();
 
+        // count views
+        let query: &str = if self.db._type == "sqlite" {
+            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE ?"
+        } else {
+            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE $1"
+        };
+
+        let views_res = sqlx::query(query)
+            .bind(format!("{}::%", &url))
+            .fetch_all(c)
+            .await;
+
+        if views_res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to fetch views"),
+                payload: Option::None,
+            };
+        }
+
         // return
         return DefaultReturn {
             success: true,
@@ -433,6 +491,7 @@ impl BundlesDB {
                 edit_date: row.get::<String, _>("edit_date").parse::<u128>().unwrap(),
                 content: row.get("content"),
                 metadata: row.get::<String, _>("metadata"),
+                views: views_res.unwrap().len(),
             }),
         };
     }
@@ -441,8 +500,18 @@ impl BundlesDB {
     pub async fn create_paste(
         &self,
         props: &mut Paste<PasteMetadata>,
+        as_user: Option<String>, // id of paste owner
     ) -> DefaultReturn<Option<Paste<PasteMetadata>>> {
         let p: &mut Paste<PasteMetadata> = props; // borrowed props
+
+        // create default metadata
+        p.metadata = PasteMetadata {
+            owner: if as_user.is_some() {
+                as_user.unwrap()
+            } else {
+                String::new()
+            },
+        };
 
         // make sure paste does not exist
         let existing: DefaultReturn<Option<Paste<String>>> =
@@ -585,8 +654,9 @@ impl BundlesDB {
         edit_password: String,
         new_url: Option<String>,
         new_edit_password: Option<String>,
+        edit_as: Option<String>, // username of account that is editing this paste
     ) -> DefaultReturn<Option<String>> {
-        // make sure log exists
+        // make sure paste exists
         let existing = &self.get_paste_by_url(url.clone()).await;
         if !existing.success {
             return DefaultReturn {
@@ -596,10 +666,18 @@ impl BundlesDB {
             };
         }
 
+        // (parse metadata from existing)
+        let existing_metadata =
+            serde_json::from_str::<PasteMetadata>(&existing.payload.as_ref().unwrap().metadata);
+
         // verify password
+        // if password hash doesn't match AND edit_as is none OR edit_as != existing_metadata's owner value
         let paste = &existing.payload.clone().unwrap();
 
-        if utility::hash(edit_password) != paste.edit_password {
+        let skip_password_check =
+            edit_as.is_some() && edit_as.unwrap() == existing_metadata.unwrap().owner;
+
+        if !skip_password_check && utility::hash(edit_password) != paste.edit_password {
             return DefaultReturn {
                 success: false,
                 message: String::from("Password invalid"),
@@ -626,9 +704,9 @@ impl BundlesDB {
 
         // update paste
         let query: &str = if self.db._type == "sqlite" {
-            "UPDATE \"Pastes\" SET (\"content\", \"edit_password\", \"custom_url\") = (?, ?, ?) WHERE \"custom_url\" = ?"
+            "UPDATE \"Pastes\" SET (\"content\", \"edit_password\", \"custom_url\", \"edit_date\") = (?, ?, ?, ?) WHERE \"custom_url\" = ?"
         } else {
-            "UPDATE \"Pastes\" SET (\"content\", \"edit_password\", \"custom_url\") = ($1, $2, $3) WHERE \"custom_url\" = $4"
+            "UPDATE \"Pastes\" SET (\"content\", \"edit_password\", \"custom_url\", \"edit_date\") = ($1, $2, $3, $4) WHERE \"custom_url\" = $5"
         };
 
         let c = &self.db.client;
@@ -636,6 +714,7 @@ impl BundlesDB {
             .bind(&content)
             .bind(&edit_password_hash)
             .bind(&custom_url)
+            .bind(utility::unix_epoch_timestamp().to_string()) // update edit_date
             .bind(&url)
             .execute(c)
             .await;
@@ -656,12 +735,76 @@ impl BundlesDB {
         };
     }
 
+    pub async fn add_view_to_url(
+        &self,
+        url: &String,
+        view_as: &String, // username of account that is viewing this paste
+    ) -> DefaultReturn<Option<String>> {
+        // make sure paste exists
+        let existing = &self.get_paste_by_url(url.clone()).await;
+        if !existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Paste does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // check for existing view log
+        let query: &str = if self.db._type == "sqlite" {
+            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE ?"
+        } else {
+            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE $1"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind(format!("{}::{}", &url, &view_as))
+            .fetch_one(c)
+            .await;
+
+        if res.is_err() {
+            let err = res.err().unwrap();
+            let err_message = err.to_string();
+
+            // count view if message says no rows were returned
+            if err_message.starts_with("no rows returned") {
+                self.create_log(
+                    String::from("view_paste"),
+                    format!("{}::{}", &url, &view_as),
+                )
+                .await;
+
+                // return
+                return DefaultReturn {
+                    success: true,
+                    message: String::from("View counted!"),
+                    payload: Option::Some(url.to_string()),
+                };
+            }
+
+            // default error return
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to check for existing view!"),
+                payload: Option::None,
+            };
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("View counted!"),
+            payload: Option::Some(url.to_string()),
+        };
+    }
+
     pub async fn delete_paste_by_url(
         &self,
         url: String,
         edit_password: String,
     ) -> DefaultReturn<Option<String>> {
-        // make sure log exists
+        // make sure paste exists
         let existing = &self.get_paste_by_url(url.clone()).await;
         if !existing.success {
             return DefaultReturn {
@@ -806,6 +949,7 @@ pub fn create_dummy(mut custom_url: Option<&str>) -> DefaultReturn<Option<Paste<
             // ...
             content: "dummy paste".to_string(),
             metadata: "".to_string(),
+            views: 0,
         }),
     };
 }

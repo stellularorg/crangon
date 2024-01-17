@@ -8,7 +8,7 @@ pub fn _404Page() -> Html {
             <h4>{"Error"}</h4>
             <h5 style="font-weight: normal; margin-top: 0;">{"404 Not Found"}</h5>
 
-            <Footer />
+            <Footer auth_state={Option::None} />
         </main>
     };
 }

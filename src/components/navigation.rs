@@ -1,7 +1,12 @@
 use yew::prelude::*;
 
+#[derive(Properties, Default, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct FooterProps {
+    pub auth_state: Option<bool>,
+}
+
 #[function_component]
-pub fn Footer() -> Html {
+pub fn Footer(props: &FooterProps) -> Html {
     let info_req = std::env::var("INFO");
     let mut info: String = String::new();
 
@@ -19,8 +24,16 @@ pub fn Footer() -> Html {
             <ul class="__footernav" style="padding: 0; margin: 0;">
                 <li><a href="/">{"new"}</a></li>
                 <li><a href="/s">{"settings"}</a></li>
-                <li><a href="/search">{"search"}</a></li>
-                <li><a href={info}>{"info"}</a></li>
+                <li><a href="/">{"info"}</a></li>
+
+                if props.auth_state.is_some() {
+                    if props.auth_state.unwrap() == false {
+                        <li><a href="/d/auth/register">{"register"}</a></li>
+                        <li><a href="/d/auth/login">{"login"}</a></li>
+                    } else {
+                        <li><a href="/api/auth/logout">{"logout"}</a></li>
+                    }
+                }
             </ul>
 
             <p style="font-size: 12px; margin: 0.4rem 0 0 0;">
@@ -153,6 +166,14 @@ pub fn Footer() -> Html {
                     style.innerHTML = window.localStorage.getItem(\"bundles:user.GlobalCSSString\");
                     document.body.appendChild(style);
                 }"}
+            </script>
+
+            // localize dates
+            <script>
+                {"setTimeout(() => {
+                    for (const element of document.querySelectorAll(\".date-time-to-localize\"))
+                            element.innerText = new Date(parseInt(element.innerText)).toLocaleString();
+                }, 50);"}
             </script>
         </div>
     };

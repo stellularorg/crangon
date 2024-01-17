@@ -33,4 +33,3 @@ Bundlrs is configured through flags given when running the server. The following
 - `--db-user "user"` **required**
 - `--db-pass "pass"` **required**
 - `--db-name "name"` **required**
-- `--log-types "type1,type2,type3,...etc"` optional (defaults to `None`), comma separated list of enabled log types
