@@ -1,0 +1,121 @@
+use actix_web::HttpResponse;
+use actix_web::{get, web, HttpRequest, Responder};
+
+use yew::prelude::*;
+use yew::ServerRenderer;
+
+use crate::db::bundlesdb::{self, AppData, Paste};
+use crate::utility::format_html;
+
+use crate::components::navigation::Footer;
+
+#[derive(Default, Properties, PartialEq)]
+struct Props {
+    pub paste: Paste<String>,
+    pub auth_state: Option<bool>,
+}
+
+#[function_component]
+fn PasteSettings(props: &Props) -> Html {
+    let metadata = serde_json::from_str::<bundlesdb::PasteMetadata>(&props.paste.metadata).unwrap();
+
+    return html! {
+        <main class="flex flex-column g-4 small">
+            <h2 class="full text-center">{"Paste Settings"}</h2>
+
+            <div class="card round secondary flex flex-column g-4">
+                <div class="flex full justify-space-between">
+                    <div class="flex g-4">
+                        <form action="/api/metadata" id="update-form">
+                            <button class="green round secondary">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                {"Save"}
+                            </button>
+                        </form>
+
+                        <button class="secondary round" id="add_field">{"Add Field"}</button>
+                    </div>
+
+                    <a href={format!("/{}", props.paste.custom_url)} class="button round secondary">{"Cancel"}</a>
+                </div>
+
+                <div id="options-field" class="flex flex-wrap mobile:flex-column g-4 full justify-space-between" />
+            </div>
+
+            <script type="module">
+                {format!("import {{ paste_settings }} from \"/static/js/SettingsEditor.js\";
+                paste_settings({}, \"{}\", document.getElementById(\"options-field\"));", serde_json::to_string(&metadata).unwrap(), &props.paste.custom_url)}
+            </script>
+
+            <Footer auth_state={props.auth_state} />
+        </main>
+    };
+}
+
+fn build_paste_settings_with_props(props: Props) -> ServerRenderer<PasteSettings> {
+    return ServerRenderer::<PasteSettings>::with_props(|| props);
+}
+
+#[get("/d/settings/paste/{url:.*}")]
+pub async fn paste_settings_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
+    // get paste
+    let url: String = req.match_info().get("url").unwrap().to_string();
+    let url_c = url.clone();
+
+    let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> =
+        data.db.get_paste_by_url(url).await;
+
+    if paste.success == false {
+        return HttpResponse::NotFound().body(paste.message);
+    }
+
+    // verify auth status
+    let token_cookie = req.cookie("__Secure-Token");
+    let mut set_cookie: &str = "";
+
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists, refresh token if not
+        if token_user.as_ref().unwrap().success == false {
+            set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+        }
+
+        // count view (this will check for an existing view!)
+        let payload = &token_user.as_ref().unwrap().payload;
+        data.db
+            .add_view_to_url(&url_c, &payload.as_ref().unwrap().username)
+            .await;
+    }
+
+    // ...
+    let renderer = build_paste_settings_with_props(Props {
+        paste: paste.payload.unwrap(),
+        auth_state: if req.cookie("__Secure-Token").is_some() {
+            Option::Some(req.cookie("__Secure-Token").is_some())
+        } else {
+            Option::Some(false)
+        },
+    });
+
+    let render = renderer.render();
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .body(format_html(
+            render.await,
+            &format!(
+                "<title>{}</title>
+    <meta property=\"og:title\" content=\"{} (paste settings) - Bundlrs\" />
+    ",
+                &url_c, &url_c
+            ),
+        ));
+}

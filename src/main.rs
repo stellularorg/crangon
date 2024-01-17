@@ -87,12 +87,14 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::pastes::create_request)
             .service(crate::api::pastes::edit_request)
             .service(crate::api::pastes::delete_request)
+            .service(crate::api::pastes::metadata_request)
             // GET api
             .service(crate::api::pastes::exits_request)
             .service(crate::api::auth::logout)
             // GET dashboard
             .service(crate::pages::auth::register_request)
             .service(crate::pages::auth::login_request)
+            .service(crate::pages::settings::paste_settings_request)
             // GET root
             .service(crate::pages::home::home_request)
             .service(crate::pages::paste_view::paste_view_request) // must be run last as it matches all other paths!

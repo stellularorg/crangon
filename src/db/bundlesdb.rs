@@ -38,6 +38,12 @@ pub struct Paste<M> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PasteMetadata {
     pub owner: String,
+    pub title: String,
+    pub description: String,
+    pub private_source: String,
+    // optionals
+    pub favicon: Option<String>,
+    pub embed_color: Option<String>,
 }
 
 #[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
@@ -499,18 +505,24 @@ impl BundlesDB {
     // SET
     pub async fn create_paste(
         &self,
-        props: &mut Paste<PasteMetadata>,
+        props: &mut Paste<String>,
         as_user: Option<String>, // id of paste owner
-    ) -> DefaultReturn<Option<Paste<PasteMetadata>>> {
-        let p: &mut Paste<PasteMetadata> = props; // borrowed props
+    ) -> DefaultReturn<Option<Paste<String>>> {
+        let p: &mut Paste<String> = props; // borrowed props
 
         // create default metadata
-        p.metadata = PasteMetadata {
+        let metadata: PasteMetadata = PasteMetadata {
             owner: if as_user.is_some() {
                 as_user.unwrap()
             } else {
                 String::new()
             },
+            title: String::new(),
+            description: String::new(),
+            private_source: String::from("off"),
+            // optionals
+            favicon: Option::None,
+            embed_color: Option::Some(String::from("#ff9999")),
         };
 
         // make sure paste does not exist
@@ -609,7 +621,7 @@ impl BundlesDB {
         };
 
         let c: &sqlx::Pool<sqlx::Any> = &self.db.client;
-        let p: &mut Paste<PasteMetadata> = &mut props.clone();
+        let p: &mut Paste<String> = &mut props.clone();
         p.id = utility::random_id();
 
         let edit_password = &p.edit_password;
@@ -626,7 +638,7 @@ impl BundlesDB {
             .bind(pub_date.to_string())
             .bind(edit_date.to_string())
             .bind(&p.content)
-            .bind(serde_json::to_string(&p.metadata).unwrap())
+            .bind(serde_json::to_string(&metadata).unwrap())
             .execute(c)
             .await;
 
@@ -732,6 +744,72 @@ impl BundlesDB {
             success: true,
             message: String::from("Paste updated!"),
             payload: Option::Some(custom_url),
+        };
+    }
+
+    pub async fn edit_paste_metadata_by_url(
+        &self,
+        url: String,
+        metadata: PasteMetadata,
+        edit_password: String,
+        edit_as: Option<String>, // username of account that is editing this paste
+    ) -> DefaultReturn<Option<String>> {
+        // make sure paste exists
+        let existing = &self.get_paste_by_url(url.clone()).await;
+        if !existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Paste does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // (parse metadata from existing)
+        let existing_metadata =
+            serde_json::from_str::<PasteMetadata>(&existing.payload.as_ref().unwrap().metadata);
+
+        // verify password
+        // if password hash doesn't match AND edit_as is none OR edit_as != existing_metadata's owner value
+        let paste = &existing.payload.clone().unwrap();
+
+        let skip_password_check =
+            edit_as.is_some() && edit_as.unwrap() == existing_metadata.unwrap().owner;
+
+        if !skip_password_check && utility::hash(edit_password) != paste.edit_password {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Password invalid"),
+                payload: Option::None,
+            };
+        }
+
+        // update paste
+        let query: &str = if self.db._type == "sqlite" {
+            "UPDATE \"Pastes\" SET (\"metadata\") = (?) WHERE \"custom_url\" = ?"
+        } else {
+            "UPDATE \"Pastes\" SET (\"metadata\") = ($1) WHERE \"custom_url\" = $2"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind(serde_json::to_string(&metadata).unwrap())
+            .bind(&url)
+            .execute(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to update paste"),
+                payload: Option::None,
+            };
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Paste updated!"),
+            payload: Option::Some(url),
         };
     }
 

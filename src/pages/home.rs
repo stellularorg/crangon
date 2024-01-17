@@ -112,7 +112,12 @@ fn Home(props: &Props) -> Html {
                                     {"Save"}
                                 </button>
 
-                                <a href="/" class="button round">{"Cancel"}</a>
+                                <a href={format!("/d/settings/paste/{}", props.editing.as_ref().unwrap())} class="button round">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-cog"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v2"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><circle cx="6" cy="14" r="3"/><path d="M6 10v1"/><path d="M6 17v1"/><path d="M10 14H9"/><path d="M3 14H2"/><path d="m9 11-.88.88"/><path d="M3.88 16.12 3 17"/><path d="m9 17-.88-.88"/><path d="M3.88 11.88 3 11"/></svg>
+                                    {"Config"}
+                                </a>
+
+                                <a href="/" class="border button round">{"Cancel"}</a>
                             </div>
 
                             <a href="javascript:" id="delete-btn" class="button round red">{"Delete"}</a>
@@ -181,13 +186,34 @@ pub async fn home_request(
     };
 
     let metadata = if paste.is_some() {
-        Option::Some(serde_json::from_str::<bundlesdb::PasteMetadata>(
-            &paste.as_ref().unwrap().payload.as_ref().unwrap().metadata,
-        ))
+        Option::Some(
+            serde_json::from_str::<bundlesdb::PasteMetadata>(
+                &paste.as_ref().unwrap().payload.as_ref().unwrap().metadata,
+            )
+            .unwrap(),
+        )
     } else {
         Option::None
     };
 
+    // if metadata has "private_source" set to "on" and we're not the owner, return
+    if metadata.is_some() {
+        let owner = &metadata.as_ref().unwrap().owner;
+        if metadata.as_ref().unwrap().private_source == String::from("on") {
+            if token_user.is_none() {
+                return HttpResponse::NotFound()
+                    .body("You do not have permission to view this paste's contents.");
+            }
+
+            let payload = &token_user.as_ref().unwrap().payload;
+            if owner.to_string() != payload.as_ref().unwrap().username {
+                return HttpResponse::NotFound()
+                    .body("You do not have permission to view this paste's contents.");
+            }
+        }
+    };
+
+    // ...
     let renderer = build_renderer_with_props(Props {
         editing: str.to_owned(),
         starting_content: if paste.is_some() {
@@ -200,9 +226,7 @@ pub async fn home_request(
             Option::None
         },
         password_not_needed: if metadata.is_some() && token_user.is_some() {
-            Option::Some(
-                metadata.unwrap().unwrap().owner == token_user.unwrap().payload.unwrap().username,
-            )
+            Option::Some(metadata.unwrap().owner == token_user.unwrap().payload.unwrap().username)
         } else {
             Option::None
         },

@@ -43,11 +43,20 @@ fn PasteView(props: &Props) -> Html {
                 </a>
 
                 <div class="flex flex-column g-2 text-right" style="color: var(--text-color-faded);">
-                    <span>{"Pub: "}<span class="date-time-to-localize">{&props.paste.pub_date}</span></span>
-                    <span>{"Edit: "}<span class="date-time-to-localize">{&props.paste.edit_date}</span></span>
+                    <span class="flex justify-center g-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cake-slice"><circle cx="9" cy="7" r="2"/><path d="M7.2 7.9 3 11v9c0 .6.4 1 1 1h16c.6 0 1-.4 1-1v-9c0-2-3-6-7-8l-3.6 2.6"/><path d="M16 13H3"/><path d="M16 17H3"/></svg>
+                        {"Pub: "}<span class="date-time-to-localize">{&props.paste.pub_date}</span>
+                    </span>
+
+                    <span class="flex justify-center g-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                        {"Edit: "}<span class="date-time-to-localize">{&props.paste.edit_date}</span>
+                    </span>
+
                     if &metadata.owner.is_empty() == &false {
                         <span>{"Owner: "} <span id="data-time-to-localize">{&metadata.owner}</span></span>
                     }
+
                     <span>{"Views: "}{&props.paste.views}</span>
                 </div>
             </div>
@@ -82,6 +91,9 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
         return HttpResponse::NotFound().body(paste.message);
     }
 
+    let unwrap = paste.payload.as_ref().unwrap();
+    let metadata = serde_json::from_str::<bundlesdb::PasteMetadata>(&unwrap.metadata).unwrap();
+
     // verify auth status
     let token_cookie = req.cookie("__Secure-Token");
     let mut set_cookie: &str = "";
@@ -110,8 +122,12 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
     }
 
     // ...
+    let paste_preview_text = unwrap.content.chars().take(25).collect();
+    let embed_color_unwrap = metadata.embed_color.as_ref();
+
+    // ...
     let renderer = build_renderer_with_props(Props {
-        paste: paste.payload.unwrap(),
+        paste: unwrap.clone(),
         auth_state: if req.cookie("__Secure-Token").is_some() {
             Option::Some(req.cookie("__Secure-Token").is_some())
         } else {
@@ -124,10 +140,35 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
         .append_header(("Set-Cookie", set_cookie))
         .body(format_html(
             render.await,
-            &format!("<title>{}</title>
+            &format!(
+                "<title>{}</title>
     <meta property=\"og:url\" content=\"{}\" />
     <meta property=\"og:title\" content=\"{}\" />
-    <meta property=\"og:description\" content=\"Bundlrs doesn't support description yet! Don't worry, this is coming soon.\" />
-    ", &url_c, &format!("{}{}", req.headers().get("Host").unwrap().to_str().unwrap(), req.head().uri.to_string()), &url_c),
+    <meta property=\"og:description\" content=\"{}\" />
+    <meta name=\"theme-color\" content=\"{}\" />
+    ",
+                &url_c,
+                &format!(
+                    "{}{}",
+                    req.headers().get("Host").unwrap().to_str().unwrap(),
+                    req.head().uri.to_string()
+                ),
+                if metadata.title.is_empty() {
+                    &url_c
+                } else {
+                    &metadata.title
+                },
+                if metadata.description.is_empty() {
+                    &paste_preview_text
+                } else {
+                    &metadata.description
+                },
+                // optionals
+                if metadata.embed_color.is_none() {
+                    "#ff9999"
+                } else {
+                    &embed_color_unwrap.unwrap()
+                }
+            ),
         ));
 }

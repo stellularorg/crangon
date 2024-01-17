@@ -9,7 +9,8 @@
     "typescript": "^5.0.0"
   },
   "scripts": {
-    "build": "./scripts/download_styles.sh && cargo build"
+    "build": "./scripts/download_styles.sh && cargo build",
+    "build:release": "./scripts/download_styles.sh && cargo build -r"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.12.0",

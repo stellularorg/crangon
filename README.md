@@ -1,26 +1,24 @@
-# bundlrs
+# 🗃️ bundlrs
 
 *Bundlrs* is a rewrite of [Bundles](https://codeberg.org/SentryTwo/bundles) in Rust without some of the extra features.
 
-Bundlrs has **not** reached acceptable parity with Bundles *yet*.
+Bundlrs is a *super* lightweight and [anonymous](#) 
 
 ## Install
-
-Install styles:
-
-```bash
-chmod +x scripts/download_styles.sh && ./scripts/download_styles.sh
-```
 
 Build:
 
 ```bash
-cargo build -r
+bun run build
+# release
+bun run build:release
 ```
 
 Run:
 
 ```bash
+chmod +x ./target/debug/bundlrs && ./target/debug/bundlrs
+# release
 chmod +x ./target/release/bundlrs && ./target/release/bundlrs
 ```
 
@@ -33,3 +31,14 @@ Bundlrs is configured through flags given when running the server. The following
 - `--db-user "user"` **required**
 - `--db-pass "pass"` **required**
 - `--db-name "name"` **required**
+
+## Features
+
+Bundlrs supports all [Bundles features](https://bundles.cc/what#features) with some minor modifications. These are listed below with their reasons:
+
+- Bundlrs does **not** support comments
+    - Comments were the cause of many bugs in the original version of Bundles, as well as being one of the least used features. The amount of time taken to get comments working with the correct configuration was not worth the output.
+- Bundles does **not** support writer mode
+    - *\*this could change*
+- Bundles does **not** support paste media
+    - *\*this could change*
