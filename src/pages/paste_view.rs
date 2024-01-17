@@ -128,7 +128,15 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
     }
 
     // ...
-    let paste_preview_text = unwrap.content.chars().take(100).collect();
+    let paste_preview_text: String = unwrap
+        .content
+        .chars()
+        .take(100)
+        .collect::<String>()
+        .replace("\"", "'");
+
+    let title_unwrap = metadata.title.as_ref();
+    let description_unwrap = metadata.description.as_ref();
     let embed_color_unwrap = metadata.embed_color.as_ref();
     let favicon_unwrap = metadata.favicon.as_ref();
 
@@ -161,17 +169,17 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
                     req.headers().get("Host").unwrap().to_str().unwrap(),
                     req.head().uri.to_string()
                 ),
-                if metadata.title.is_empty() {
+                // optionals
+                if metadata.title.is_none() {
                     &url_c
                 } else {
-                    &metadata.title
+                    &title_unwrap.unwrap()
                 },
-                if metadata.description.is_empty() {
+                if metadata.description.is_none() {
                     &paste_preview_text
                 } else {
-                    &metadata.description
+                    &description_unwrap.unwrap()
                 },
-                // optionals
                 if metadata.embed_color.is_none() {
                     "#ff9999"
                 } else {

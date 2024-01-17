@@ -38,10 +38,10 @@ pub struct Paste<M> {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PasteMetadata {
     pub owner: String,
-    pub title: String,
-    pub description: String,
     pub private_source: String,
     // optionals
+    pub title: Option<String>,
+    pub description: Option<String>,
     pub favicon: Option<String>,
     pub embed_color: Option<String>,
 }
@@ -520,25 +520,13 @@ impl BundlesDB {
             } else {
                 String::new()
             },
-            title: String::new(),
-            description: String::new(),
             private_source: String::from("off"),
             // optionals
+            title: Option::Some(String::new()),
+            description: Option::Some(String::new()),
             favicon: Option::None,
             embed_color: Option::Some(String::from("#ff9999")),
         };
-
-        // make sure paste does not exist
-        let existing: DefaultReturn<Option<Paste<String>>> =
-            self.get_paste_by_url(p.custom_url.to_owned()).await;
-
-        if existing.success {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Paste already exists!"),
-                payload: Option::None,
-            };
-        }
 
         // check values
 
@@ -556,6 +544,14 @@ impl BundlesDB {
             return DefaultReturn {
                 success: false,
                 message: String::from("Custom URL is invalid"),
+                payload: Option::None,
+            };
+        }
+
+        if !p.group_name.is_empty() && (p.group_name.len() < 2) | (p.group_name.len() > 500) {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Group Name is invalid"),
                 payload: Option::None,
             };
         }
@@ -598,7 +594,7 @@ impl BundlesDB {
                         name: n.to_string(),
                         submit_password: e.to_string(), // groups will have the same password as their first paste
                         metadata: GroupMetadata {
-                            owner: o.to_string(),
+                            owner: metadata.clone().owner,
                         },
                     })
                     .await;
@@ -610,10 +606,33 @@ impl BundlesDB {
                         payload: Option::None,
                     };
                 }
+            } else {
+                // check group password
+                if utility::hash(e.to_string())
+                    != utility::hash(existing_group.payload.unwrap().submit_password)
+                {
+                    return DefaultReturn {
+                        success: false,
+                        message: String::from("The paste edit password must match the group submit password during creation."),
+                        payload: Option::None,
+                    };
+                }
             }
 
             // append to custom_url
             p.custom_url = format!("{}/{}", n, o);
+        }
+
+        // make sure paste does not exist
+        let existing: DefaultReturn<Option<Paste<String>>> =
+            self.get_paste_by_url(p.custom_url.to_owned()).await;
+
+        if existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Paste already exists!"),
+                payload: Option::None,
+            };
         }
 
         // create paste
@@ -710,12 +729,23 @@ impl BundlesDB {
         };
 
         let custom_url = if new_url.is_some() {
-            new_url.unwrap()
+            new_url.as_ref().unwrap()
         } else {
             // get old custom url
-            let custom_url = &paste.custom_url;
-            custom_url.to_owned()
+            &paste.custom_url
         };
+
+        // if we're changing url, make sure this paste doesn't already exist
+        if new_url.is_some() {
+            let existing = &self.get_paste_by_url(new_url.clone().unwrap()).await;
+            if existing.success {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("A paste with this URL already exists!"),
+                    payload: Option::None,
+                };
+            }
+        }
 
         // update paste
         let query: &str = if self.db._type == "sqlite" {
@@ -746,7 +776,7 @@ impl BundlesDB {
         return DefaultReturn {
             success: true,
             message: String::from("Paste updated!"),
-            payload: Option::Some(custom_url),
+            payload: Option::Some(custom_url.to_string()),
         };
     }
 
@@ -1005,22 +1035,30 @@ impl BundlesDB {
             };
         }
 
-        // create paste
+        // create group
         let query: &str = if self.db._type == "sqlite" {
-            "INSERT INTO \"Pastes\" VALUES (?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO \"Groups\" VALUES (?, ?, ?)"
         } else {
-            "INSERT INTO \"Pastes\" VALUES ($1, $2, $3, $4, $5, $6, $7)"
+            "INSERT INTO \"Groups\" VALUES ($1, $2, $3)"
         };
 
         let c: &sqlx::Pool<sqlx::Any> = &self.db.client;
         let p: &mut Group<GroupMetadata> = &mut props.clone();
 
-        c.execute(
-            sqlx::query(query)
-                .bind(&p.name)
-                .bind(&p.submit_password)
-                .bind(serde_json::to_string(&p.metadata).unwrap()),
-        );
+        let res = sqlx::query(query)
+            .bind(&p.name)
+            .bind(&p.submit_password)
+            .bind(serde_json::to_string(&p.metadata).unwrap())
+            .execute(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: res.err().unwrap().to_string(),
+                payload: Option::None,
+            };
+        }
 
         // return
         return DefaultReturn {

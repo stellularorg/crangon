@@ -684,6 +684,7 @@ if (submit_form.getAttribute("data-edit") === "false") {
             body: JSON.stringify({
                 custom_url: submit_form.custom_url.value,
                 edit_password: submit_form.edit_password.value,
+                group_name: submit_form.group_name.value,
                 content: (window as any).EditorContent,
             }),
             headers: {

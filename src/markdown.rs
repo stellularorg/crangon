@@ -448,7 +448,7 @@ pub fn parse_markdown(input: &String) -> String {
 
     for capture in arrow_alignment_regex.captures_iter(&out.clone()) {
         let _match = capture.get(0).unwrap().as_str();
-        let content = capture.get(2).unwrap().as_str();
+        let content = capture.get(2).unwrap().as_str().replace("\n", "<br />");
 
         let align = if _match.ends_with(">") {
             "right"

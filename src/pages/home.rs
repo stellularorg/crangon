@@ -47,6 +47,13 @@ fn Home(props: &Props) -> Html {
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
                                 {"Publish"}
                             </button>
+
+                            <a
+                                class="button round border"
+                                href="javascript:document.getElementById('more-modal').showModal();"
+                            >
+                                {"More"}
+                            </a>
                         </div>
 
                         <div class="mobile:justify-center flex-wrap flex g-4 justify-start">
@@ -69,6 +76,42 @@ fn Home(props: &Props) -> Html {
                                 name="edit_password"
                             />
                         </div>
+
+                        <dialog id="more-modal">
+                            <div style="width: 25rem; max-width: 100%;">
+                                <h2 class="no-margin full text-center">{"More Options"}</h2>
+
+                                <hr />
+
+                                <details class="full round">
+                                    <summary>{"Group Settings"}</summary>
+
+                                    <div class="card secondary">
+                                        <input
+                                            class="full secondary round"
+                                            type="text"
+                                            placeholder="Group Name"
+                                            minlength="2"
+                                            maxlength="500"
+                                            name="group_name"
+                                            id="group_name"
+                                            autocomplete="off"
+                                        />
+                                    </div>
+                                </details>
+
+                                <hr />
+
+                                <div class="full flex justify-right">
+                                    <a
+                                        class="button round red"
+                                        href="javascript:document.getElementById('more-modal').close();"
+                                    >
+                                        {"Close"}
+                                    </a>
+                                </div>
+                            </div>
+                        </dialog>
                     } else {
                         <div class="mobile:justify-center flex g-4 justify-start full mobile:flex-column">
                             <input
@@ -218,7 +261,7 @@ pub async fn home_request(
         editing: str.to_owned(),
         starting_content: if paste.is_some() {
             if paste.as_ref().unwrap().success {
-                Option::Some(paste.unwrap().payload.unwrap().content)
+                Option::Some(paste.unwrap().payload.unwrap().content.replace(r"`", "\\`"))
             } else {
                 Option::None
             }
