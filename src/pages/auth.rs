@@ -98,10 +98,12 @@ pub async fn register_request(req: HttpRequest) -> impl Responder {
 
     // ...
     let renderer = ServerRenderer::<Register>::new();
-    return HttpResponse::Ok().body(format_html(
-        renderer.render().await,
-        "<title>Register - Bundlrs</title>",
-    ));
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "text/html"))
+        .body(format_html(
+            renderer.render().await,
+            "<title>Register - Bundlrs</title>",
+        ));
 }
 
 #[get("/d/auth/login")]
@@ -112,8 +114,10 @@ pub async fn login_request(req: HttpRequest) -> impl Responder {
 
     // ...
     let renderer = ServerRenderer::<Login>::new();
-    return HttpResponse::Ok().body(format_html(
-        renderer.render().await,
-        "<title>Login - Bundlrs</title>",
-    ));
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "text/html"))
+        .body(format_html(
+            renderer.render().await,
+            "<title>Login - Bundlrs</title>",
+        ));
 }

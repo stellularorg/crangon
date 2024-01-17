@@ -239,6 +239,7 @@ pub async fn home_request(
 
     return HttpResponse::Ok()
         .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
         .body(format_html(
             renderer.render().await,
             "<title>Bundlrs</title>

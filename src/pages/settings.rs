@@ -120,6 +120,7 @@ pub async fn user_settings_request(req: HttpRequest, data: web::Data<AppData>) -
     let render = renderer.render();
     return HttpResponse::Ok()
         .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
         .body(format_html(
             render.await,
             "<title>User Settings</title>
@@ -174,6 +175,7 @@ pub async fn paste_settings_request(req: HttpRequest, data: web::Data<AppData>) 
     let render = renderer.render();
     return HttpResponse::Ok()
         .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
         .body(format_html(
             render.await,
             &format!(

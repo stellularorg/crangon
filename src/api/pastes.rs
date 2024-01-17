@@ -103,7 +103,9 @@ pub async fn create_request(
         .await;
 
     // return
-    return HttpResponse::Ok().body(serde_json::to_string(&res).unwrap());
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string(&res).unwrap());
 }
 
 #[post("/api/edit")]
@@ -155,7 +157,9 @@ pub async fn edit_request(
         .await;
 
     // return
-    return HttpResponse::Ok().body(serde_json::to_string(&res).unwrap());
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string(&res).unwrap());
 }
 
 #[post("/api/delete")]
@@ -169,7 +173,9 @@ pub async fn delete_request(
     let res = data.db.delete_paste_by_url(custom_url, edit_password).await;
 
     // return
-    return HttpResponse::Ok().body(serde_json::to_string(&res).unwrap());
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string(&res).unwrap());
 }
 
 #[post("/api/metadata")]
@@ -219,7 +225,9 @@ pub async fn metadata_request(
         .await;
 
     // return
-    return HttpResponse::Ok().body(serde_json::to_string(&res).unwrap());
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string(&res).unwrap());
 }
 
 #[get("/api/exists/{url:.*}")]
@@ -232,5 +240,7 @@ pub async fn exits_request(
     let res = data.db.get_paste_by_url(custom_url).await;
 
     // return
-    return HttpResponse::Ok().body(res.success.to_string());
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "text/plain"))
+        .body(res.success.to_string());
 }

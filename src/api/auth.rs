@@ -27,6 +27,7 @@ pub async fn register(body: web::Json<RegisterInfo>, data: web::Data<AppData>) -
     // return
     return HttpResponse::Ok()
         .append_header(("Set-Cookie", if res.success { &set_cookie } else { "" }))
+        .append_header(("Content-Type", "application/json"))
         .body(serde_json::to_string(&res).unwrap());
 }
 
@@ -50,6 +51,7 @@ pub async fn login(body: web::Json<LoginInfo>, data: web::Data<AppData>) -> impl
     // return
     return HttpResponse::Ok()
         .append_header(("Set-Cookie", if res.success { &set_cookie } else { "" }))
+        .append_header(("Content-Type", "application/json"))
         .body(serde_json::to_string(&res).unwrap());
 }
 
@@ -73,5 +75,6 @@ pub async fn logout(req: HttpRequest, data: web::Data<AppData>) -> impl Responde
     // return
     return HttpResponse::Ok()
         .append_header(("Set-Cookie", "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0"))
+        .append_header(("Content-Type", "text/plain"))
         .body("You have been signed out. You can now close this tab.");
 }

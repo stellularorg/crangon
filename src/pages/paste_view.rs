@@ -143,6 +143,7 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
     let render = renderer.render();
     return HttpResponse::Ok()
         .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
         .body(format_html(
             render.await,
             &format!(
