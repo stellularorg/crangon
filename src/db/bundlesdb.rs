@@ -451,7 +451,10 @@ impl BundlesDB {
         };
 
         let c = &self.db.client;
-        let res = sqlx::query(query).bind(&url).fetch_one(c).await;
+        let res = sqlx::query(query)
+            .bind(&url.to_lowercase())
+            .fetch_one(c)
+            .await;
 
         if res.is_err() {
             return DefaultReturn {

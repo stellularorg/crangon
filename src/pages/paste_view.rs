@@ -89,10 +89,12 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
 
     if paste.success == false {
         let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();
-        return HttpResponse::NotFound().body(utility::format_html(
-            renderer.render().await,
-            "<title>404: Not Found</title>",
-        ));
+        return HttpResponse::NotFound()
+            .append_header(("Content-Type", "text/html"))
+            .body(utility::format_html(
+                renderer.render().await,
+                "<title>404: Not Found</title>",
+            ));
     }
 
     let unwrap = paste.payload.as_ref().unwrap();

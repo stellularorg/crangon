@@ -13,7 +13,8 @@
     min-height: 15rem;
 }
 
-.tabbar button:not(.full-normal), .tabbar .button:not(.full-normal) {
+.tabbar button:not(.full-normal),
+.tabbar .button:not(.full-normal) {
     border-radius: var(--u-02) var(--u-02) 0 0;
 }
 
@@ -168,16 +169,6 @@ select:focus {
     color: var(--text-color);
 }
 
-/* message */
-.message .message-content-body p:not(.mdnote p):not(.builder\:text) {
-    margin-bottom: 0;
-}
-
-.message .message-content-body pre .copy-button svg {
-    stroke: none;
-    fill: currentColor;
-}
-
 /* context menu */
 .context-menu .flex.flex-column.g-4 hr {
     margin: 0 !important;
@@ -186,4 +177,9 @@ select:focus {
 /* utility */
 .position\:relative {
     position: relative;
+}
+
+/* ... */
+.editor-tab p {
+    text-align: inherit;
 }

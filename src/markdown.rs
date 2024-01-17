@@ -43,6 +43,9 @@ pub fn parse_markdown(input: &String) -> String {
     // HTML escapes
     out = regex_replace(&out, "(&!)(.*?);", "&$2;");
 
+    // backslash escapes
+    out = out.replace(r"\*", "&ast;");
+
     // backslash line continuation
     out = out.replace("\\\n", "");
 
@@ -168,8 +171,7 @@ pub fn parse_markdown(input: &String) -> String {
         });
 
         // return
-        out = regex_replace_one(
-            &out,
+        out = out.replace(
             capture.get(0).unwrap().as_str(),
             format!("<h{heading_type} id=\"{heading_id}\">{content}</h{heading_type}>\n").as_str(),
         )
@@ -239,22 +241,40 @@ pub fn parse_markdown(input: &String) -> String {
             Option::None
         };
 
+        let requires_nested_end: bool = if i < out_lines.len() {
+            if next.is_none() && level > 0 {
+                true
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
         // ...
         split.remove(0); // remove everything before the first "-"
         let result: String = format!(
-            "{}<li style=\"margin-left: {}px;\">{}</li>{}",
+            "{}<li style=\"margin-left: {}px;\">{}</li>\n{}{}",
             // if previous doesn't exist, this is the start of the list
             if previous.is_none() { "<ul>" } else { "" },
             // ...
             level * 40,
             split.join("-"), // join split back
             // if next doesn't exist, this is the end of the list
-            if next.is_none() { "</ul>\n" } else { "" }
+            if next.is_none() { "</ul>\n" } else { "" },
+            if requires_nested_end == true {
+                "</ul>\n"
+            } else {
+                ""
+            }
         );
 
         // ...
         out = out.replace(line, &result);
     }
+
+    // random list fix
+    out = regex_replace(&out, "</li>\\n\\n\\n<", "</li></ul>\n<");
 
     // special custom element syntax (rs)
     let custom_element_regex = RegexBuilder::new("(e\\#)(?<NAME>.*?)\\s(?<ATRS>.*?)\\#")
