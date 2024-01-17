@@ -91,16 +91,7 @@ export function HandleCustomElements() {
             "img"
         ) as any as HTMLImageElement[])
             image.src = "about:blank"; // this will force just the alt text to show
-
-    // disable animations (if needed)
-    if (
-        window.localStorage.getItem("bundles:user.DisableAnimations") === "true"
-    )
-        for (const element of document.querySelectorAll(
-            ".anim"
-        ) as any as HTMLElement[])
-            element.style.animation = "";
-
+            
     // if bundles:user.DisableCustomPasteCSS is true, delete all style elements
     const styleElements = Array.from(
         document.querySelectorAll("#editor-tab-preview style")

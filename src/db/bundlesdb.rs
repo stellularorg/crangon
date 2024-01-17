@@ -537,39 +537,6 @@ impl BundlesDB {
             };
         }
 
-        // if we're trying to create a paste in a group, make sure the group exists
-        // (create it if it doesn't)
-        if !p.group_name.is_empty() {
-            let n = &p.group_name;
-            let e = &p.edit_password;
-            let o = &p.custom_url;
-
-            let existing_group = self.get_group_by_name(n.to_string()).await;
-
-            if !existing_group.success {
-                let res = self
-                    .create_group(Group {
-                        name: n.to_string(),
-                        submit_password: e.to_string(), // groups will have the same password as their first paste
-                        metadata: GroupMetadata {
-                            owner: o.to_string(),
-                        },
-                    })
-                    .await;
-
-                if !res.success {
-                    return DefaultReturn {
-                        success: false,
-                        message: String::from("Failed to create group!"),
-                        payload: Option::None,
-                    };
-                }
-            }
-
-            // append to custom_url
-            p.custom_url = format!("{}/{}", n, o);
-        }
-
         // check values
 
         // (check empty)
@@ -611,6 +578,39 @@ impl BundlesDB {
                 message: String::from("Custom URL is invalid"),
                 payload: Option::None,
             };
+        }
+
+        // if we're trying to create a paste in a group, make sure the group exists
+        // (create it if it doesn't)
+        if !p.group_name.is_empty() {
+            let n = &p.group_name;
+            let e = &p.edit_password;
+            let o = &p.custom_url;
+
+            let existing_group = self.get_group_by_name(n.to_string()).await;
+
+            if !existing_group.success {
+                let res = self
+                    .create_group(Group {
+                        name: n.to_string(),
+                        submit_password: e.to_string(), // groups will have the same password as their first paste
+                        metadata: GroupMetadata {
+                            owner: o.to_string(),
+                        },
+                    })
+                    .await;
+
+                if !res.success {
+                    return DefaultReturn {
+                        success: false,
+                        message: String::from("Failed to create group!"),
+                        payload: Option::None,
+                    };
+                }
+            }
+
+            // append to custom_url
+            p.custom_url = format!("{}/{}", n, o);
         }
 
         // create paste
@@ -912,6 +912,27 @@ impl BundlesDB {
 
         let c = &self.db.client;
         let res = sqlx::query(query).bind(&url).execute(c).await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to delete paste"),
+                payload: Option::None,
+            };
+        }
+
+        // delete paste views
+        let query: &str = if self.db._type == "sqlite" {
+            "DELETE FROM \"Logs\" WHERE \"content\" LIKE ?"
+        } else {
+            "DELETE FROM \"Logs\" WHERE \"content\" LIKE $1"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind(format!("{}::%", &url))
+            .execute(c)
+            .await;
 
         if res.is_err() {
             return DefaultReturn {

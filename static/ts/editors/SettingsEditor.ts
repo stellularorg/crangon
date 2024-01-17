@@ -119,4 +119,61 @@ function render_paste_settings_fields(
     return "";
 }
 
-export default {};
+// user settings
+export function user_settings(field: HTMLElement): void {
+    const settings: Array<[string, string, boolean]> = [
+        // ["key", "display", "default"]
+        ["bundles:user.ForceClientTheme", "Force Client Theme", false],
+        ["bundles:user.DisableImages", "Disable Images", false],
+        ["bundles:user.DisableCustomPasteCSS", "Disable Paste CSS", false],
+    ];
+
+    build_user_settings(field, settings);
+}
+
+function build_user_settings(
+    field: HTMLElement,
+    settings: Array<[string, string, boolean]>
+): void {
+    for (const setting of settings) {
+        // default value
+        if (!window.localStorage.getItem(setting[0]))
+            window.localStorage.setItem(setting[0], `${setting[2]}`);
+
+        // render
+        field.innerHTML += `<div class="full flex mobile:flex-column g-4 justify-space-between">
+            <b 
+                class="flex align-center round mobile:max"
+                style="width: 60%;"
+            >
+                ${setting[1]}
+            </b>
+
+            <select class="round mobile:max" onchange="window.update_user_setting('${
+                setting[0]
+            }', event);" style="width: 38%;">
+                <option value="on" selected="${
+                    window.localStorage.getItem(setting[0]) === "true"
+                }">on</option>
+                <option value="off" selected="${
+                    window.localStorage.getItem(setting[0]) === "false"
+                }">off</option>
+            </select>
+        </div>`;
+    }
+
+    (window as any).update_user_setting = (setting: string, e: any): void => {
+        const selected = e.target.options[
+            e.target.selectedIndex
+        ] as HTMLOptionElement;
+
+        if (!selected) return;
+        window.localStorage.setItem(
+            setting,
+            selected.value === "on" ? "true" : "false"
+        );
+    };
+}
+
+// default export
+export default { paste_settings, user_settings };

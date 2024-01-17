@@ -15,6 +15,11 @@ struct Props {
     pub auth_state: Option<bool>,
 }
 
+#[derive(Default, Properties, PartialEq)]
+struct UserSettingsProps {
+    pub auth_state: Option<bool>,
+}
+
 #[function_component]
 fn PasteSettings(props: &Props) -> Html {
     let metadata = serde_json::from_str::<bundlesdb::PasteMetadata>(&props.paste.metadata).unwrap();
@@ -52,8 +57,74 @@ fn PasteSettings(props: &Props) -> Html {
     };
 }
 
+#[function_component]
+fn UserSettings(props: &UserSettingsProps) -> Html {
+    return html! {
+        <main class="flex flex-column g-4 small">
+            <h2 class="full text-center">{"User Settings"}</h2>
+
+            <div class="card round secondary flex flex-column g-4">
+                <div id="options-field" class="flex flex-wrap flex-column g-4 full justify-center" />
+            </div>
+
+            <script type="module">
+                {"import { user_settings } from \"/static/js/SettingsEditor.js\";
+                user_settings(document.getElementById(\"options-field\"));"}
+            </script>
+
+            <Footer auth_state={props.auth_state} />
+        </main>
+    };
+}
+
 fn build_paste_settings_with_props(props: Props) -> ServerRenderer<PasteSettings> {
     return ServerRenderer::<PasteSettings>::with_props(|| props);
+}
+
+fn build_user_settings_with_props(props: UserSettingsProps) -> ServerRenderer<UserSettings> {
+    return ServerRenderer::<UserSettings>::with_props(|| props);
+}
+
+#[get("/d/settings")]
+pub async fn user_settings_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
+    // verify auth status
+    let token_cookie = req.cookie("__Secure-Token");
+    let mut set_cookie: &str = "";
+
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists, refresh token if not
+        if token_user.as_ref().unwrap().success == false {
+            set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+        }
+    }
+
+    // ...
+    let renderer = build_user_settings_with_props(UserSettingsProps {
+        auth_state: if req.cookie("__Secure-Token").is_some() {
+            Option::Some(req.cookie("__Secure-Token").is_some())
+        } else {
+            Option::Some(false)
+        },
+    });
+
+    let render = renderer.render();
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .body(format_html(
+            render.await,
+            "<title>User Settings</title>
+            <meta property=\"og:title\" content=\"User Settings - Bundlrs\" />",
+        ));
 }
 
 #[get("/d/settings/paste/{url:.*}")]
@@ -88,12 +159,6 @@ pub async fn paste_settings_request(req: HttpRequest, data: web::Data<AppData>) 
         if token_user.as_ref().unwrap().success == false {
             set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
         }
-
-        // count view (this will check for an existing view!)
-        let payload = &token_user.as_ref().unwrap().payload;
-        data.db
-            .add_view_to_url(&url_c, &payload.as_ref().unwrap().username)
-            .await;
     }
 
     // ...
@@ -113,8 +178,7 @@ pub async fn paste_settings_request(req: HttpRequest, data: web::Data<AppData>) 
             render.await,
             &format!(
                 "<title>{}</title>
-    <meta property=\"og:title\" content=\"{} (paste settings) - Bundlrs\" />
-    ",
+                <meta property=\"og:title\" content=\"{} (paste settings) - Bundlrs\" />",
                 &url_c, &url_c
             ),
         ));

@@ -2,7 +2,7 @@
 
 *Bundlrs* is a rewrite of [Bundles](https://codeberg.org/SentryTwo/bundles) in Rust without some of the extra features.
 
-Bundlrs is a *super* lightweight and [anonymous](#user-accounts) Markdown Delivery Service.
+Bundlrs is a *super* lightweight and [anonymous](#user-accounts) markdown pastebin featuring custom URLs, quick and full deletion, easy editing, live preview, advanced styling, and [much more](#features)!
 
 ## Install
 
@@ -27,6 +27,7 @@ chmod +x ./target/release/bundlrs && ./target/release/bundlrs
 Bundlrs is configured through flags given when running the server. The following flags are available:
 
 - `--port 0000` optional (defaults to `8080`)
+- `--static-dir "/path/to/dir` optional (defaults to `./static`)
 - `--db-host "host"` optional (defaults to `localhost`)
 - `--db-user "user"` **required**
 - `--db-pass "pass"` **required**

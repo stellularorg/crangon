@@ -28,6 +28,8 @@ async fn main() -> std::io::Result<()> {
         port = port_search.unwrap().parse::<u16>().unwrap();
     }
 
+    let static_dir_flag: Option<String> = config::get_named_argument(&args, "static-dir");
+
     // create database
     let db_type: Option<String> = config::get_named_argument(&args, "db-type");
     let db_host: Option<String> = config::get_named_argument(&args, "db-host");
@@ -80,11 +82,11 @@ async fn main() -> std::io::Result<()> {
             .service(
                 fs::Files::new(
                     "/static",
-                    format!(
-                        "{}/{}",
-                        std::env::current_dir().unwrap().to_str().unwrap(),
+                    if static_dir_flag.is_some() {
+                        static_dir_flag.as_ref().unwrap()
+                    } else {
                         "./static"
-                    ),
+                    },
                 )
                 .show_files_listing(),
             )
@@ -104,6 +106,7 @@ async fn main() -> std::io::Result<()> {
             // GET dashboard
             .service(crate::pages::auth::register_request)
             .service(crate::pages::auth::login_request)
+            .service(crate::pages::settings::user_settings_request)
             .service(crate::pages::settings::paste_settings_request)
             // GET root
             .service(crate::pages::home::home_request)
@@ -112,8 +115,10 @@ async fn main() -> std::io::Result<()> {
             .default_service(web::to(|| async {
                 let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();
 
-                return HttpResponse::NotFound()
-                    .body(utility::format_html(renderer.render().await, ""));
+                return HttpResponse::NotFound().body(utility::format_html(
+                    renderer.render().await,
+                    "<title>404: Not Found</title>",
+                ));
             }))
     })
     .bind(("127.0.0.1", port))?

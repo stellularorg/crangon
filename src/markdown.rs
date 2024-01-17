@@ -36,7 +36,7 @@ pub fn parse_markdown(input: &String) -> String {
         out = regex_replace(
             &out,
             &format!("&lt;/{}&gt;", element),
-            &format!("<{}>", element),
+            &format!("</{}>", element),
         );
     }
 
@@ -44,7 +44,7 @@ pub fn parse_markdown(input: &String) -> String {
     out = regex_replace(&out, "(&!)(.*?);", "&$2;");
 
     // backslash line continuation
-    // out = regex_replace(&out, "\\\n", "");
+    out = out.replace("\\\n", "");
 
     // fenced code blocks
     let mut fenced_code_block_count: i32 = 0;
@@ -56,9 +56,16 @@ pub fn parse_markdown(input: &String) -> String {
 
     for capture in fenced_code_block_regex.captures_iter(&out.clone()) {
         let lang = capture.get(2).unwrap().as_str();
-        let content = capture.get(3).unwrap().as_str();
+        let mut content = capture.get(3).unwrap().as_str().to_string();
 
         fenced_code_block_count += 1;
+
+        // run replacements
+        content = content.replace("*", "&!temp-ast;");
+        content = content.replace("`", "&!temp-back;");
+        content = content.replace("\\n", "&nbsp;1;\\n");
+        content = content.replace("#", "&#35;");
+        content = content.replace("(", "&lpar;");
 
         // build line numbers
         let mut line_numbers: String = String::new();
@@ -83,25 +90,42 @@ pub fn parse_markdown(input: &String) -> String {
         }
 
         // replace
-        out = regex_replace_one(&out, capture.get(1).unwrap().as_str(), &format!("<pre class=\"flex\" style=\"position: relative;\">
+        out = out.replace( capture.get(0).unwrap().as_str(), &format!("<pre class=\"flex\" style=\"position: relative;\">
             <div class=\"line-numbers code\">{line_numbers}</div>
             <code class=\"language-${lang}\" id=\"B{fenced_code_block_count}C\" style=\"display: block;\">{content}</code>
             <button 
-                onclick=\"window.navigator.clipboard.writeText(document.getElementById('B${fenced_code_block_count}C').innerText);\"
+                onclick=\"window.navigator.clipboard.writeText(document.getElementById('B{fenced_code_block_count}C').innerText);\"
                 class=\"secondary copy-button\"
                 title=\"Copy Code\"
             >
-                <svg
-                    xmlns=\"http://www.w3.org/2000/svg\"
-                    viewBox=\"0 0 16 16\"
-                    width=\"16\"
-                    height=\"16\"
+                <svg 
+                    xmlns=\"http://www.w3.org/2000/svg\" 
+                    width=\"18\" 
+                    height=\"18\" 
+                    viewBox=\"0 0 24 24\" 
+                    fill=\"none\" 
+                    stroke=\"currentColor\" 
+                    stroke-width=\"2\" 
+                    stroke-linecap=\"round\" 
+                    stroke-linejoin=\"round\" 
+                    class=\"lucide lucide-clipboard-copy\"
                 >
-                    <path d=\"M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z\"></path>
-                    <path d=\"M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z\"></path>
+                    <rect 
+                        width=\"8\" 
+                        height=\"4\" 
+                        x=\"8\" 
+                        y=\"2\" 
+                        rx=\"1\" 
+                        ry=\"1\"
+                    />
+                    
+                    <path d=\"M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2\" />
+                    <path d=\"M16 4h2a2 2 0 0 1 2 2v4\" />
+                    <path d=\"M21 14H11\" />
+                    <path d=\"m15 10-4 4 4 4\" />
                 </svg>
             </button>
-        </pre>\n"));
+        </pre>"));
     }
 
     // inline code block
@@ -357,6 +381,11 @@ pub fn parse_markdown(input: &String) -> String {
     out = regex_replace(&out, "(\\*{2})(.*?)(\\*{2})", "<strong>$2</strong>");
     out = regex_replace(&out, "(\\*{1})(.*?)(\\*{1})", "<em>$2</em>");
 
+    // undo code replacements
+    out = out.replace("&!temp-ast;", "*");
+    out = out.replace("&!temp-back;", "`");
+    out = out.replace("&nbsp;1;\n", "&nbsp;\n");
+
     // strikethrough
     out = regex_replace(&out, "(\\~{2})(.*?)(\\~{2})", "<del>$2</del>");
 
@@ -474,15 +503,6 @@ pub fn parse_markdown(input: &String) -> String {
             .multi_line(true)
             .dot_matches_new_line(true),
         "<p>\n$1\n</p>",
-    );
-
-    // auto line break
-    out = regex_replace_exp(
-        &out,
-        RegexBuilder::new("([^\\d]|\\s|>)\\s*\\n")
-            .multi_line(true)
-            .dot_matches_new_line(true),
-        "$1<br />",
     );
 
     // return

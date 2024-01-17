@@ -42,7 +42,9 @@ pub fn format_html(input: String, head: &str) -> String {
     <head>
         <meta charset=\"UTF-8\" />
         <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />
+        <meta http-equiv=\"content-security-policy\" content=\"default-src 'self' blob:; img-src * data:; media-src *; font-src *; style-src 'unsafe-inline' 'self' blob: *; script-src 'self' 'unsafe-inline' blob: *; object-src 'self' blob: *; upgrade-insecure-requests; connect-src *; frame-src 'self' blob: data: *\" />
         
+        {}
         <meta name=\"theme-color\" content=\"#ff9999\" />
         <meta property=\"og:type\" content=\"website\" />
         <meta property=\"og:site_name\" content=\"bundlrs\" />
@@ -51,7 +53,13 @@ pub fn format_html(input: String, head: &str) -> String {
         <link rel=\"stylesheet\" href=\"/static/style.css\" />
     </head>
     <body>{input}</body>
-</html>"
+</html>",
+        // only provide favicon is page doesn't set it manually
+        if !head.contains("rel=\"icon\"") {
+            "<link rel=\"icon\" href=\"/static/favicon.svg\" />"
+        } else {
+            ""
+        }
     )
     .to_string();
 }

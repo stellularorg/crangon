@@ -5,8 +5,8 @@ use yew::prelude::*;
 use yew::ServerRenderer;
 
 use crate::db::bundlesdb::{self, AppData, Paste};
-use crate::markdown;
 use crate::utility::format_html;
+use crate::{markdown, utility};
 
 use crate::components::navigation::Footer;
 
@@ -88,7 +88,11 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
     };
 
     if paste.success == false {
-        return HttpResponse::NotFound().body(paste.message);
+        let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();
+        return HttpResponse::NotFound().body(utility::format_html(
+            renderer.render().await,
+            "<title>404: Not Found</title>",
+        ));
     }
 
     let unwrap = paste.payload.as_ref().unwrap();
@@ -122,8 +126,9 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
     }
 
     // ...
-    let paste_preview_text = unwrap.content.chars().take(25).collect();
+    let paste_preview_text = unwrap.content.chars().take(100).collect();
     let embed_color_unwrap = metadata.embed_color.as_ref();
+    let favicon_unwrap = metadata.favicon.as_ref();
 
     // ...
     let renderer = build_renderer_with_props(Props {
@@ -142,11 +147,11 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
             render.await,
             &format!(
                 "<title>{}</title>
-    <meta property=\"og:url\" content=\"{}\" />
-    <meta property=\"og:title\" content=\"{}\" />
-    <meta property=\"og:description\" content=\"{}\" />
-    <meta name=\"theme-color\" content=\"{}\" />
-    ",
+                <meta property=\"og:url\" content=\"{}\" />
+                <meta property=\"og:title\" content=\"{}\" />
+                <meta property=\"og:description\" content=\"{}\" />
+                <meta name=\"theme-color\" content=\"{}\" />
+                <link rel=\"icon\" href=\"{}\" />",
                 &url_c,
                 &format!(
                     "{}{}",
@@ -168,6 +173,11 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
                     "#ff9999"
                 } else {
                     &embed_color_unwrap.unwrap()
+                },
+                if metadata.favicon.is_none() {
+                    "/static/favicon.svg"
+                } else {
+                    &favicon_unwrap.unwrap()
                 }
             ),
         ));

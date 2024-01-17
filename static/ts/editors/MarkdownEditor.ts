@@ -458,7 +458,7 @@ export default function CreateEditor(ElementID: string, content: string) {
         (window.localStorage.getItem("doc") &&
             !window.localStorage
                 .getItem("doc")!
-                .startsWith(decodeURIComponent(content).substring(0, 9))) ||
+                .startsWith(content.substring(0, 9))) ||
         window.location.search.includes("new-paste")
     )
         window.localStorage.removeItem("doc");
@@ -475,9 +475,7 @@ export default function CreateEditor(ElementID: string, content: string) {
         state: EditorState.create({
             doc:
                 // display the saved document or given content
-                window.localStorage.getItem("doc")! ||
-                decodeURIComponent(content) ||
-                "",
+                window.localStorage.getItem("doc")! || content || "",
             extensions: ExtensionsList,
         }),
         parent: element,
@@ -488,13 +486,11 @@ export default function CreateEditor(ElementID: string, content: string) {
         window.localStorage.setItem(
             "gen",
             await ParseMarkdown(
-                window.localStorage.getItem("doc")! ||
-                    decodeURIComponent(content) ||
-                    ""
+                window.localStorage.getItem("doc")! || content || ""
             )
         );
 
-        (window as any).EditorContent = decodeURIComponent(content);
+        (window as any).EditorContent = content;
     })();
 
     // add attributes
