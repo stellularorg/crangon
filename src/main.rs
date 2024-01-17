@@ -77,7 +77,17 @@ async fn main() -> std::io::Result<()> {
             // middleware
             .wrap(actix_web::middleware::Logger::default())
             // static dir
-            .service(fs::Files::new("/static", "./static").show_files_listing())
+            .service(
+                fs::Files::new(
+                    "/static",
+                    format!(
+                        "{}/{}",
+                        std::env::current_dir().unwrap().to_str().unwrap(),
+                        "./static"
+                    ),
+                )
+                .show_files_listing(),
+            )
             // POST api
             // POST api::auth
             .service(crate::api::auth::register)

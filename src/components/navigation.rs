@@ -24,7 +24,7 @@ pub fn Footer(props: &FooterProps) -> Html {
             <ul class="__footernav" style="padding: 0; margin: 0;">
                 <li><a href="/">{"new"}</a></li>
                 <li><a href="/d/settings">{"settings"}</a></li>
-                <li><a href="/what">{"what"}</a></li>
+                <li><a href={info}>{"info"}</a></li>
 
                 if props.auth_state.is_some() {
                     if props.auth_state.unwrap() == false {
