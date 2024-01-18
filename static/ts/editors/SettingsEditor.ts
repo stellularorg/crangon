@@ -125,6 +125,7 @@ export function user_settings(field: HTMLElement): void {
         // ["key", "display", "default"]
         ["bundles:user.ForceClientTheme", "Force Client Theme", false],
         ["bundles:user.DisableImages", "Disable Images", false],
+        ["bundles:user.DisableAnimations", "Disable Animations", false],
         ["bundles:user.DisableCustomPasteCSS", "Disable Paste CSS", false],
     ];
 

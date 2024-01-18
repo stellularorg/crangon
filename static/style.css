@@ -183,3 +183,31 @@ select:focus {
 .editor-tab p {
     text-align: inherit;
 }
+
+/* ... */
+[role="custom-color"] * {
+    color: inherit !important;
+}
+
+[role="spoiler"] {
+    --hidden-color: var(--background-surface2);
+    --active-color: var(--background-surface2a);
+    padding: 0 var(--u-02);
+    background: var(--hidden-color);
+    border-radius: var(--u-02);
+    color: transparent;
+    transition: all 0.15s;
+    box-shadow: none;
+}
+
+[role="spoiler"]:hover,
+[role="spoiler"]:active,
+[role="spoiler"]:focus {
+    background: var(--active-color);
+    color: inherit;
+}
+
+.dark-theme [role="spoiler"] {
+    --hidden-color: var(--background-surface);
+    --active-color: var(--background-surface1a);
+}

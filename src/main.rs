@@ -13,6 +13,7 @@ mod components;
 mod pages;
 
 mod markdown;
+mod ssm;
 
 use crate::db::bundlesdb::{AppData, BundlesDB};
 use crate::db::sql::DatabaseOpts;

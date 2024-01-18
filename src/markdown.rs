@@ -1,3 +1,4 @@
+use crate::ssm;
 use regex::RegexBuilder;
 
 #[allow(dead_code)]
@@ -191,91 +192,6 @@ pub fn parse_markdown(input: &String) -> String {
     out = regex_replace(&out, "^\\-{3,}", "\n<hr />\n");
     out = regex_replace(&out, "^\\_{3,}", "\n<hr />\n");
 
-    // list
-    // lists **need** to know what's on the next and previous lines to know if they need to open or close,
-    // this means we need to iterate through lines for lists and make sure they start with "-" (trimmed)
-    // lists are the only thing matched by this parser that don't use regex
-    let cl = out.clone();
-    let out_lines: Vec<String> = cl.split("\n").map(|s| s.to_string()).collect();
-
-    for (i, line) in out_lines.iter().enumerate() {
-        if !line.trim().starts_with("-") | line.trim().starts_with("->") {
-            continue;
-        }
-
-        let mut split: Vec<&str> = line.split("-").collect::<Vec<&str>>();
-        let level = split.get(0).unwrap().len() / 4;
-
-        // ...
-        let previous: Option<&String> = if i > 0 {
-            let l = out_lines.get(i - 1);
-            let l_spl = if l.is_some() {
-                l.unwrap().split("-").collect::<Vec<&str>>()
-            } else {
-                Vec::new()
-            };
-
-            if l.is_some() && l_spl.get(1).is_some() {
-                l
-            } else {
-                Option::None
-            }
-        } else {
-            Option::None
-        };
-
-        let next: Option<&String> = if i < out_lines.len() {
-            let l = out_lines.get(i + 1);
-            let l_spl = if l.is_some() {
-                l.unwrap().split("-").collect::<Vec<&str>>()
-            } else {
-                Vec::new()
-            };
-
-            if l.is_some() && l_spl.get(1).is_some() {
-                l
-            } else {
-                Option::None
-            }
-        } else {
-            Option::None
-        };
-
-        let requires_nested_end: bool = if i < out_lines.len() {
-            if next.is_none() && level > 0 {
-                true
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-
-        // ...
-        split.remove(0); // remove everything before the first "-"
-        let result: String = format!(
-            "{}<li style=\"margin-left: {}px;\">{}</li>\n{}{}",
-            // if previous doesn't exist, this is the start of the list
-            if previous.is_none() { "<ul>" } else { "" },
-            // ...
-            level * 40,
-            split.join("-"), // join split back
-            // if next doesn't exist, this is the end of the list
-            if next.is_none() { "</ul>\n" } else { "" },
-            if requires_nested_end == true {
-                "</ul>\n"
-            } else {
-                ""
-            }
-        );
-
-        // ...
-        out = out.replace(line, &result);
-    }
-
-    // random list fix
-    out = regex_replace(&out, "</li>\\n\\n\\n<", "</li></ul>\n<");
-
     // special custom element syntax (rs)
     let custom_element_regex = RegexBuilder::new("(e\\#)(?<NAME>.*?)\\s(?<ATRS>.*?)\\#")
         .multi_line(true)
@@ -290,19 +206,23 @@ pub fn parse_markdown(input: &String) -> String {
 
         // make sure everything exists (before we try to call .unwrap on them!)
         if atrs_split.get(0).is_none() {
-            atrs_split.insert(0, String::from(""))
+            atrs_split.insert(0, String::new())
         }
 
         if atrs_split.get(1).is_none() {
-            atrs_split.insert(1, String::from(""))
+            atrs_split.insert(1, String::new())
         }
 
         if atrs_split.get(2).is_none() {
-            atrs_split.insert(2, String::from(""))
+            atrs_split.insert(2, String::new())
         }
 
         if atrs_split.get(3).is_none() {
-            atrs_split.insert(3, String::from(""))
+            atrs_split.insert(3, String::new())
+        }
+
+        if atrs_split.get(4).is_none() {
+            atrs_split.insert(4, String::new())
         }
 
         // possibilities
@@ -324,11 +244,39 @@ pub fn parse_markdown(input: &String) -> String {
         let possible_id_block = &format!("<span id=\"{}\">", atrs_split.get(0).unwrap());
         let possible_close_block = &format!("</span>");
 
+        let possible_animation_block = &format!(
+            "<span role=\"animation\" style=\"
+                animation:{} {} {};\"
+            >{}</span>",
+            // name
+            atrs_split.get(0).unwrap(),
+            // duration
+            if atrs_split.get(1).is_some() {
+                atrs_split.get(1).unwrap()
+            } else {
+                "1s"
+            },
+            // delay
+            if atrs_split.get(2).is_some() {
+                atrs_split.get(2).unwrap()
+            } else {
+                "0s"
+            },
+            // iterations
+            // infinite works here too
+            if atrs_split.get(3).is_some() {
+                atrs_split.get(3).unwrap()
+            } else {
+                "1"
+            }
+        );
+
         // build result
         let result = match name {
             // theming
             "theme" => &possible_theme_block,
             "hsl" => &possible_hsl_block,
+            "animation" => &possible_animation_block,
             // html
             "html" => possible_html_block,
             "chtml" => possible_chtml_block,
@@ -341,6 +289,26 @@ pub fn parse_markdown(input: &String) -> String {
 
         // replace
         out = out.replace(capture.get(0).unwrap().as_str(), &result);
+    }
+
+    // ssm
+    let ssm_regex = RegexBuilder::new("(ssm\\#)(?<CONTENT>.*?)\\#")
+        .multi_line(true)
+        .dot_matches_new_line(true)
+        .build()
+        .unwrap();
+
+    for capture in ssm_regex.captures_iter(&out.clone()) {
+        let content = capture.name("CONTENT").unwrap().as_str();
+
+        // compile
+        let css = ssm::parse_ssm_program(content.to_string());
+
+        // replace
+        out = out.replace(
+            capture.get(0).unwrap().as_str(),
+            &format!("<style>{css}</style>"),
+        );
     }
 
     // text color thing
@@ -516,17 +484,11 @@ pub fn parse_markdown(input: &String) -> String {
     out = regex_replace(&out, "(<link.*>)", "");
     out = regex_replace(&out, "(<meta.*>)", "");
 
-    // auto paragraph
-    out = regex_replace_exp(
-        &out,
-        RegexBuilder::new("^(.*?)\\s*(\\n{2,})")
-            .multi_line(true)
-            .dot_matches_new_line(true),
-        "<p>\n$1\n</p>",
-    );
-
     // return
-    return out.to_string();
+    let parser = pulldown_cmark::Parser::new(&out);
+    let mut html_out = String::new();
+    pulldown_cmark::html::push_html(&mut html_out, parser);
+    return html_out;
 }
 
 #[allow(dead_code)]

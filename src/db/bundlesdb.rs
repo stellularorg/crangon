@@ -1,5 +1,5 @@
 use super::sql::{self, Database, DatabaseOpts};
-use sqlx::{Executor, Row};
+use sqlx::Row;
 
 use crate::utility;
 use serde::{Deserialize, Serialize};
