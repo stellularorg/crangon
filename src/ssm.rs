@@ -1,4 +1,5 @@
-// structured style markup
+// structured style markup (language)
+// a SIMPLE regex parsed language which compiles into CSS
 
 #[derive(Debug, Clone)]
 pub struct SSMProgram {
@@ -29,7 +30,7 @@ pub struct SSMMemberBlock {
     pub name: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct SSMSetBlock {
     // a "SET" block is used to set a property to a value on a member
     pub property: String,
@@ -51,34 +52,35 @@ fn program_tree(input: String) -> SSMProgram {
     // ...
 
     // regex
-    let when_regex = regex::RegexBuilder::new(r"^(WHEN)\s(?<RESTRICTION>.*?)$")
+    let when_regex = regex::RegexBuilder::new(r"^(WHEN)\s(?<RESTRICTION>.*?)($|\%)")
         .multi_line(true)
         .build()
         .unwrap();
 
-    let use_regex = regex::RegexBuilder::new(r"^(USE)\s(?<REFERENCE>.*?)$")
+    let use_regex = regex::RegexBuilder::new(r"^(USE)\s(?<REFERENCE>.*?)($|\%)")
         .multi_line(true)
         .build()
         .unwrap();
 
     let member_regex =
-        regex::RegexBuilder::new(r"^(MEMBER)\s(?<SELECTOR>.*?)(\sNAMED\s)(?<NAME>.*?)$")
+        regex::RegexBuilder::new(r"^(MEMBER)\s(?<SELECTOR>.*?)(\sNAMED\s)(?<NAME>.*?)($|\%)")
             .multi_line(true)
             .build()
             .unwrap();
 
     let set_regex = regex::RegexBuilder::new(
-        r"^(SET)\s(?<PROPERTY>.*?)(TO)(?<VALUE>.*?)(FOR)\s(?<MEMBER>.*?)$",
+        r"^(SET)\s(?<PROPERTY>.*?)(TO)(?<VALUE>.*?)(FOR)\s(?<MEMBER>.*?)($|\%)",
     )
     .multi_line(true)
     .build()
     .unwrap();
 
-    let set_at_regex =
-        regex::RegexBuilder::new(r"^(SET)\s(?<PROPERTY>.*?)(TO)(?<VALUE>.*?)(AT)\s(?<AT>.*?)$")
-            .multi_line(true)
-            .build()
-            .unwrap();
+    let set_at_regex = regex::RegexBuilder::new(
+        r"^(SET)\s(?<PROPERTY>.*?)(TO)(?<VALUE>.*?)(AT)\s(?<AT>.*?)($|\%)",
+    )
+    .multi_line(true)
+    .build()
+    .unwrap();
 
     // matches
     for capture in when_regex.captures_iter(&input) {
@@ -124,18 +126,6 @@ fn program_tree(input: String) -> SSMProgram {
         let value = capture.name("VALUE").unwrap().as_str().trim();
         let member = capture.name("MEMBER").unwrap().as_str().trim();
 
-        // make sure member is already registered
-        let existing = program.members.iter().find(|m| m.name == member);
-
-        if existing.is_none() {
-            program.errors.push(SSMError {
-                message: String::from("a member with this name could not be found"),
-                flagged: member.to_string(),
-            });
-
-            continue;
-        }
-
         // ...
         program.sets.push(SSMSetBlock {
             property: property.to_string(),
@@ -168,6 +158,7 @@ pub fn parse_ssm_program(input: String) -> String {
 
     // get tree
     let tree: SSMProgram = program_tree(input);
+    let mut parsed_sets: Vec<&SSMSetBlock> = Vec::new();
 
     // ...
     for member in tree.members.iter() {
@@ -179,10 +170,15 @@ pub fn parse_ssm_program(input: String) -> String {
             .filter(|s| s.for_member == Option::Some(member.name.clone()));
 
         // build out
-        let mut member_out = member.clone().by + r" {REMOVE}}";
+        let mut member_out = format!(
+            r"{}[named='{}'] {{}}
+{} {{REMOVE}}}}",
+            member.by, member.name, member.by
+        );
 
         for set in sets {
             member_out.push_str(&format!("{}: {};", set.property, set.value));
+            parsed_sets.push(set); // push set so we don't parse it again
         }
 
         // add to out
@@ -191,12 +187,19 @@ pub fn parse_ssm_program(input: String) -> String {
     }
 
     for set in tree.sets.iter() {
-        if set.at.is_none() {
+        if parsed_sets.contains(&set) {
+            // this set has already been parsed previously in the program, so we're going to ignore it
             continue;
-        };
+        }
 
         // build out
-        let mut member_out = set.at.as_ref().unwrap().to_owned() + r" {REMOVE}}";
+        let mut member_out = if set.at.is_some() {
+            set.at.as_ref().unwrap().to_owned() + r" {REMOVE}}"
+        } else {
+            set.for_member.as_ref().unwrap().to_owned()
+                + r" {REMOVE}} --ssm-warn: 'unknown member';"
+        };
+
         member_out.push_str(&format!("{}: {};", set.property, set.value));
 
         // add to out
@@ -242,6 +245,15 @@ pub fn parse_ssm_program(input: String) -> String {
 
             out = format!("@keyframes {} {{{}}}", anim_name, out);
         }
+
+        // inherit (references that start with "http" are imported)
+        for use_statement in tree.uses {
+            if !use_statement.reference.starts_with("http") {
+                continue;
+            };
+
+            out = format!("@import url(\"{}\");{}", use_statement.reference, out);
+        }
     }
 
     // handle viewport_restriction
@@ -250,6 +262,30 @@ pub fn parse_ssm_program(input: String) -> String {
             "@media screen and ({}) {{{}}}",
             tree.viewport_restriction, out
         );
+    }
+
+    // return
+    return out;
+}
+
+pub fn parse_ssm_blocks(input: String) -> String {
+    // parses all SSM blocks in a Markdown input
+    let mut out: String = String::from(input);
+
+    let ssm_regex = regex::RegexBuilder::new("(ssm\\#)(?<CONTENT>.*?)\\#")
+        .multi_line(true)
+        .dot_matches_new_line(true)
+        .build()
+        .unwrap();
+
+    for capture in ssm_regex.captures_iter(&out.clone()) {
+        let content = capture.name("CONTENT").unwrap().as_str();
+
+        // compile
+        let css = parse_ssm_program(content.to_string());
+
+        // replace
+        out = out.replace(capture.get(0).unwrap().as_str(), &css);
     }
 
     // return

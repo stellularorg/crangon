@@ -1,7 +1,7 @@
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
 
 use crate::db::bundlesdb;
-use crate::{markdown, utility};
+use crate::{markdown, ssm, utility};
 
 #[derive(serde::Deserialize)]
 struct RenderInfo {
@@ -40,7 +40,50 @@ struct MetadataInfo {
 
 #[post("/api/markdown")]
 pub async fn render_request(body: web::Json<RenderInfo>) -> impl Responder {
-    return HttpResponse::Ok().body(markdown::parse_markdown(&body.text));
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "text/html"))
+        .body(markdown::parse_markdown(&body.text));
+}
+
+#[post("/api/ssm")]
+pub async fn render_ssm_request(body: web::Json<RenderInfo>) -> impl Responder {
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "text/css"))
+        .body(ssm::parse_ssm_program(body.text.clone()));
+}
+
+#[get("/api/ssm/{url:.*}")]
+pub async fn render_paste_ssm_request(
+    req: HttpRequest,
+    data: web::Data<bundlesdb::AppData>,
+) -> impl Responder {
+    let custom_url: String = req.match_info().get("url").unwrap().to_string();
+    let res = data.db.get_paste_by_url(custom_url).await;
+
+    if !res.success {
+        return HttpResponse::NotFound()
+            .append_header(("Content-Type", "application/json"))
+            .body(serde_json::to_string::<bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>>>(&res).unwrap());
+    }
+
+    // make sure the paste allows their SSM content to be public
+    if !res
+        .payload
+        .as_ref()
+        .unwrap()
+        .content
+        .contains("USE ssm::public")
+    {
+        return HttpResponse::NotFound()
+            .append_header(("Content-Type", "text/plain"))
+            .body("This paste does not export any public SSM blocks.");
+    }
+
+    // return
+    // TODO: check for "USE ssm::public" in the paste content before returning!
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "text/css"))
+        .body(ssm::parse_ssm_blocks(res.payload.unwrap().content));
 }
 
 #[post("/api/new")]
@@ -231,12 +274,11 @@ pub async fn metadata_request(
 }
 
 #[get("/api/exists/{url:.*}")]
-pub async fn exits_request(
+pub async fn exists_request(
     req: HttpRequest,
     data: web::Data<bundlesdb::AppData>,
 ) -> impl Responder {
     let custom_url: String = req.match_info().get("url").unwrap().to_string();
-
     let res = data.db.get_paste_by_url(custom_url).await;
 
     // return

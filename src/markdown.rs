@@ -292,6 +292,7 @@ pub fn parse_markdown(input: &String) -> String {
     }
 
     // ssm
+    // essentially just ssm::parse_ssm_blocks, maybe clean this up later?
     let ssm_regex = RegexBuilder::new("(ssm\\#)(?<CONTENT>.*?)\\#")
         .multi_line(true)
         .dot_matches_new_line(true)
@@ -416,7 +417,7 @@ pub fn parse_markdown(input: &String) -> String {
 
     for capture in arrow_alignment_regex.captures_iter(&out.clone()) {
         let _match = capture.get(0).unwrap().as_str();
-        let content = capture.get(2).unwrap().as_str().replace("\n", "<br />");
+        let content = capture.get(2).unwrap().as_str();
 
         let align = if _match.ends_with(">") {
             "right"
@@ -454,25 +455,11 @@ pub fn parse_markdown(input: &String) -> String {
         "<img alt=\"$2\" title=\"$2\" src=\"$3\" />",
     );
 
-    // anchor (auto)
-    out = regex_replace(
-        &out,
-        "([^\"\\(]|^)(https\\:\\/\\/)(.*?)\\s",
-        "<a href=\"https://$3\">https://$3</a>",
-    );
-
     // anchor (attributes)
     out = regex_replace(
         &out,
         "\\[(?<TEXT>.*?)\\]\\((?<URL>.*?)\\)\\:\\{(?<ATTRS>.+)\\}",
         "<a href=\"$1\" $3>$1</a>",
-    );
-
-    // anchor
-    out = regex_replace(
-        &out,
-        "\\[(?<TEXT>.*?)\\]\\((?<URL>.*?)\\)",
-        "<a href=\"$2\">$1</a>",
     );
 
     // bath time

@@ -105,17 +105,7 @@ export function HandleCustomElements() {
     const styleElements = Array.from(
         document.querySelectorAll("#editor-tab-preview style")
     );
-
-    for (const element of styleElements) {
-        element.innerHTML = element.innerHTML.replaceAll("<br />", "\n"); // fix line breaks
-        element.innerHTML = element.innerHTML.replaceAll(/\<(.*?)\>/g, ""); // remove html elements
-        element.innerHTML = element.innerHTML.replaceAll(/-(.*?)\:/gm, "--$1:"); // fix variables
-        element.innerHTML = element.innerHTML.replaceAll(
-            /(\w)--(\w)(.*?)\:/gm,
-            "$1-$2$3:"
-        ); // fix property names with a hyphen in them
-    }
-
+    
     if (
         window.localStorage.getItem("bundles:user.DisableCustomPasteCSS") ===
         "true"
