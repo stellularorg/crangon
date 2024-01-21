@@ -13,6 +13,7 @@ const output = await build({
         "./static/ts/editors/ClientFixMarkdown.ts",
         "./static/ts/editors/SettingsEditor.ts",
         "./static/ts/pages/AuthPages.ts",
+        "./static/ts/pages/Footer.ts",
     ],
     minify: {
         identifiers: true,

@@ -130,7 +130,8 @@ pub async fn create_request(
                 custom_url: custom_url.clone(),
                 id: String::new(), // reassigned anyways, this doesn't matter
                 edit_password: edit_password.to_string(),
-                content,
+                content: content.clone(),
+                content_html: crate::markdown::parse_markdown(&content), // go ahead and render the content
                 pub_date: utility::unix_epoch_timestamp(),
                 edit_date: utility::unix_epoch_timestamp(),
                 group_name: g_name_for_real.to_string(),
@@ -285,4 +286,64 @@ pub async fn exists_request(
     return HttpResponse::Ok()
         .append_header(("Content-Type", "text/plain"))
         .body(res.success.to_string());
+}
+
+#[get("/api/url/{url:.*}")]
+pub async fn get_from_url_request(
+    req: HttpRequest,
+    data: web::Data<bundlesdb::AppData>,
+) -> impl Responder {
+    let custom_url: String = req.match_info().get("url").unwrap().to_string();
+    let res: bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>> =
+        data.db.get_paste_by_url(custom_url).await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(
+            serde_json::to_string::<bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>>>(
+                &res,
+            )
+            .unwrap(),
+        );
+}
+
+#[get("/api/id/{id:.*}")]
+pub async fn get_from_id_request(
+    req: HttpRequest,
+    data: web::Data<bundlesdb::AppData>,
+) -> impl Responder {
+    let id: String = req.match_info().get("id").unwrap().to_string();
+    let res: bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>> =
+        data.db.get_paste_by_id(id).await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(
+            serde_json::to_string::<bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>>>(
+                &res,
+            )
+            .unwrap(),
+        );
+}
+
+#[get("/api/owner/{username:.*}")]
+pub async fn get_from_owner_request(
+    req: HttpRequest,
+    data: web::Data<bundlesdb::AppData>,
+) -> impl Responder {
+    let username: String = req.match_info().get("username").unwrap().to_string();
+    let res: bundlesdb::DefaultReturn<Option<Vec<bundlesdb::PasteIdentifier>>> =
+        data.db.get_pastes_by_owner(username).await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(
+            serde_json::to_string::<
+                bundlesdb::DefaultReturn<Option<Vec<bundlesdb::PasteIdentifier>>>,
+            >(&res)
+            .unwrap(),
+        );
 }

@@ -290,3 +290,15 @@ pub async fn home_request(
 <meta property=\"og:description\" content=\"Bundlrs, the open-source Rust rewrite of Bundles.\" />",
         ));
 }
+
+#[get("/robots.txt")]
+pub async fn robotstxt() -> impl Responder {
+    return HttpResponse::Ok().body(
+        "User-agent: *
+Allow: /
+Disallow: /api
+Disallow: /admin
+Disallow: /paste
+Disallow: /*?",
+    );
+}

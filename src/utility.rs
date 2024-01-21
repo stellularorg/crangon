@@ -36,6 +36,14 @@ pub fn unix_epoch_timestamp() -> u128 {
 
 // html
 pub fn format_html(input: String, head: &str) -> String {
+    let embed_in_body_var = std::env::var("BODY_EMBED");
+    let embed_in_body = if embed_in_body_var.is_ok() {
+        embed_in_body_var.unwrap()
+    } else {
+        String::new()
+    };
+
+    // ...
     return format!(
         "<!DOCTYPE html>
 <html lang=\"en\">
@@ -51,8 +59,12 @@ pub fn format_html(input: String, head: &str) -> String {
         {head}
 
         <link rel=\"stylesheet\" href=\"/static/style.css\" />
+        <script type=\"module\" src=\"/static/js/Footer.js\"></script>
     </head>
-    <body>{input}</body>
+    <body>
+        {input}
+        {embed_in_body}
+    </body>
 </html>",
         // only provide favicon is page doesn't set it manually
         if !head.contains("rel=\"icon\"") {

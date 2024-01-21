@@ -78,8 +78,8 @@ pub fn Footer(props: &FooterProps) -> Html {
             <div style="position: relative; width: 100%;">
                 <div style="position: absolute; bottom: 8px; right: 0;">
                     <a
-                        id="ThemeButton"
-                        href="javascript:ToggleTheme()"
+                        id="theme_button"
+                        href="javascript:window.toggle_theme()"
                         title="Toggle Theme"
                         style="color: var(--text-color-faded);"
                     >
@@ -93,88 +93,6 @@ pub fn Footer(props: &FooterProps) -> Html {
                     </a>
                 </div>
             </div>
-
-            <script>
-                {"window.SunIcon = document.getElementById(\"theme-icon-sun\");
-                window.MoonIcon = document.getElementById(\"theme-icon-moon\");
-                function ToggleTheme() {
-                    if (
-                        window.PASTE_USES_CUSTOM_THEME && 
-                        window.localStorage.getItem(\"bundles:user.ForceClientTheme\") !== \"true\"
-                    ) return;
-                    
-                    const current = window.localStorage.getItem(\"theme\");
-
-                    if (current === \"dark\") {
-                        /* set light */
-                        document.documentElement.classList.remove(\"dark-theme\");
-                        window.localStorage.setItem(\"theme\", \"light\");
-                        
-                        window.SunIcon.style.display = \"block\";
-                        window.MoonIcon.style.display = \"none\";
-                    } else {
-                        /* set dark */
-                        document.documentElement.classList.add(\"dark-theme\");
-                        window.localStorage.setItem(\"theme\", \"dark\");
-
-                        window.SunIcon.style.display = \"none\";
-                        window.MoonIcon.style.display = \"block\";
-                    }
-                }
-                
-                /* prefer theme */
-                if (
-                    window.matchMedia(\"(prefers-color-scheme: dark)\").matches && 
-                    !window.localStorage.getItem(\"theme\")
-                ) {
-                    document.documentElement.classList.add(\"dark-theme\");
-                    window.localStorage.setItem(\"theme\", \"dark\");
-                    window.SunIcon.style.display = \"none\";
-                    window.MoonIcon.style.display = \"block\";
-                } else if (
-                    window.matchMedia(\"(prefers-color-scheme: light)\").matches && 
-                    !window.localStorage.getItem(\"theme\")
-                ) {
-                    document.documentElement.classList.remove(\"dark-theme\");
-                    window.localStorage.setItem(\"theme\", \"light\");
-                    window.SunIcon.style.display = \"block\";
-                    window.MoonIcon.style.display = \"none\";
-                }
-                
-                /* restore theme */
-                else if (window.localStorage.getItem(\"theme\")) {
-                    const current = window.localStorage.getItem(\"theme\");
-                    document.documentElement.className = `${current}-theme`;
-                    
-                    if (current.includes(\"dark\")) {
-                        /* sun icon */
-                        window.SunIcon.style.display = \"none\";
-                        window.MoonIcon.style.display = \"block\";
-                    } else {
-                        /* moon icon */
-                        window.SunIcon.style.display = \"block\";
-                        window.MoonIcon.style.display = \"none\";
-                    }
-                }
-                
-                /* global css string */
-                if (
-                    !window.PASTE_USES_CUSTOM_THEME || 
-                    window.localStorage.getItem(\"bundles:user.ForceClientTheme\") === \"true\"
-                ) {
-                    const style = document.createElement(\"style\");
-                    style.innerHTML = window.localStorage.getItem(\"bundles:user.GlobalCSSString\");
-                    document.body.appendChild(style);
-                }"}
-            </script>
-
-            // localize dates
-            <script>
-                {"setTimeout(() => {
-                    for (const element of document.querySelectorAll(\".date-time-to-localize\"))
-                            element.innerText = new Date(parseInt(element.innerText)).toLocaleString();
-                }, 50);"}
-            </script>
         </div>
     };
 }

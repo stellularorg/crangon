@@ -1,5 +1,6 @@
 use actix_files as fs;
 use actix_web::{web, App, HttpResponse, HttpServer};
+use dotenv;
 
 use sqlx;
 use yew::ServerRenderer;
@@ -20,6 +21,9 @@ use crate::db::sql::DatabaseOpts;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    dotenv::dotenv().ok();
+
+    // ...
     let args: Vec<String> = config::collect_arguments();
 
     let port_search: Option<String> = config::get_named_argument(&args, "port");
@@ -105,6 +109,9 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::pastes::render_ssm_request)
             .service(crate::api::pastes::render_paste_ssm_request)
             // GET api
+            .service(crate::api::pastes::get_from_owner_request)
+            .service(crate::api::pastes::get_from_url_request)
+            .service(crate::api::pastes::get_from_id_request)
             .service(crate::api::pastes::exists_request)
             .service(crate::api::auth::logout)
             // GET dashboard
@@ -114,6 +121,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::pages::settings::paste_settings_request)
             // GET root
             .service(crate::pages::home::home_request)
+            .service(crate::pages::home::robotstxt)
             .service(crate::pages::paste_view::paste_view_request) // must be run last as it matches all other paths!
             // ERRORS
             .default_service(web::to(|| async {

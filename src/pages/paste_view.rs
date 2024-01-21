@@ -5,8 +5,8 @@ use yew::prelude::*;
 use yew::ServerRenderer;
 
 use crate::db::bundlesdb::{self, AppData, Paste};
+use crate::utility;
 use crate::utility::format_html;
-use crate::{markdown, utility};
 
 use crate::components::navigation::Footer;
 
@@ -18,10 +18,7 @@ struct Props {
 
 #[function_component]
 fn PasteView(props: &Props) -> Html {
-    let content = Html::from_html_unchecked(AttrValue::from(markdown::parse_markdown(
-        &props.paste.content,
-    )));
-
+    let content = Html::from_html_unchecked(AttrValue::from(props.paste.content_html.clone()));
     let metadata = serde_json::from_str::<bundlesdb::PasteMetadata>(&props.paste.metadata).unwrap();
 
     return html! {
@@ -37,12 +34,19 @@ fn PasteView(props: &Props) -> Html {
             </div>
 
             <div class="flex justify-space-between g-4 full">
-                <a class="button round" href={format!("/?editing={}", &props.paste.custom_url)}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                    {"Edit"}
-                </a>
+                <div class="flex g-4 flex-wrap mobile:flex-column">
+                    <a class="button round" href={format!("/?editing={}", &props.paste.custom_url)}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                        {"Edit"}
+                    </a>
 
-                <div class="flex flex-column g-2 text-right" style="color: var(--text-color-faded);">
+                    <a href={format!("/d/settings/paste/{}", &props.paste.custom_url)} class="button border round">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-cog"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v2"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><circle cx="6" cy="14" r="3"/><path d="M6 10v1"/><path d="M6 17v1"/><path d="M10 14H9"/><path d="M3 14H2"/><path d="m9 11-.88.88"/><path d="M3.88 16.12 3 17"/><path d="m9 17-.88-.88"/><path d="M3.88 11.88 3 11"/></svg>
+                        {"Config"}
+                    </a>
+                </div>
+
+                <div class="flex flex-column g-2 text-right" style="color: var(--text-color-faded); min-width: max-content;">
                     <span class="flex justify-center g-4">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cake-slice"><circle cx="9" cy="7" r="2"/><path d="M7.2 7.9 3 11v9c0 .6.4 1 1 1h16c.6 0 1-.4 1-1v-9c0-2-3-6-7-8l-3.6 2.6"/><path d="M16 13H3"/><path d="M16 17H3"/></svg>
                         {"Pub: "}<span class="date-time-to-localize">{&props.paste.pub_date}</span>
@@ -80,12 +84,8 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
     let url: String = req.match_info().get("url").unwrap().to_string();
     let url_c = url.clone();
 
-    let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> = if url == String::from("d") {
-        bundlesdb::create_dummy(Option::Some("dummy-paste"))
-    } else {
-        // fetch paste
-        data.db.get_paste_by_url(url).await
-    };
+    let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> =
+        data.db.get_paste_by_url(url).await;
 
     if paste.success == false {
         let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();

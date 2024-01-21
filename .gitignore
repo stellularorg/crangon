@@ -6,3 +6,9 @@ Cargo.lock
 # js
 node_modules/
 /static/js
+
+# env
+.env
+
+# test
+git_repos/

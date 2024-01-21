@@ -31,8 +31,17 @@ pub struct Paste<M> {
     pub edit_date: u128,
     // ...
     pub content: String,
-    pub metadata: M, // JSON Object
+    pub content_html: String, // rendered paste content
+    //                           storing the rendered content in the database will save like 100ms when loading pastes!
+    // ...
+    pub metadata: M,
     pub views: usize,
+}
+
+#[derive(Debug, Default, sqlx::FromRow, Clone, Serialize, Deserialize)]
+pub struct PasteIdentifier {
+    pub custom_url: String,
+    pub id: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -110,6 +119,7 @@ impl BundlesDB {
                 pub_date TEXT NOT NULL,
                 edit_date TEXT NOT NULL,
                 content TEXT NOT NULL,
+                content_html TEXT NOT NULL,
                 metadata TEXT NOT NULL
             )",
         )
@@ -264,7 +274,7 @@ impl BundlesDB {
 
         let c = &self.db.client;
         let res = sqlx::query(query)
-            .bind(username)
+            .bind(&username)
             .bind(&user_id_hashed)
             .bind(&timestamp)
             .execute(c)
@@ -442,17 +452,14 @@ impl BundlesDB {
 
     // pastes
 
-    // GET
-    pub async fn get_paste_by_url(&self, url: String) -> DefaultReturn<Option<Paste<String>>> {
-        let query: &str = if self.db._type == "sqlite" {
-            "SELECT * FROM \"Pastes\" WHERE \"custom_url\" = ?"
-        } else {
-            "SELECT * FROM \"Pastes\" WHERE \"custom_url\" = $1"
-        };
-
+    async fn build_result_from_query(
+        &self,
+        query: &str,
+        selector: &str,
+    ) -> DefaultReturn<Option<Paste<String>>> {
         let c = &self.db.client;
         let res = sqlx::query(query)
-            .bind(&url.to_lowercase())
+            .bind(selector.to_lowercase())
             .fetch_one(c)
             .await;
 
@@ -475,7 +482,7 @@ impl BundlesDB {
         };
 
         let views_res = sqlx::query(query)
-            .bind(format!("{}::%", &url))
+            .bind(format!("{}::%", &row.get::<String, _>("custom_url")))
             .fetch_all(c)
             .await;
 
@@ -499,9 +506,73 @@ impl BundlesDB {
                 pub_date: row.get::<String, _>("pub_date").parse::<u128>().unwrap(),
                 edit_date: row.get::<String, _>("edit_date").parse::<u128>().unwrap(),
                 content: row.get("content"),
+                content_html: row.get("content_html"),
                 metadata: row.get::<String, _>("metadata"),
                 views: views_res.unwrap().len(),
             }),
+        };
+    }
+
+    // GET
+    pub async fn get_paste_by_url(&self, url: String) -> DefaultReturn<Option<Paste<String>>> {
+        let query: &str = if self.db._type == "sqlite" {
+            "SELECT * FROM \"Pastes\" WHERE \"custom_url\" = ?"
+        } else {
+            "SELECT * FROM \"Pastes\" WHERE \"custom_url\" = $1"
+        };
+
+        return self.build_result_from_query(query, &url).await;
+    }
+
+    pub async fn get_paste_by_id(&self, id: String) -> DefaultReturn<Option<Paste<String>>> {
+        let query: &str = if self.db._type == "sqlite" {
+            "SELECT * FROM \"Pastes\" WHERE \"id\" = ?"
+        } else {
+            "SELECT * FROM \"Pastes\" WHERE \"id\" = $1"
+        };
+
+        return self.build_result_from_query(query, &id).await;
+    }
+
+    pub async fn get_pastes_by_owner(
+        &self,
+        owner: String,
+    ) -> DefaultReturn<Option<Vec<PasteIdentifier>>> {
+        let query: &str = if self.db._type == "sqlite" {
+            "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE ?"
+        } else {
+            "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE $1"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind(format!("%\"owner\":\"{}\"%", &owner))
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to fetch pastes"),
+                payload: Option::None,
+            };
+        }
+
+        // build res
+        let mut full_res: Vec<PasteIdentifier> = Vec::new();
+
+        for row in res.unwrap() {
+            full_res.push(PasteIdentifier {
+                custom_url: row.get("custom_url"),
+                id: row.get("id"),
+            });
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: owner,
+            payload: Option::Some(full_res),
         };
     }
 
@@ -516,7 +587,7 @@ impl BundlesDB {
         // create default metadata
         let metadata: PasteMetadata = PasteMetadata {
             owner: if as_user.is_some() {
-                as_user.unwrap()
+                as_user.clone().unwrap()
             } else {
                 String::new()
             },
@@ -637,9 +708,9 @@ impl BundlesDB {
 
         // create paste
         let query: &str = if self.db._type == "sqlite" {
-            "INSERT INTO \"Pastes\" VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO \"Pastes\" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         } else {
-            "INSERT INTO \"Pastes\" VALUES ($1, $2, $3, $4, $5, $6, $7, $8)"
+            "INSERT INTO \"Pastes\" VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
         };
 
         let c: &sqlx::Pool<sqlx::Any> = &self.db.client;
@@ -660,6 +731,7 @@ impl BundlesDB {
             .bind(pub_date.to_string())
             .bind(edit_date.to_string())
             .bind(&p.content)
+            .bind(&p.content_html)
             .bind(serde_json::to_string(&metadata).unwrap())
             .execute(c)
             .await;
@@ -749,14 +821,15 @@ impl BundlesDB {
 
         // update paste
         let query: &str = if self.db._type == "sqlite" {
-            "UPDATE \"Pastes\" SET (\"content\", \"edit_password\", \"custom_url\", \"edit_date\") = (?, ?, ?, ?) WHERE \"custom_url\" = ?"
+            "UPDATE \"Pastes\" SET (\"content\", \"content_html\", \"edit_password\", \"custom_url\", \"edit_date\") = (?, ?, ?, ?, ?) WHERE \"custom_url\" = ?"
         } else {
-            "UPDATE \"Pastes\" SET (\"content\", \"edit_password\", \"custom_url\", \"edit_date\") = ($1, $2, $3, $4) WHERE \"custom_url\" = $5"
+            "UPDATE \"Pastes\" SET (\"content\", \"content_html\", \"edit_password\", \"custom_url\", \"edit_date\") = ($1, $2, $3, $4, $5) WHERE \"custom_url\" = $6"
         };
 
         let c = &self.db.client;
         let res = sqlx::query(query)
             .bind(&content)
+            .bind(&crate::markdown::parse_markdown(&content))
             .bind(&edit_password_hash)
             .bind(&custom_url)
             .bind(utility::unix_epoch_timestamp().to_string()) // update edit_date
@@ -1067,29 +1140,4 @@ impl BundlesDB {
             payload: Option::Some(p.name.to_string()),
         };
     }
-}
-
-pub fn create_dummy(mut custom_url: Option<&str>) -> DefaultReturn<Option<Paste<String>>> {
-    if custom_url.is_none() {
-        custom_url = Option::Some("dummy_paste");
-    }
-
-    return DefaultReturn {
-        success: true,
-        message: String::from("Paste exists"),
-        payload: Option::Some(Paste {
-            custom_url: custom_url.unwrap().to_string(),
-            id: "".to_string(),
-            group_name: "".to_string(),
-            // passwords
-            edit_password: "".to_string(),
-            // dates
-            pub_date: utility::unix_epoch_timestamp(),
-            edit_date: utility::unix_epoch_timestamp(),
-            // ...
-            content: "dummy paste".to_string(),
-            metadata: "".to_string(),
-            views: 0,
-        }),
-    };
 }

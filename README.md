@@ -36,6 +36,7 @@ Bundlrs is configured through flags given when running the server. The following
 Environment variables:
 
 - `INFO` optional (defaults to `/pub/info`)
+- `BODY_EMBED` optional (defaults to nothing)
 
 ## Features
 

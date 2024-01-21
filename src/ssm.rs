@@ -270,7 +270,7 @@ pub fn parse_ssm_program(input: String) -> String {
 
 pub fn parse_ssm_blocks(input: String) -> String {
     // parses all SSM blocks in a Markdown input
-    let mut out: String = String::from(input);
+    let mut out: String = String::new();
 
     let ssm_regex = regex::RegexBuilder::new("(ssm\\#)(?<CONTENT>.*?)\\#")
         .multi_line(true)
@@ -278,14 +278,14 @@ pub fn parse_ssm_blocks(input: String) -> String {
         .build()
         .unwrap();
 
-    for capture in ssm_regex.captures_iter(&out.clone()) {
+    for capture in ssm_regex.captures_iter(&input.clone()) {
         let content = capture.name("CONTENT").unwrap().as_str();
 
         // compile
         let css = parse_ssm_program(content.to_string());
 
         // replace
-        out = out.replace(capture.get(0).unwrap().as_str(), &css);
+        out += &css;
     }
 
     // return
