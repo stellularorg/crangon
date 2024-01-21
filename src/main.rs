@@ -37,10 +37,10 @@ async fn main() -> std::io::Result<()> {
 
     // create database
     let db_type: Option<String> = config::get_named_argument(&args, "db-type");
-    let db_host: Option<String> = config::get_named_argument(&args, "db-host");
-    let db_user: Option<String> = config::get_named_argument(&args, "db-user");
-    let db_pass: Option<String> = config::get_named_argument(&args, "db-pass");
-    let db_name: Option<String> = config::get_named_argument(&args, "db-name");
+    let db_host: Option<String> = config::get_var("PSQL_HOST");
+    let db_user: Option<String> = config::get_var("PSQL_USER");
+    let db_pass: Option<String> = config::get_var("PSQL_PASS");
+    let db_name: Option<String> = config::get_var("PSQL_NAME");
 
     let db_is_psql: bool = db_type
         .clone()

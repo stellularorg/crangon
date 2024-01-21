@@ -24,7 +24,7 @@ pub async fn create_db(options: DatabaseOpts) -> Database {
     // create client
     if _type.unwrap() == "sqlite" {
         // sqlite
-        let client = sqlx::AnyPool::connect("sqlite://test.db").await;
+        let client = sqlx::AnyPool::connect("sqlite://bundlrs.db").await;
 
         if client.is_err() {
             panic!("Failed to connect to database!");
@@ -43,7 +43,7 @@ pub async fn create_db(options: DatabaseOpts) -> Database {
             if options.host.is_some() {
                 options.host.unwrap()
             } else {
-                "127.0.0.1".to_string()
+                "localhost".to_string()
             },
             options.name
         ))

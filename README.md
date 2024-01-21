@@ -28,15 +28,16 @@ Bundlrs is configured through flags given when running the server. The following
 
 - `--port 0000` optional (defaults to `8080`)
 - `--static-dir "/path/to/dir` optional (defaults to `./static`)
-- `--db-host "host"` optional (defaults to `localhost`)
-- `--db-user "user"` **required**
-- `--db-pass "pass"` **required**
-- `--db-name "name"` **required**
+- `--db-type "type"` optional (defaults to `sqlite`)
 
 Environment variables:
 
 - `INFO` optional (defaults to `/pub/info`)
 - `BODY_EMBED` optional (defaults to nothing)
+- `PSQL_HOST "host"` optional (defaults to `localhost`) (only if `--db-type` is not `sqlite`)
+- `PSQL_USER "user"` **required** (only if `--db-type` is not `sqlite`)
+- `PSQL_PASS "pass"` **required** (only if `--db-type` is not `sqlite`)
+- `PSQL_NAME "name"` **required** (only if `--db-type` is not `sqlite`)
 
 ## Features
 

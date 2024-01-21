@@ -24,3 +24,13 @@ pub fn get_named_argument(args: &Vec<String>, name: &str) -> Option<String> {
 
     return Option::None;
 }
+
+pub fn get_var(var: &str) -> Option<String> {
+    let res = env::var(var);
+
+    if res.is_ok() {
+        Option::Some(res.unwrap())
+    } else {
+        Option::None
+    }
+}
