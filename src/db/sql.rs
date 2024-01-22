@@ -37,19 +37,24 @@ pub async fn create_db(options: DatabaseOpts) -> Database {
             _type: String::from("sqlite"),
         };
     } else if _type == "mysql" {
-        // postgres
-        let client = sqlx::AnyPool::connect(&format!(
-            "mysql://{}:{}@{}/{}",
-            options.user,
-            options.pass,
-            if options.host.is_some() {
-                options.host.unwrap()
-            } else {
-                "localhost".to_string()
-            },
-            options.name
-        ))
-        .await;
+        // mysql
+        let opts = sqlx::any::AnyPoolOptions::new()
+            .max_connections(10)
+            .acquire_timeout(std::time::Duration::from_millis(1000));
+
+        let client = opts
+            .connect(&format!(
+                "mysql://{}:{}@{}/{}",
+                options.user,
+                options.pass,
+                if options.host.is_some() {
+                    options.host.unwrap()
+                } else {
+                    "localhost".to_string()
+                },
+                options.name
+            ))
+            .await;
 
         if client.is_err() {
             panic!("failed to connect to database: {}", client.err().unwrap());

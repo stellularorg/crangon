@@ -76,6 +76,7 @@ pub struct UserState {
     pub username: String,
     pub id_hashed: String, // users use their UNHASHED id to login, it is used as their session id too!
     //                        the hashed id is the only id that should ever be public!
+    pub role: String,
     // dates
     pub timestamp: u128,
 }
@@ -109,18 +110,20 @@ impl BundlesDB {
 
         // create tables
         let c = &self.db.client;
+        // MAX = 1000000
+        // we're just using the same max length for everything because lengths are checked before being sent to db
 
         let _ = sqlx::query(
             "CREATE TABLE IF NOT EXISTS \"Pastes\" (
-                custom_url TEXT NOT NULL,
-                id TEXT NOT NULL,
-                group_name TEXT NOT NULL,
-                edit_password TEXT NOT NULL,
-                pub_date TEXT NOT NULL,
-                edit_date TEXT NOT NULL,
-                content TEXT NOT NULL,
-                content_html TEXT NOT NULL,
-                metadata TEXT NOT NULL
+                custom_url VARCHAR(1000000),
+                id VARCHAR(1000000),
+                group_name VARCHAR(1000000),
+                edit_password VARCHAR(1000000),
+                pub_date VARCHAR(1000000),
+                edit_date VARCHAR(1000000),
+                content VARCHAR(1000000),
+                content_html VARCHAR(1000000),
+                metadata VARCHAR(1000000)
             )",
         )
         .execute(c)
@@ -128,9 +131,9 @@ impl BundlesDB {
 
         let _ = sqlx::query(
             "CREATE TABLE IF NOT EXISTS \"Groups\" (
-                name TEXT NOT NULL,
-                submit_password TEXT NOT NULL,
-                metadata TEXT NOT NULL
+                name VARCHAR(1000000),
+                submit_password VARCHAR(1000000),
+                metadata VARCHAR(1000000)
             )",
         )
         .execute(c)
@@ -138,9 +141,10 @@ impl BundlesDB {
 
         let _ = sqlx::query(
             "CREATE TABLE IF NOT EXISTS \"Users\" (
-                username TEXT NOT NULL,
-                id_hashed TEXT NOT NULL,
-                timestamp TEXT NOT NULL
+                username VARCHAR(1000000),
+                id_hashed VARCHAR(1000000),
+                role VARCHAR(1000000),
+                timestamp VARCHAR(1000000)
             )",
         )
         .execute(c)
@@ -148,10 +152,10 @@ impl BundlesDB {
 
         let _ = sqlx::query(
             "CREATE TABLE IF NOT EXISTS \"Logs\" (
-                id TEXT NOT NULL,
-                logtype TEXT NOT NULL,
-                timestamp  TEXT NOT NULL,
-                content TEXT NOT NULL
+                id VARCHAR(1000000),
+                logtype VARCHAR(1000000),
+                timestamp  VARCHAR(1000000),
+                content VARCHAR(1000000)
             )",
         )
         .execute(c)
@@ -169,7 +173,10 @@ impl BundlesDB {
         };
 
         let c = &self.db.client;
-        let res = sqlx::query(query).bind(&hashed).fetch_one(c).await;
+        let res = sqlx::query(query)
+            .bind::<&String>(&hashed)
+            .fetch_one(c)
+            .await;
 
         if res.is_err() {
             return DefaultReturn {
@@ -189,6 +196,7 @@ impl BundlesDB {
             payload: Option::Some(UserState {
                 username: row.get("username"),
                 id_hashed: row.get("id_hashed"),
+                role: row.get("role"),
                 timestamp: row.get::<String, _>("timestamp").parse::<u128>().unwrap(),
             }),
         };
@@ -202,7 +210,10 @@ impl BundlesDB {
         };
 
         let c = &self.db.client;
-        let res = sqlx::query(query).bind(&username).fetch_one(c).await;
+        let res = sqlx::query(query)
+            .bind::<&String>(&username)
+            .fetch_one(c)
+            .await;
 
         if res.is_err() {
             return DefaultReturn {
@@ -222,6 +233,7 @@ impl BundlesDB {
             payload: Option::Some(UserState {
                 username: row.get("username"),
                 id_hashed: row.get("id_hashed"),
+                role: row.get("role"),
                 timestamp: row.get::<String, _>("timestamp").parse::<u128>().unwrap(),
             }),
         };
@@ -263,9 +275,9 @@ impl BundlesDB {
 
         // ...
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            "INSERT INTO \"Users\" VALUES (?, ?, ?)"
+            "INSERT INTO \"Users\" VALUES (?, ?, ?, ?)"
         } else {
-            "INSERT INTO \"Users\" VALUES ($1, $2, $3)"
+            "INSERT INTO \"Users\" VALUES ($1, $2, $3, $4)"
         };
 
         let user_id_unhashed: String = utility::uuid();
@@ -274,9 +286,10 @@ impl BundlesDB {
 
         let c = &self.db.client;
         let res = sqlx::query(query)
-            .bind(&username)
-            .bind(&user_id_hashed)
-            .bind(&timestamp)
+            .bind::<&String>(&username)
+            .bind::<&String>(&user_id_hashed)
+            .bind::<&String>(&String::from("member")) // default role
+            .bind::<&String>(&timestamp)
             .execute(c)
             .await;
 
@@ -307,7 +320,7 @@ impl BundlesDB {
         };
 
         let c = &self.db.client;
-        let res = sqlx::query(query).bind(&id).fetch_one(c).await;
+        let res = sqlx::query(query).bind::<&String>(&id).fetch_one(c).await;
 
         if res.is_err() {
             return DefaultReturn {
@@ -349,10 +362,10 @@ impl BundlesDB {
 
         let c = &self.db.client;
         let res = sqlx::query(query)
-            .bind(&log_id)
-            .bind(logtype)
-            .bind(utility::unix_epoch_timestamp().to_string())
-            .bind(content)
+            .bind::<&String>(&log_id)
+            .bind::<String>(logtype)
+            .bind::<String>(utility::unix_epoch_timestamp().to_string())
+            .bind::<String>(content)
             .fetch_one(c)
             .await;
 
@@ -392,8 +405,8 @@ impl BundlesDB {
 
         let c = &self.db.client;
         let res = sqlx::query(query)
-            .bind(&content)
-            .bind(&id)
+            .bind::<&String>(&content)
+            .bind::<&String>(&id)
             .fetch_one(c)
             .await;
 
@@ -432,7 +445,7 @@ impl BundlesDB {
         };
 
         let c = &self.db.client;
-        let res = sqlx::query(query).bind(&id).fetch_one(c).await;
+        let res = sqlx::query(query).bind::<&String>(&id).fetch_one(c).await;
 
         if res.is_err() {
             return DefaultReturn {
@@ -459,7 +472,7 @@ impl BundlesDB {
     ) -> DefaultReturn<Option<Paste<String>>> {
         let c = &self.db.client;
         let res = sqlx::query(query)
-            .bind(selector.to_lowercase())
+            .bind::<&String>(&selector.to_lowercase())
             .fetch_one(c)
             .await;
 
@@ -482,7 +495,7 @@ impl BundlesDB {
         };
 
         let views_res = sqlx::query(query)
-            .bind(format!("{}::%", &row.get::<String, _>("custom_url")))
+            .bind::<&String>(&format!("{}::%", &row.get::<String, _>("custom_url")))
             .fetch_all(c)
             .await;
 
@@ -546,7 +559,7 @@ impl BundlesDB {
 
         let c = &self.db.client;
         let res = sqlx::query(query)
-            .bind(format!("%\"owner\":\"{}\"%", &owner))
+            .bind::<&String>(&format!("%\"owner\":\"{}\"%", &owner))
             .fetch_all(c)
             .await;
 
@@ -724,15 +737,15 @@ impl BundlesDB {
         let pub_date = &p.pub_date;
 
         let res = sqlx::query(query)
-            .bind(&p.custom_url)
-            .bind(&p.id)
-            .bind(&p.group_name)
-            .bind(&edit_password_hash)
-            .bind(pub_date.to_string())
-            .bind(edit_date.to_string())
-            .bind(&p.content)
-            .bind(&p.content_html)
-            .bind(serde_json::to_string(&metadata).unwrap())
+            .bind::<&String>(&p.custom_url)
+            .bind::<&String>(&p.id)
+            .bind::<&String>(&p.group_name)
+            .bind::<&String>(&edit_password_hash)
+            .bind::<&String>(&pub_date.to_string())
+            .bind::<&String>(&edit_date.to_string())
+            .bind::<&String>(&p.content)
+            .bind::<&String>(&p.content_html)
+            .bind::<&String>(&serde_json::to_string(&metadata).unwrap())
             .execute(c)
             .await;
 
@@ -828,12 +841,12 @@ impl BundlesDB {
 
         let c = &self.db.client;
         let res = sqlx::query(query)
-            .bind(&content)
-            .bind(&crate::markdown::parse_markdown(&content))
-            .bind(&edit_password_hash)
-            .bind(&custom_url)
-            .bind(utility::unix_epoch_timestamp().to_string()) // update edit_date
-            .bind(&url)
+            .bind::<&String>(&content)
+            .bind::<&String>(&crate::markdown::parse_markdown(&content))
+            .bind::<&String>(&edit_password_hash)
+            .bind::<&String>(&custom_url)
+            .bind::<&String>(&utility::unix_epoch_timestamp().to_string()) // update edit_date
+            .bind::<&String>(&url)
             .execute(c)
             .await;
 
@@ -898,8 +911,8 @@ impl BundlesDB {
 
         let c = &self.db.client;
         let res = sqlx::query(query)
-            .bind(serde_json::to_string(&metadata).unwrap())
-            .bind(&url)
+            .bind::<&String>(&serde_json::to_string(&metadata).unwrap())
+            .bind::<&String>(&url)
             .execute(c)
             .await;
 
@@ -943,7 +956,7 @@ impl BundlesDB {
 
         let c = &self.db.client;
         let res = sqlx::query(query)
-            .bind(format!("{}::{}", &url, &view_as))
+            .bind::<&String>(&format!("{}::{}", &url, &view_as))
             .fetch_one(c)
             .await;
 
@@ -1017,7 +1030,7 @@ impl BundlesDB {
         };
 
         let c = &self.db.client;
-        let res = sqlx::query(query).bind(&url).execute(c).await;
+        let res = sqlx::query(query).bind::<&String>(&url).execute(c).await;
 
         if res.is_err() {
             return DefaultReturn {
@@ -1036,7 +1049,7 @@ impl BundlesDB {
 
         let c = &self.db.client;
         let res = sqlx::query(query)
-            .bind(format!("{}::%", &url))
+            .bind::<&String>(&format!("{}::%", &url))
             .execute(c)
             .await;
 
@@ -1067,7 +1080,7 @@ impl BundlesDB {
         };
 
         let c = &self.db.client;
-        let res = sqlx::query(query).bind(&url).fetch_one(c).await;
+        let res = sqlx::query(query).bind::<&String>(&url).fetch_one(c).await;
 
         if res.is_err() {
             return DefaultReturn {
@@ -1119,9 +1132,9 @@ impl BundlesDB {
         let p: &mut Group<GroupMetadata> = &mut props.clone();
 
         let res = sqlx::query(query)
-            .bind(&p.name)
-            .bind(&p.submit_password)
-            .bind(serde_json::to_string(&p.metadata).unwrap())
+            .bind::<&String>(&p.name)
+            .bind::<&String>(&p.submit_password)
+            .bind::<&String>(&serde_json::to_string(&p.metadata).unwrap())
             .execute(c)
             .await;
 
