@@ -283,7 +283,7 @@ impl BundlesDB {
         if res.is_err() {
             return DefaultReturn {
                 success: false,
-                message: String::from("Failed to create user"),
+                message: String::from(res.err().unwrap().to_string()),
                 payload: Option::None,
             };
         }
@@ -359,7 +359,7 @@ impl BundlesDB {
         if res.is_err() {
             return DefaultReturn {
                 success: false,
-                message: String::from("Failed to create log"),
+                message: String::from(res.err().unwrap().to_string()),
                 payload: Option::None,
             };
         }
@@ -400,7 +400,7 @@ impl BundlesDB {
         if res.is_err() {
             return DefaultReturn {
                 success: false,
-                message: String::from("Failed to update log"),
+                message: String::from(res.err().unwrap().to_string()),
                 payload: Option::None,
             };
         }
@@ -437,7 +437,7 @@ impl BundlesDB {
         if res.is_err() {
             return DefaultReturn {
                 success: false,
-                message: String::from("Failed to delete log"),
+                message: String::from(res.err().unwrap().to_string()),
                 payload: Option::None,
             };
         }
@@ -489,7 +489,7 @@ impl BundlesDB {
         if views_res.is_err() {
             return DefaultReturn {
                 success: false,
-                message: String::from("Failed to fetch views"),
+                message: String::from(views_res.err().unwrap().to_string()),
                 payload: Option::None,
             };
         }
@@ -553,7 +553,7 @@ impl BundlesDB {
         if res.is_err() {
             return DefaultReturn {
                 success: false,
-                message: String::from("Failed to fetch pastes"),
+                message: String::from(res.err().unwrap().to_string()),
                 payload: Option::None,
             };
         }
@@ -673,7 +673,7 @@ impl BundlesDB {
                 if !res.success {
                     return DefaultReturn {
                         success: false,
-                        message: String::from("Failed to create group!"),
+                        message: res.message,
                         payload: Option::None,
                     };
                 }
@@ -840,7 +840,7 @@ impl BundlesDB {
         if res.is_err() {
             return DefaultReturn {
                 success: false,
-                message: String::from("Failed to update paste"),
+                message: String::from(res.err().unwrap().to_string()),
                 payload: Option::None,
             };
         }
@@ -906,7 +906,7 @@ impl BundlesDB {
         if res.is_err() {
             return DefaultReturn {
                 success: false,
-                message: String::from("Failed to update paste"),
+                message: String::from(res.err().unwrap().to_string()),
                 payload: Option::None,
             };
         }
@@ -1022,7 +1022,7 @@ impl BundlesDB {
         if res.is_err() {
             return DefaultReturn {
                 success: false,
-                message: String::from("Failed to delete paste"),
+                message: String::from(res.err().unwrap().to_string()),
                 payload: Option::None,
             };
         }

@@ -1,3 +1,4 @@
+#[derive(Debug, Clone)]
 pub struct DatabaseOpts {
     pub _type: Option<String>,
     pub host: Option<String>,
@@ -50,7 +51,7 @@ pub async fn create_db(options: DatabaseOpts) -> Database {
         .await;
 
         if client.is_err() {
-            panic!("Failed to connect to database!");
+            panic!("failed to connect to database: {}", client.err().unwrap());
         }
 
         return Database {

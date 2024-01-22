@@ -34,10 +34,10 @@ Environment variables:
 
 - `INFO` optional (defaults to `/pub/info`)
 - `BODY_EMBED` optional (defaults to nothing)
-- `PSQL_HOST "host"` optional (defaults to `localhost`) (only if `--db-type` is not `sqlite`)
-- `PSQL_USER "user"` **required** (only if `--db-type` is not `sqlite`)
-- `PSQL_PASS "pass"` **required** (only if `--db-type` is not `sqlite`)
-- `PSQL_NAME "name"` **required** (only if `--db-type` is not `sqlite`)
+- `PSQL_HOST "host"` optional (defaults to `localhost`) (only if `--db-type` is `postgres`)
+- `PSQL_USER "user"` **required** (only if `--db-type` is `postgres`)
+- `PSQL_PASS "pass"` **required** (only if `--db-type` is `postgres`)
+- `PSQL_NAME "name"` **required** (only if `--db-type` is `postgres`)
 
 ## Features
 
