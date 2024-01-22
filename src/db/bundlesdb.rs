@@ -486,7 +486,7 @@ impl BundlesDB {
 
         // update log
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            "UPDATE \"Logs\" SET (\"content\") = (?) WHERE \"id\" = ?"
+            "UPDATE \"Logs\" SET \"content\" = ? WHERE \"id\" = ?"
         } else {
             "UPDATE \"Logs\" SET (\"content\") = ($1) WHERE \"id\" = $2"
         };
@@ -924,7 +924,7 @@ impl BundlesDB {
 
         // update paste
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            "UPDATE \"Pastes\" SET (\"content\", \"content_html\", \"edit_password\", \"custom_url\", \"edit_date\") = (?, ?, ?, ?, ?) WHERE \"custom_url\" = ?"
+            "UPDATE \"Pastes\" SET \"content\" = ?, \"content_html\" = ?, \"edit_password\" = ?, \"custom_url\" = ?, \"edit_date\" = ? WHERE \"custom_url\" = ?"
         } else {
             "UPDATE \"Pastes\" SET (\"content\", \"content_html\", \"edit_password\", \"custom_url\", \"edit_date\") = ($1, $2, $3, $4, $5) WHERE \"custom_url\" = $6"
         };
@@ -994,7 +994,7 @@ impl BundlesDB {
 
         // update paste
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            "UPDATE \"Pastes\" SET (\"metadata\") = (?) WHERE \"custom_url\" = ?"
+            "UPDATE \"Pastes\" SET \"metadata\" = ? WHERE \"custom_url\" = ?"
         } else {
             "UPDATE \"Pastes\" SET (\"metadata\") = ($1) WHERE \"custom_url\" = $2"
         };

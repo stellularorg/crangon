@@ -82,7 +82,7 @@ pub async fn create_db(options: DatabaseOpts) -> Database<sqlx::PgPool> {
 }
 
 #[cfg(feature = "sqlite")]
-pub async fn create_db(options: DatabaseOpts) -> Database<sqlx::SqlitePool> {
+pub async fn create_db(_options: DatabaseOpts) -> Database<sqlx::SqlitePool> {
     // sqlite
     let client = sqlx::SqlitePool::connect("sqlite://bundlrs.db").await;
 
