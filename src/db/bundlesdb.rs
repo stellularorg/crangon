@@ -1,8 +1,10 @@
 use super::sql::{self, Database, DatabaseOpts};
-use sqlx::Row;
+use sqlx::{any::AnyRow, Column, Row};
 
 use crate::utility;
 use serde::{Deserialize, Serialize};
+
+use std::collections::HashMap;
 
 #[derive(Clone)]
 pub struct AppData {
@@ -15,6 +17,11 @@ pub struct DefaultReturn<T> {
     pub success: bool,
     pub message: String,
     pub payload: T,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DatabaseReturn {
+    pub data: HashMap<String, String>,
 }
 
 // Paste and Group require the type of their metadata to be specified so it can be converted if needed
@@ -162,6 +169,36 @@ impl BundlesDB {
         .await;
     }
 
+    fn textify_row(&self, row: AnyRow) -> DatabaseReturn {
+        // get all columns
+        let columns = row.columns();
+
+        // create output
+        let mut out: HashMap<String, String> = HashMap::new();
+
+        for column in columns {
+            let value = row.try_get::<Vec<u8>, _>(column.name());
+
+            if value.is_ok() {
+                // returned bytes instead of text :(
+                // we're going to convert this to a string and then add it to the output!
+                out.insert(
+                    column.name().to_string(),
+                    std::str::from_utf8(value.unwrap().as_slice())
+                        .unwrap()
+                        .to_string(),
+                );
+            } else {
+                // already text
+                let value = row.get(column.name());
+                out.insert(column.name().to_string(), value);
+            }
+        }
+
+        // return
+        return DatabaseReturn { data: out };
+    }
+
     // users
 
     // GET
@@ -188,16 +225,17 @@ impl BundlesDB {
 
         // ...
         let row = res.unwrap();
+        let row = self.textify_row(row).data;
 
         // return
         return DefaultReturn {
             success: true,
             message: String::from("User exists"),
             payload: Option::Some(UserState {
-                username: row.get("username"),
-                id_hashed: row.get("id_hashed"),
-                role: row.get("role"),
-                timestamp: row.get::<String, _>("timestamp").parse::<u128>().unwrap(),
+                username: row.get("username").unwrap().to_string(),
+                id_hashed: row.get("id_hashed").unwrap().to_string(),
+                role: row.get("role").unwrap().to_string(),
+                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
             }),
         };
     }
@@ -225,16 +263,17 @@ impl BundlesDB {
 
         // ...
         let row = res.unwrap();
+        let row = self.textify_row(row).data;
 
         // return
         return DefaultReturn {
             success: true,
             message: String::from("User exists"),
             payload: Option::Some(UserState {
-                username: row.get("username"),
-                id_hashed: row.get("id_hashed"),
-                role: row.get("role"),
-                timestamp: row.get::<String, _>("timestamp").parse::<u128>().unwrap(),
+                username: row.get("username").unwrap().to_string(),
+                id_hashed: row.get("id_hashed").unwrap().to_string(),
+                role: row.get("role").unwrap().to_string(),
+                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
             }),
         };
     }
@@ -332,16 +371,17 @@ impl BundlesDB {
 
         // ...
         let row = res.unwrap();
+        let row = self.textify_row(row).data;
 
         // return
         return DefaultReturn {
             success: true,
             message: String::from("Paste exists"),
             payload: Option::Some(Log {
-                id: row.get("id"),
-                logtype: row.get("logtype"),
-                timestamp: row.get::<String, _>("timestamp").parse::<u128>().unwrap(),
-                content: row.get("content"),
+                id: row.get("id").unwrap().to_string(),
+                logtype: row.get("logtype").unwrap().to_string(),
+                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+                content: row.get("content").unwrap().to_string(),
             }),
         };
     }
@@ -486,6 +526,7 @@ impl BundlesDB {
 
         // ...
         let row = res.unwrap();
+        let row = self.textify_row(row).data;
 
         // count views
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
@@ -495,7 +536,7 @@ impl BundlesDB {
         };
 
         let views_res = sqlx::query(query)
-            .bind::<&String>(&format!("{}::%", &row.get::<String, _>("custom_url")))
+            .bind::<&String>(&format!("{}::%", &row.get("custom_url").unwrap()))
             .fetch_all(c)
             .await;
 
@@ -512,15 +553,15 @@ impl BundlesDB {
             success: true,
             message: String::from("Paste exists"),
             payload: Option::Some(Paste {
-                custom_url: row.get("custom_url"),
-                id: row.get("id"),
-                group_name: row.get("group_name"),
-                edit_password: row.get("edit_password"),
-                pub_date: row.get::<String, _>("pub_date").parse::<u128>().unwrap(),
-                edit_date: row.get::<String, _>("edit_date").parse::<u128>().unwrap(),
-                content: row.get("content"),
-                content_html: row.get("content_html"),
-                metadata: row.get::<String, _>("metadata"),
+                custom_url: row.get("custom_url").unwrap().to_string(),
+                id: row.get("id").unwrap().to_string(),
+                group_name: row.get("group_name").unwrap().to_string(),
+                edit_password: row.get("edit_password").unwrap().to_string(),
+                pub_date: row.get("pub_date").unwrap().parse::<u128>().unwrap(),
+                edit_date: row.get("edit_date").unwrap().parse::<u128>().unwrap(),
+                content: row.get("content").unwrap().to_string(),
+                content_html: row.get("content_html").unwrap().to_string(),
+                metadata: row.get("metadata").unwrap().to_string(),
                 views: views_res.unwrap().len(),
             }),
         };
@@ -575,9 +616,10 @@ impl BundlesDB {
         let mut full_res: Vec<PasteIdentifier> = Vec::new();
 
         for row in res.unwrap() {
+            let row = self.textify_row(row).data;
             full_res.push(PasteIdentifier {
-                custom_url: row.get("custom_url"),
-                id: row.get("id"),
+                custom_url: row.get("custom_url").unwrap().to_string(),
+                id: row.get("id").unwrap().to_string(),
             });
         }
 
@@ -1100,7 +1142,7 @@ impl BundlesDB {
             payload: Option::Some(Group {
                 name: row.get("name"),
                 submit_password: row.get("submit_password"),
-                metadata: row.get::<String, _>("metadata"),
+                metadata: row.get("metadata"),
             }),
         };
     }
