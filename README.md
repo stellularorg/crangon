@@ -12,6 +12,10 @@ Build:
 bun run build
 # release
 bun run build:release
+# release (mysql)
+bun run build:release:mysql
+# release (postgres)
+bun run build:release:postgres
 ```
 
 Run:
@@ -21,6 +25,8 @@ chmod +x ./target/debug/bundlrs && ./target/debug/bundlrs
 # release
 chmod +x ./target/release/bundlrs && ./target/release/bundlrs
 ```
+
+Bundlrs supports the features `sqlite`, `postgres`, and `mysql`. These features dictate which database types will be used.
 
 ## Configuration
 

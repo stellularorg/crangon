@@ -1,5 +1,5 @@
 use super::sql::{self, Database, DatabaseOpts};
-use sqlx::{any::AnyRow, Column, Row};
+use sqlx::{Column, Row};
 
 use crate::utility;
 use serde::{Deserialize, Serialize};
@@ -101,8 +101,21 @@ pub struct Log {
 
 // ...
 #[derive(Clone)]
+#[cfg(feature = "postgres")]
 pub struct BundlesDB {
-    pub db: Database,
+    pub db: Database<sqlx::PgPool>,
+}
+
+#[derive(Clone)]
+#[cfg(feature = "mysql")]
+pub struct BundlesDB {
+    pub db: Database<sqlx::MySqlPool>,
+}
+
+#[derive(Clone)]
+#[cfg(feature = "sqlite")]
+pub struct BundlesDB {
+    pub db: Database<sqlx::SqlitePool>,
 }
 
 impl BundlesDB {
@@ -169,7 +182,42 @@ impl BundlesDB {
         .await;
     }
 
-    fn textify_row(&self, row: AnyRow) -> DatabaseReturn {
+    #[cfg(feature = "sqlite")]
+    fn textify_row(&self, row: sqlx::sqlite::SqliteRow) -> DatabaseReturn {
+        // get all columns
+        let columns = row.columns();
+
+        // create output
+        let mut out: HashMap<String, String> = HashMap::new();
+
+        for column in columns {
+            let value = row.get(column.name());
+            out.insert(column.name().to_string(), value);
+        }
+
+        // return
+        return DatabaseReturn { data: out };
+    }
+
+    #[cfg(feature = "postgres")]
+    fn textify_row(&self, row: sqlx::postgres::PgRow) -> DatabaseReturn {
+        // get all columns
+        let columns = row.columns();
+
+        // create output
+        let mut out: HashMap<String, String> = HashMap::new();
+
+        for column in columns {
+            let value = row.get(column.name());
+            out.insert(column.name().to_string(), value);
+        }
+
+        // return
+        return DatabaseReturn { data: out };
+    }
+
+    #[cfg(feature = "mysql")]
+    fn textify_row(&self, row: sqlx::mysql::MySqlRow) -> DatabaseReturn {
         // get all columns
         let columns = row.columns();
 
@@ -768,7 +816,7 @@ impl BundlesDB {
             "INSERT INTO \"Pastes\" VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
         };
 
-        let c: &sqlx::Pool<sqlx::Any> = &self.db.client;
+        let c = &self.db.client;
         let p: &mut Paste<String> = &mut props.clone();
         p.id = utility::random_id();
 
@@ -1170,7 +1218,7 @@ impl BundlesDB {
             "INSERT INTO \"Groups\" VALUES ($1, $2, $3)"
         };
 
-        let c: &sqlx::Pool<sqlx::Any> = &self.db.client;
+        let c = &self.db.client;
         let p: &mut Group<GroupMetadata> = &mut props.clone();
 
         let res = sqlx::query(query)

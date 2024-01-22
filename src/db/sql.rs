@@ -9,64 +9,56 @@ pub struct DatabaseOpts {
 
 // ...
 #[derive(Clone)]
-pub struct Database {
-    pub client: sqlx::AnyPool,
+pub struct Database<T> {
+    pub client: T,
     pub _type: String,
 }
 
 // ...
-pub async fn create_db(options: DatabaseOpts) -> Database {
-    let mut _type = options._type;
+#[cfg(feature = "mysql")]
+pub async fn create_db(options: DatabaseOpts) -> Database<sqlx::MySqlPool> {
+    // mysql
+    let opts = sqlx::mysql::MySqlPoolOptions::new()
+        .max_connections(25)
+        .acquire_timeout(std::time::Duration::from_millis(1000))
+        .idle_timeout(Some(std::time::Duration::from_secs(60)))
+        .max_lifetime(Some(std::time::Duration::from_secs(120)));
 
-    if _type.is_none() {
-        _type = Option::from("sqlite".to_string());
+    let client = opts
+        .connect(&format!(
+            "mysql://{}:{}@{}/{}",
+            options.user,
+            options.pass,
+            if options.host.is_some() {
+                options.host.unwrap()
+            } else {
+                "localhost".to_string()
+            },
+            options.name
+        ))
+        .await;
+
+    if client.is_err() {
+        panic!("failed to connect to database: {}", client.err().unwrap());
     }
 
-    // create client
-    let _type = _type.unwrap();
-    if _type == "sqlite" {
-        // sqlite
-        let client = sqlx::AnyPool::connect("sqlite://bundlrs.db").await;
+    return Database {
+        client: client.unwrap(),
+        _type: String::from("mysql"),
+    };
+}
 
-        if client.is_err() {
-            panic!("Failed to connect to database!");
-        }
+#[cfg(feature = "postgres")]
+pub async fn create_db(options: DatabaseOpts) -> Database<sqlx::PgPool> {
+    // postgres
+    let opts = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(25)
+        .acquire_timeout(std::time::Duration::from_millis(1000))
+        .idle_timeout(Some(std::time::Duration::from_secs(60)))
+        .max_lifetime(Some(std::time::Duration::from_secs(120)));
 
-        return Database {
-            client: client.unwrap(),
-            _type: String::from("sqlite"),
-        };
-    } else if _type == "mysql" {
-        // mysql
-        let opts = sqlx::any::AnyPoolOptions::new()
-            .max_connections(10)
-            .acquire_timeout(std::time::Duration::from_millis(1000));
-
-        let client = opts
-            .connect(&format!(
-                "mysql://{}:{}@{}/{}",
-                options.user,
-                options.pass,
-                if options.host.is_some() {
-                    options.host.unwrap()
-                } else {
-                    "localhost".to_string()
-                },
-                options.name
-            ))
-            .await;
-
-        if client.is_err() {
-            panic!("failed to connect to database: {}", client.err().unwrap());
-        }
-
-        return Database {
-            client: client.unwrap(),
-            _type: String::from("mysql"),
-        };
-    } else {
-        // postgres
-        let client = sqlx::AnyPool::connect(&format!(
+    let client = opts
+        .connect(&format!(
             "postgres://{}:{}@{}/{}",
             options.user,
             options.pass,
@@ -79,13 +71,27 @@ pub async fn create_db(options: DatabaseOpts) -> Database {
         ))
         .await;
 
-        if client.is_err() {
-            panic!("failed to connect to database: {}", client.err().unwrap());
-        }
-
-        return Database {
-            client: client.unwrap(),
-            _type: String::from("sqlite"),
-        };
+    if client.is_err() {
+        panic!("failed to connect to database: {}", client.err().unwrap());
     }
+
+    return Database {
+        client: client.unwrap(),
+        _type: String::from("postgres"),
+    };
+}
+
+#[cfg(feature = "sqlite")]
+pub async fn create_db(options: DatabaseOpts) -> Database<sqlx::SqlitePool> {
+    // sqlite
+    let client = sqlx::SqlitePool::connect("sqlite://bundlrs.db").await;
+
+    if client.is_err() {
+        panic!("Failed to connect to database!");
+    }
+
+    return Database {
+        client: client.unwrap(),
+        _type: String::from("sqlite"),
+    };
 }
