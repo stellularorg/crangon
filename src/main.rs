@@ -42,11 +42,11 @@ async fn main() -> std::io::Result<()> {
     let db_pass: Option<String> = config::get_var("DB_PASS");
     let db_name: Option<String> = config::get_var("DB_NAME");
 
-    let db_is_psql: bool = db_type
+    let db_is_other: bool = db_type
         .clone()
-        .is_some_and(|x| x == String::from("postgres"));
+        .is_some_and(|x| (x == String::from("postgres")) | (x == String::from("mysql")));
 
-    if db_is_psql && (db_user.is_none() | db_pass.is_none() | db_name.is_none()) {
+    if db_is_other && (db_user.is_none() | db_pass.is_none() | db_name.is_none()) {
         panic!("Missing required database config settings!");
     }
 
@@ -54,17 +54,17 @@ async fn main() -> std::io::Result<()> {
     let mut db: BundlesDB = BundlesDB::new(DatabaseOpts {
         _type: db_type,
         host: db_host,
-        user: if db_is_psql {
+        user: if db_is_other {
             db_user.unwrap()
         } else {
             String::new()
         },
-        pass: if db_is_psql {
+        pass: if db_is_other {
             db_pass.unwrap()
         } else {
             String::new()
         },
-        name: if db_is_psql {
+        name: if db_is_other {
             db_name.unwrap()
         } else {
             String::new()
