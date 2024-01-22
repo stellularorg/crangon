@@ -162,7 +162,7 @@ impl BundlesDB {
 
     // GET
     pub async fn get_user_by_hashed(&self, hashed: String) -> DefaultReturn<Option<UserState>> {
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Users\" WHERE \"id_hashed\" = ?"
         } else {
             "SELECT * FROM \"Users\" WHERE \"id_hashed\" = $1"
@@ -195,7 +195,7 @@ impl BundlesDB {
     }
 
     pub async fn get_user_by_username(&self, username: String) -> DefaultReturn<Option<UserState>> {
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Users\" WHERE \"username\" = ?"
         } else {
             "SELECT * FROM \"Users\" WHERE \"username\" = $1"
@@ -262,7 +262,7 @@ impl BundlesDB {
         }
 
         // ...
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "INSERT INTO \"Users\" VALUES (?, ?, ?)"
         } else {
             "INSERT INTO \"Users\" VALUES ($1, $2, $3)"
@@ -300,7 +300,7 @@ impl BundlesDB {
 
     // GET
     pub async fn get_log_by_id(&self, id: String) -> DefaultReturn<Option<Log>> {
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Logs\" WHERE \"id\" = ?"
         } else {
             "SELECT * FROM \"Logs\" WHERE \"id\" = $1"
@@ -339,7 +339,7 @@ impl BundlesDB {
         logtype: String,
         content: String,
     ) -> DefaultReturn<Option<String>> {
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "INSERT INTO \"Logs\" VALUES (?, ?, ?, ?)"
         } else {
             "INSERT INTO \"Logs\" VALUES ($1, $2, $3, $4)"
@@ -384,7 +384,7 @@ impl BundlesDB {
         }
 
         // update log
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "UPDATE \"Logs\" SET (\"content\") = (?) WHERE \"id\" = ?"
         } else {
             "UPDATE \"Logs\" SET (\"content\") = ($1) WHERE \"id\" = $2"
@@ -425,7 +425,7 @@ impl BundlesDB {
         }
 
         // update log
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "DELETE FROM \"Logs\" WHERE \"id\" = ?"
         } else {
             "DELETE FROM \"Logs\" WHERE \"id\" = $1"
@@ -475,7 +475,7 @@ impl BundlesDB {
         let row = res.unwrap();
 
         // count views
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE ?"
         } else {
             "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE $1"
@@ -515,7 +515,7 @@ impl BundlesDB {
 
     // GET
     pub async fn get_paste_by_url(&self, url: String) -> DefaultReturn<Option<Paste<String>>> {
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"custom_url\" = ?"
         } else {
             "SELECT * FROM \"Pastes\" WHERE \"custom_url\" = $1"
@@ -525,7 +525,7 @@ impl BundlesDB {
     }
 
     pub async fn get_paste_by_id(&self, id: String) -> DefaultReturn<Option<Paste<String>>> {
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"id\" = ?"
         } else {
             "SELECT * FROM \"Pastes\" WHERE \"id\" = $1"
@@ -538,7 +538,7 @@ impl BundlesDB {
         &self,
         owner: String,
     ) -> DefaultReturn<Option<Vec<PasteIdentifier>>> {
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE ?"
         } else {
             "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE $1"
@@ -707,7 +707,7 @@ impl BundlesDB {
         }
 
         // create paste
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "INSERT INTO \"Pastes\" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         } else {
             "INSERT INTO \"Pastes\" VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
@@ -820,7 +820,7 @@ impl BundlesDB {
         }
 
         // update paste
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "UPDATE \"Pastes\" SET (\"content\", \"content_html\", \"edit_password\", \"custom_url\", \"edit_date\") = (?, ?, ?, ?, ?) WHERE \"custom_url\" = ?"
         } else {
             "UPDATE \"Pastes\" SET (\"content\", \"content_html\", \"edit_password\", \"custom_url\", \"edit_date\") = ($1, $2, $3, $4, $5) WHERE \"custom_url\" = $6"
@@ -890,7 +890,7 @@ impl BundlesDB {
         }
 
         // update paste
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "UPDATE \"Pastes\" SET (\"metadata\") = (?) WHERE \"custom_url\" = ?"
         } else {
             "UPDATE \"Pastes\" SET (\"metadata\") = ($1) WHERE \"custom_url\" = $2"
@@ -935,7 +935,7 @@ impl BundlesDB {
         }
 
         // check for existing view log
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE ?"
         } else {
             "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE $1"
@@ -1010,7 +1010,7 @@ impl BundlesDB {
         }
 
         // delete paste
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "DELETE FROM \"Pastes\" WHERE \"custom_url\" = ?"
         } else {
             "DELETE FROM \"Pastes\" WHERE \"custom_url\" = $1"
@@ -1028,7 +1028,7 @@ impl BundlesDB {
         }
 
         // delete paste views
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "DELETE FROM \"Logs\" WHERE \"content\" LIKE ?"
         } else {
             "DELETE FROM \"Logs\" WHERE \"content\" LIKE $1"
@@ -1060,7 +1060,7 @@ impl BundlesDB {
 
     // GET
     pub async fn get_group_by_name(&self, url: String) -> DefaultReturn<Option<Group<String>>> {
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Groups\" WHERE \"name\" = ?"
         } else {
             "SELECT * FROM \"Groups\" WHERE \"name\" = $1"
@@ -1109,7 +1109,7 @@ impl BundlesDB {
         }
 
         // create group
-        let query: &str = if self.db._type == "sqlite" {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "INSERT INTO \"Groups\" VALUES (?, ?, ?)"
         } else {
             "INSERT INTO \"Groups\" VALUES ($1, $2, $3)"

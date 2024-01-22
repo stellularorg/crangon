@@ -23,7 +23,8 @@ pub async fn create_db(options: DatabaseOpts) -> Database {
     }
 
     // create client
-    if _type.unwrap() == "sqlite" {
+    let _type = _type.unwrap();
+    if _type == "sqlite" {
         // sqlite
         let client = sqlx::AnyPool::connect("sqlite://bundlrs.db").await;
 
@@ -34,6 +35,29 @@ pub async fn create_db(options: DatabaseOpts) -> Database {
         return Database {
             client: client.unwrap(),
             _type: String::from("sqlite"),
+        };
+    } else if _type == "mysql" {
+        // postgres
+        let client = sqlx::AnyPool::connect(&format!(
+            "mysql://{}:{}@{}/{}",
+            options.user,
+            options.pass,
+            if options.host.is_some() {
+                options.host.unwrap()
+            } else {
+                "localhost".to_string()
+            },
+            options.name
+        ))
+        .await;
+
+        if client.is_err() {
+            panic!("failed to connect to database: {}", client.err().unwrap());
+        }
+
+        return Database {
+            client: client.unwrap(),
+            _type: String::from("mysql"),
         };
     } else {
         // postgres

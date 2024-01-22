@@ -34,10 +34,10 @@ Environment variables:
 
 - `INFO` optional (defaults to `/pub/info`)
 - `BODY_EMBED` optional (defaults to nothing)
-- `PSQL_HOST "host"` optional (defaults to `localhost`) (only if `--db-type` is `postgres`)
-- `PSQL_USER "user"` **required** (only if `--db-type` is `postgres`)
-- `PSQL_PASS "pass"` **required** (only if `--db-type` is `postgres`)
-- `PSQL_NAME "name"` **required** (only if `--db-type` is `postgres`)
+- `DB_HOST "host"` optional (defaults to `localhost`) (only if `--db-type` is `postgres` or `mysql`)
+- `DB_USER "user"` **required** (only if `--db-type` is `postgres` or `mysql`)
+- `DB_PASS "pass"` **required** (only if `--db-type` is `postgres` or `mysql`)
+- `DB_NAME "name"` **required** (only if `--db-type` is `postgres` or `mysql`)
 
 ## Features
 
