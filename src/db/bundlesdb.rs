@@ -77,7 +77,7 @@ pub struct GroupMetadata {
     pub owner: String, // custom_url of owner paste
 }
 
-#[derive(PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
+#[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
 pub struct UserState {
     // selectors
     pub username: String,
@@ -558,6 +558,39 @@ impl BundlesDB {
         query: &str,
         selector: &str,
     ) -> DefaultReturn<Option<Paste<String>>> {
+        // check if we're fetching a booklist url
+        let is_banned = crate::booklist::check_booklist(&selector.to_lowercase());
+
+        if is_banned == true {
+            return DefaultReturn {
+                success: true,
+                message: String::from("Paste exists (booklist)"),
+                payload: Option::Some(Paste {
+                    custom_url: selector.to_string(),
+                    id: String::new(),
+                    group_name: String::new(),
+                    edit_password: String::new(),
+                    pub_date: 0,
+                    edit_date: 0,
+                    content: String::new(),
+                    content_html: String::from(
+                        "This custom URL has been blocked by the server booklist.txt file. This is an automatically generated body content.",
+                    ),
+                    metadata: serde_json::to_string::<PasteMetadata>(&PasteMetadata {
+                        owner: String::from(""),
+                        private_source: String::from("on"),
+                        title: Option::Some(String::new()),
+                        description: Option::Some(String::new()),
+                        favicon: Option::None,
+                        embed_color: Option::None,
+                    })
+                    .unwrap(),
+                    views: 0,
+                }),
+            };
+        }
+
+        // ...
         let c = &self.db.client;
         let res = sqlx::query(query)
             .bind::<&String>(&selector.to_lowercase())

@@ -37,7 +37,7 @@ pub fn Footer(props: &FooterProps) -> Html {
             </ul>
 
             <p style="font-size: 12px; margin: 0.4rem 0 0 0;">
-                <a href="https://codeberg.org/SentryTwo/bundlrs">{"bundlrs"}</a>
+                <a href="https://codeberg.org/SentryTwo/bundlrs">{"::SITE_NAME::"}</a>
                 {" - Markdown Delivery Service"}
             </p>
 

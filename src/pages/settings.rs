@@ -124,7 +124,7 @@ pub async fn user_settings_request(req: HttpRequest, data: web::Data<AppData>) -
         .body(format_html(
             render.await,
             "<title>User Settings</title>
-            <meta property=\"og:title\" content=\"User Settings - Bundlrs\" />",
+            <meta property=\"og:title\" content=\"User Settings - ::SITE_NAME::\" />",
         ));
 }
 
@@ -180,7 +180,7 @@ pub async fn paste_settings_request(req: HttpRequest, data: web::Data<AppData>) 
             render.await,
             &format!(
                 "<title>{}</title>
-                <meta property=\"og:title\" content=\"{} (paste settings) - Bundlrs\" />",
+                <meta property=\"og:title\" content=\"{} (paste settings) - ::SITE_NAME::\" />",
                 &url_c, &url_c
             ),
         ));

@@ -44,6 +44,7 @@ Environment variables:
 - `DB_USER "user"` **required** (only if `--db-type` is `postgres` or `mysql`)
 - `DB_PASS "pass"` **required** (only if `--db-type` is `postgres` or `mysql`)
 - `DB_NAME "name"` **required** (only if `--db-type` is `postgres` or `mysql`)
+- `SITE_NAME "name"` optional (defaults to `Bundlrs`)
 
 ## Features
 

@@ -4,6 +4,8 @@ use hex_fmt::HexFmt;
 use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
+use crate::config;
+
 // ids
 #[allow(dead_code)]
 pub fn uuid() -> String {
@@ -44,6 +46,9 @@ pub fn format_html(input: String, head: &str) -> String {
     };
 
     // ...
+    let site_name = config::get_var("SITE_NAME");
+
+    // ...
     return format!(
         "<!DOCTYPE html>
 <html lang=\"en\">
@@ -55,7 +60,7 @@ pub fn format_html(input: String, head: &str) -> String {
         {}
         <meta name=\"theme-color\" content=\"#ff9999\" />
         <meta property=\"og:type\" content=\"website\" />
-        <meta property=\"og:site_name\" content=\"bundlrs\" />
+        <meta property=\"og:site_name\" content=\"::SITE_NAME::\" />
         {head}
 
         <link rel=\"stylesheet\" href=\"/static/style.css\" />
@@ -73,5 +78,9 @@ pub fn format_html(input: String, head: &str) -> String {
             ""
         }
     )
-    .to_string();
+    .to_string().replace("::SITE_NAME::", if site_name.is_some() {
+        site_name.unwrap()
+    } else {
+        "Bundlrs".to_string()
+    }.as_str());
 }

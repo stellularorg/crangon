@@ -285,7 +285,7 @@ pub async fn home_request(
         .append_header(("Content-Type", "text/html"))
         .body(format_html(
             renderer.render().await,
-            "<title>Bundlrs</title>
+            "<title>::SITE_NAME::</title>
 <meta property=\"og:title\" content=\"Create a new paste...\" />
 <meta property=\"og:description\" content=\"Bundlrs, the open-source Rust rewrite of Bundles.\" />",
         ));

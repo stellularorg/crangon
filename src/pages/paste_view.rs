@@ -58,7 +58,7 @@ fn PasteView(props: &Props) -> Html {
                     </span>
 
                     if &metadata.owner.is_empty() == &false {
-                        <span>{"Owner: "} <span id="data-time-to-localize">{&metadata.owner}</span></span>
+                        <span>{"Owner: "} <a href={format!("/~{}", &metadata.owner)}>{&metadata.owner}</a></span>
                     }
 
                     <span>{"Views: "}{&props.paste.views}</span>
@@ -122,9 +122,11 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
 
         // count view (this will check for an existing view!)
         let payload = &token_user.as_ref().unwrap().payload;
-        data.db
-            .add_view_to_url(&url_c, &payload.as_ref().unwrap().username)
-            .await;
+        if payload.as_ref().is_some() {
+            data.db
+                .add_view_to_url(&url_c, &payload.as_ref().unwrap().username)
+                .await;
+        }
     }
 
     // ...

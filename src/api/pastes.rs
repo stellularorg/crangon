@@ -297,6 +297,19 @@ pub async fn get_from_url_request(
     let res: bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>> =
         data.db.get_paste_by_url(custom_url).await;
 
+    // if res.metadata contains '"private_source":"on"', return NotFound
+    if res.payload.is_some()
+        && res
+            .clone()
+            .payload
+            .unwrap()
+            .metadata
+            .contains("\"private_source\":\"on\",")
+    {
+        return HttpResponse::NotFound()
+            .body("You do not have permission to view this paste's contents.");
+    }
+
     // return
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
@@ -316,6 +329,19 @@ pub async fn get_from_id_request(
     let id: String = req.match_info().get("id").unwrap().to_string();
     let res: bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>> =
         data.db.get_paste_by_id(id).await;
+
+    // if res.metadata contains '"private_source":"on"', return NotFound
+    if res.payload.is_some()
+        && res
+            .clone()
+            .payload
+            .unwrap()
+            .metadata
+            .contains("\"private_source\":\"on\",")
+    {
+        return HttpResponse::NotFound()
+            .body("You do not have permission to view this paste's contents.");
+    }
 
     // return
     return HttpResponse::Ok()

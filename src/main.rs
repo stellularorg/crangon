@@ -16,6 +16,8 @@ mod pages;
 mod markdown;
 mod ssm;
 
+mod booklist;
+
 use crate::db::bundlesdb::{AppData, BundlesDB};
 use crate::db::sql::DatabaseOpts;
 
@@ -122,6 +124,7 @@ async fn main() -> std::io::Result<()> {
             // GET root
             .service(crate::pages::home::home_request)
             .service(crate::pages::home::robotstxt)
+            .service(crate::pages::auth::profile_view_request)
             .service(crate::pages::paste_view::paste_view_request) // must be run last as it matches all other paths!
             // ERRORS
             .default_service(web::to(|| async {
