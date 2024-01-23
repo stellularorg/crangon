@@ -228,7 +228,7 @@ pub async fn home_request(
         Option::None
     };
 
-    let metadata = if paste.is_some() {
+    let metadata = if paste.is_some() && paste.as_ref().unwrap().payload.is_some() {
         Option::Some(
             serde_json::from_str::<bundlesdb::PasteMetadata>(
                 &paste.as_ref().unwrap().payload.as_ref().unwrap().metadata,

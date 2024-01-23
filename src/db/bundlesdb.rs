@@ -782,9 +782,7 @@ impl BundlesDB {
                 }
             } else {
                 // check group password
-                if utility::hash(e.to_string())
-                    != utility::hash(existing_group.payload.unwrap().submit_password)
-                {
+                if utility::hash(e.to_string()) != existing_group.payload.unwrap().submit_password {
                     return DefaultReturn {
                         success: false,
                         message: String::from("The paste edit password must match the group submit password during creation."),
@@ -1221,6 +1219,7 @@ impl BundlesDB {
         let c = &self.db.client;
         let p: &mut Group<GroupMetadata> = &mut props.clone();
 
+        p.submit_password = utility::hash(p.submit_password.clone());
         let res = sqlx::query(query)
             .bind::<&String>(&p.name)
             .bind::<&String>(&p.submit_password)

@@ -29,6 +29,10 @@
     display: none;
 }
 
+#editor-tab-preview h1 {
+    width: 100%;
+}
+
 /* colors */
 :root {
     /* default colors (light) */

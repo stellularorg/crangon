@@ -170,12 +170,12 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
                     req.head().uri.to_string()
                 ),
                 // optionals
-                if metadata.title.is_none() {
+                if metadata.title.is_none() | title_unwrap.unwrap().is_empty() {
                     &url_c
                 } else {
                     &title_unwrap.unwrap()
                 },
-                if metadata.description.is_none() {
+                if metadata.description.is_none() | description_unwrap.unwrap().is_empty() {
                     &paste_preview_text
                 } else {
                     &description_unwrap.unwrap()

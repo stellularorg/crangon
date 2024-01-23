@@ -246,8 +246,9 @@ pub fn parse_markdown(input: &String) -> String {
 
         let possible_animation_block = &format!(
             "<span role=\"animation\" style=\"
-                animation:{} {} {};\"
-            >{}</span>",
+                animation:{} {} ease-in-out {} forwards running;
+                display: block;\"
+            >{}",
             // name
             atrs_split.get(0).unwrap(),
             // duration
@@ -315,7 +316,7 @@ pub fn parse_markdown(input: &String) -> String {
     // text color thing
     out = regex_replace_exp(
         &out,
-        RegexBuilder::new("\\%(?<COLOR>.*?)\\%\\s*(?<CONTENT>.*?)\\s*(\\%\\%)")
+        RegexBuilder::new(r"%(.*?)%\s*(.*?)\s*(%{2})")
             .multi_line(true)
             .dot_matches_new_line(true),
         "<span style=\"color: $1;\" role=\"custom-color\">$2</span>",
