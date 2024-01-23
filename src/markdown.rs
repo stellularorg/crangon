@@ -313,6 +313,24 @@ pub fn parse_markdown(input: &String) -> String {
         );
     }
 
+    // text color (bundlrs style)
+    let color_regex = RegexBuilder::new("(c\\#)\\s*(?<COLOR>.*?)\\s*\\#\\s*(?<CONTENT>.*?)\\s*\\#")
+        .multi_line(true)
+        .dot_matches_new_line(true)
+        .build()
+        .unwrap();
+
+    for capture in color_regex.captures_iter(&out.clone()) {
+        let content = capture.name("CONTENT").unwrap().as_str();
+        let color = capture.name("COLOR").unwrap().as_str().replace("$", "#");
+
+        // replace
+        out = out.replace(
+            capture.get(0).unwrap().as_str(),
+            &format!("<span style=\"color: {color}\">{content}</span>"),
+        );
+    }
+
     // text color thing
     out = regex_replace_exp(
         &out,

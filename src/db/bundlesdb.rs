@@ -975,12 +975,28 @@ impl BundlesDB {
         let existing_metadata =
             serde_json::from_str::<PasteMetadata>(&existing.payload.as_ref().unwrap().metadata);
 
+        // get edit_as user account
+        let ua = if edit_as.is_some() {
+            Option::Some(
+                self.get_user_by_username(edit_as.clone().unwrap())
+                    .await
+                    .payload,
+            )
+        } else {
+            Option::None
+        };
+
         // verify password
         // if password hash doesn't match AND edit_as is none OR edit_as != existing_metadata's owner value
         let paste = &existing.payload.clone().unwrap();
 
-        let skip_password_check =
-            edit_as.is_some() && edit_as.unwrap() == existing_metadata.unwrap().owner;
+        // ...skip password check IF the user is the paste owner!
+        let skip_password_check = (edit_as.is_some()
+            && edit_as.unwrap() == existing_metadata.unwrap().owner)
+            // OR if the user has the "staff" role
+            | (ua.as_ref().is_some()
+                && ua.as_ref().unwrap().is_some()
+                && ua.unwrap().unwrap().role == "staff");
 
         if !skip_password_check && utility::hash(edit_password) != paste.edit_password {
             return DefaultReturn {
