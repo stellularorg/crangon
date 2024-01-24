@@ -9,11 +9,13 @@ if (process.env.DO_NOT_CLEAR_DIST === undefined)
 
 const output = await build({
     entrypoints: [
+        "./static/ts/editors/AtomicEditor.ts",
         "./static/ts/editors/MarkdownEditor.ts",
         "./static/ts/editors/ClientFixMarkdown.ts",
         "./static/ts/editors/SettingsEditor.ts",
         "./static/ts/pages/AuthPages.ts",
         "./static/ts/pages/Footer.ts",
+        "./static/ts/pages/NewAtomic.ts",
     ],
     minify: {
         identifiers: true,

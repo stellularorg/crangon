@@ -6,6 +6,7 @@ Cargo.lock
 # js
 node_modules/
 /static/js
+bun.lockb
 
 # env
 .env

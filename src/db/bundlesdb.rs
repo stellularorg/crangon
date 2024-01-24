@@ -45,7 +45,7 @@ pub struct Paste<M> {
     pub views: usize,
 }
 
-#[derive(Debug, Default, sqlx::FromRow, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, sqlx::FromRow, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PasteIdentifier {
     pub custom_url: String,
     pub id: String,
@@ -60,6 +60,21 @@ pub struct PasteMetadata {
     pub description: Option<String>,
     pub favicon: Option<String>,
     pub embed_color: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AtomicPaste {
+    // atomic pastes are a plain JSON file system storing HTML, CSS, and JS files only
+    // they have the least amount of boilerplate for rendering!
+    pub _is_atomic: bool, // this must exist so we know a paste's content is for an atomic paste
+    pub files: Vec<AtomicPasteFSFile>,
+}
+
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AtomicPasteFSFile {
+    // store only the bare minimum for the required file types
+    pub path: String,
+    pub content: String,
 }
 
 #[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
@@ -682,6 +697,50 @@ impl BundlesDB {
         let c = &self.db.client;
         let res = sqlx::query(query)
             .bind::<&String>(&format!("%\"owner\":\"{}\"%", &owner))
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // build res
+        let mut full_res: Vec<PasteIdentifier> = Vec::new();
+
+        for row in res.unwrap() {
+            let row = self.textify_row(row).data;
+            full_res.push(PasteIdentifier {
+                custom_url: row.get("custom_url").unwrap().to_string(),
+                id: row.get("id").unwrap().to_string(),
+            });
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: owner,
+            payload: Option::Some(full_res),
+        };
+    }
+
+    pub async fn get_atomic_pastes_by_owner(
+        &self,
+        owner: String,
+    ) -> DefaultReturn<Option<Vec<PasteIdentifier>>> {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE ? AND \"content\" LIKE ?"
+        } else {
+            "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE $1 AND \"content\" LIKE $2"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&format!("%\"owner\":\"{}\"%", &owner))
+            .bind("%\"_is_atomic\":true%")
             .fetch_all(c)
             .await;
 

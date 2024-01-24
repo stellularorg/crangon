@@ -201,7 +201,7 @@ pub fn parse_markdown(input: &String) -> String {
     for capture in custom_element_regex.captures_iter(&out.clone()) {
         let name = capture.name("NAME").unwrap().as_str();
 
-        let atrs = capture.name("ATRS").unwrap().as_str();
+        let atrs = capture.name("ATRS").unwrap().as_str().replace("$", "#");
         let mut atrs_split: Vec<String> = atrs.split("+").map(|s| s.to_string()).collect();
 
         // make sure everything exists (before we try to call .unwrap on them!)
@@ -301,7 +301,7 @@ pub fn parse_markdown(input: &String) -> String {
         .unwrap();
 
     for capture in ssm_regex.captures_iter(&out.clone()) {
-        let content = capture.name("CONTENT").unwrap().as_str();
+        let content = capture.name("CONTENT").unwrap().as_str().replace("$", "#");
 
         // compile
         let css = ssm::parse_ssm_program(content.to_string());

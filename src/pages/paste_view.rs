@@ -98,6 +98,27 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
     }
 
     let unwrap = paste.payload.as_ref().unwrap();
+
+    // handle atomic pastes (just return index.html)
+    if unwrap.content.contains("\"_is_atomic\":true") {
+        let real_content = serde_json::from_str::<bundlesdb::AtomicPaste>(&unwrap.content);
+
+        if real_content.is_err() {
+            return HttpResponse::NotAcceptable().body("Paste failed to deserialize");
+        }
+
+        let decoded = real_content.unwrap();
+        let index_html = decoded.files.iter().find(|f| f.path == "/index.html");
+
+        if index_html.is_none() {
+            return HttpResponse::NotAcceptable()
+                .body("Paste is missing a file at the path '/index.html'");
+        }
+
+        return HttpResponse::Ok().body(index_html.unwrap().content.clone());
+    }
+
+    // ...
     let metadata = serde_json::from_str::<bundlesdb::PasteMetadata>(&unwrap.metadata).unwrap();
 
     // verify auth status

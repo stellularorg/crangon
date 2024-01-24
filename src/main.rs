@@ -105,6 +105,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::pastes::render_request)
             .service(crate::api::pastes::create_request)
             .service(crate::api::pastes::edit_request)
+            .service(crate::api::pastes::edit_atomic_request)
             .service(crate::api::pastes::delete_request)
             .service(crate::api::pastes::metadata_request)
             // POST api::pastes SSM
@@ -121,6 +122,10 @@ async fn main() -> std::io::Result<()> {
             .service(crate::pages::auth::login_request)
             .service(crate::pages::settings::user_settings_request)
             .service(crate::pages::settings::paste_settings_request)
+            // GET dashboard (atomic pastes)
+            .service(crate::pages::atomic_editor::dashboard_request)
+            .service(crate::pages::atomic_editor::new_request)
+            .service(crate::pages::atomic_editor::edit_request)
             // GET root
             .service(crate::pages::home::home_request)
             .service(crate::pages::home::robotstxt)
