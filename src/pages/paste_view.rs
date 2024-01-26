@@ -115,7 +115,9 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
                 .body("Paste is missing a file at the path '/index.html'");
         }
 
-        return HttpResponse::Ok().body(index_html.unwrap().content.clone());
+        return HttpResponse::Ok()
+            .append_header(("Content-Type", "text/html"))
+            .body(index_html.unwrap().content.clone());
     }
 
     // ...

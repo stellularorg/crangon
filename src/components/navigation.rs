@@ -31,6 +31,7 @@ pub fn Footer(props: &FooterProps) -> Html {
                         <li><a href="/d/auth/register">{"register"}</a></li>
                         <li><a href="/d/auth/login">{"login"}</a></li>
                     } else {
+                        <li><a href="/d/atomic">{"atomic"}</a></li>
                         <li><a href="/api/auth/logout">{"logout"}</a></li>
                     }
                 }
