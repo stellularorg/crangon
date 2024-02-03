@@ -1196,6 +1196,7 @@ impl BundlesDB {
         &self,
         url: String,
         edit_password: String,
+        delete_as: Option<String>,
     ) -> DefaultReturn<Option<String>> {
         // make sure paste exists
         let existing = &self.get_paste_by_url(url.clone()).await;
@@ -1207,10 +1208,33 @@ impl BundlesDB {
             };
         }
 
+        // (parse metadata from existing)
+        let existing_metadata =
+            serde_json::from_str::<PasteMetadata>(&existing.payload.as_ref().unwrap().metadata);
+
+        // get edit_as user account
+        let ua = if delete_as.is_some() {
+            Option::Some(
+                self.get_user_by_username(delete_as.clone().unwrap())
+                    .await
+                    .payload,
+            )
+        } else {
+            Option::None
+        };
+
         // verify password
         let paste = &existing.payload.clone().unwrap();
 
-        if utility::hash(edit_password) != paste.edit_password {
+        // ...skip password check IF the user is the paste owner!
+        let skip_password_check = (delete_as.is_some()
+                && delete_as.unwrap() == existing_metadata.unwrap().owner)
+                // OR if the user has the "staff" role
+                | (ua.as_ref().is_some()
+                    && ua.as_ref().unwrap().is_some()
+                    && ua.unwrap().unwrap().role == "staff");
+
+        if !skip_password_check && utility::hash(edit_password) != paste.edit_password {
             return DefaultReturn {
                 success: false,
                 message: String::from("Password invalid"),

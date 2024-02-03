@@ -5,7 +5,7 @@ use yew::prelude::*;
 use yew::ServerRenderer;
 
 use crate::components::navigation::Footer;
-use crate::db::bundlesdb::Paste;
+use crate::db::bundlesdb::{AtomicPasteFSFile, Paste};
 use crate::db::{self, bundlesdb};
 use crate::utility::{self, format_html};
 
@@ -244,6 +244,7 @@ fn EditPaste(props: &EditProps) -> Html {
 
                 <div class="flex g-4">
                     <button class="round secondary" id="save">{"Save"}</button>
+                    <button class="round red secondary" id="delete">{"Delete"}</button>
                     <a href="?" class="button round secondary" id="save" target="_blank">{"Files"}</a>
                     <div class="hr-left" />
                     <button class="round border" id="preview">{"Preview"}</button>
@@ -276,6 +277,13 @@ fn PasteFiles(props: &FSProps) -> Html {
                     {for props.files.iter().map(|p| html! {
                         <a href={format!("?path={}", &p.path)}>{&p.path}</a>
                     })}
+
+                    <hr />
+
+                    <form class="flex justify-center align-center g-4 flex-wrap mobile:flex-column">
+                        <input type="text" placeholder="/index.html" name="path" class="round mobile:max" minlength={4} />
+                        <button class="round bundles-primary mobile:max">{"Open"}</button>
+                    </form>
                 </div>
 
                 <Footer auth_state={props.auth_state} />
@@ -380,10 +388,14 @@ You can create an account at: /d/auth/register",
     let path_unwrap = info.path.clone().unwrap();
 
     // ...
-    let file = decoded.files.iter().find(|f| f.path == path_unwrap);
+    let mut file = decoded.files.iter().find(|f| f.path == path_unwrap);
+    let blank_file = AtomicPasteFSFile {
+        path: path_unwrap.clone(),
+        content: String::from("<!-- New HTML Page -->"),
+    };
 
     if file.is_none() {
-        return HttpResponse::NotAcceptable().body("Path does not exist");
+        file = Option::Some(&blank_file);
     }
 
     // ...

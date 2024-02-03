@@ -218,3 +218,54 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
             ),
         ));
 }
+
+#[get("/h/{url:.*}/{path:.*}")]
+pub async fn atomic_paste_view_request(
+    req: HttpRequest,
+    data: web::Data<AppData>,
+) -> impl Responder {
+    // get paste
+    let url: String = req.match_info().get("url").unwrap().to_string();
+    let path: String = req.match_info().get("path").unwrap().to_string();
+
+    let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> =
+        data.db.get_paste_by_url(url).await;
+
+    if paste.success == false {
+        let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();
+        return HttpResponse::NotFound()
+            .append_header(("Content-Type", "text/html"))
+            .body(utility::format_html(
+                renderer.render().await,
+                "<title>404: Not Found</title>",
+            ));
+    }
+
+    let unwrap = paste.payload.as_ref().unwrap();
+
+    // handle atomic pastes (just return index.html)
+    if unwrap.content.contains("\"_is_atomic\":true") {
+        let real_content = serde_json::from_str::<bundlesdb::AtomicPaste>(&unwrap.content);
+
+        if real_content.is_err() {
+            return HttpResponse::NotAcceptable().body("Paste failed to deserialize");
+        }
+
+        let decoded = real_content.unwrap();
+        let html_file = decoded
+            .files
+            .iter()
+            .find(|f| f.path == format!("/{}", path));
+
+        if html_file.is_none() {
+            return HttpResponse::NotAcceptable()
+                .body("Paste is missing a file at the requested path");
+        }
+
+        return HttpResponse::Ok()
+            .append_header(("Content-Type", "text/html"))
+            .body(html_file.unwrap().content.clone());
+    } else {
+        return HttpResponse::NotAcceptable().body("Paste is not atomic (cannot select HTML file)");
+    }
+}

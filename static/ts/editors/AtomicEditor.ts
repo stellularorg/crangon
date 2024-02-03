@@ -408,6 +408,45 @@ export function create_editor(
         });
     }
 
+    const delete_button = document.getElementById(
+        "delete"
+    ) as HTMLButtonElement | null;
+
+    if (delete_button) {
+        delete_button.addEventListener("click", async () => {
+            const _confirm = confirm(
+                "Are you sure you would like to do this? This URL will be available for anybody to claim. **This will delete the paste, not the page!"
+            );
+
+            if (!_confirm) return;
+
+            const edit_password = prompt(
+                "Please enter this paste's custom URL to confirm:"
+            );
+
+            if (!edit_password) return;
+
+            const res = await fetch("/api/delete", {
+                method: "POST",
+                body: JSON.stringify({
+                    custom_url,
+                    edit_password: edit_password,
+                }),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            const json = await res.json();
+
+            if (json.success === false) {
+                return alert(json.message);
+            } else {
+                window.location.href = "/";
+            }
+        });
+    }
+
     // return
     return view;
 }

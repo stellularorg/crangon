@@ -130,6 +130,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::pages::home::home_request)
             .service(crate::pages::home::robotstxt)
             .service(crate::pages::auth::profile_view_request)
+            .service(crate::pages::paste_view::atomic_paste_view_request)
             .service(crate::pages::paste_view::paste_view_request) // must be run last as it matches all other paths!
             // ERRORS
             .default_service(web::to(|| async {

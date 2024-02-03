@@ -737,10 +737,13 @@ if (submit_form.getAttribute("data-edit") === "false") {
         const _confirm = confirm(
             "Are you sure you would like to do this? This URL will be available for anybody to claim."
         );
+        
         if (!_confirm) return;
+
         const edit_password = prompt(
             "Please enter this paste's edit password:"
         );
+
         if (!edit_password) return;
 
         const res = await fetch("/api/delete", {

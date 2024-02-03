@@ -310,13 +310,45 @@ pub async fn edit_atomic_request(
 
 #[post("/api/delete")]
 pub async fn delete_request(
+    req: HttpRequest,
     body: web::Json<DeleteInfo>,
     data: web::Data<bundlesdb::AppData>,
 ) -> impl Responder {
     let custom_url: String = body.custom_url.trim().to_string();
     let edit_password: String = body.edit_password.to_owned();
 
-    let res = data.db.delete_paste_by_url(custom_url, edit_password).await;
+    // get owner
+    let token_cookie = req.cookie("__Secure-Token");
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists
+        if token_user.as_ref().unwrap().success == false {
+            return HttpResponse::NotFound().body("Invalid token");
+        }
+    }
+
+    // delete
+    let res = data
+        .db
+        .delete_paste_by_url(
+            custom_url,
+            edit_password,
+            if token_user.is_some() {
+                Option::Some(token_user.unwrap().payload.unwrap().username)
+            } else {
+                Option::None
+            },
+        )
+        .await;
 
     // return
     return HttpResponse::Ok()

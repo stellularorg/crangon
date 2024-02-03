@@ -35,7 +35,7 @@ if (create_form) {
             error.style.display = "block";
             error.innerHTML = `<div class="mdnote-title">${json.message}</div>`;
         } else {
-            window.location.href = `/${json.payload.custom_url}`;
+            window.location.href = `/d/atomic/${json.payload.id}`;
         }
     });
 }
