@@ -1,3 +1,6 @@
+//! # BundlesDB
+//! Database handler for all database types
+
 use super::sql::{self, Database, DatabaseOpts};
 use sqlx::{Column, Row};
 
@@ -13,6 +16,7 @@ pub struct AppData {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize, Clone)]
+/// Default API return value
 pub struct DefaultReturn<T> {
     pub success: bool,
     pub message: String,
@@ -63,6 +67,7 @@ pub struct PasteMetadata {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// A paste content structure containing an array of [files](AtomicPasteFSFile)
 pub struct AtomicPaste {
     // atomic pastes are a plain JSON file system storing HTML, CSS, and JS files only
     // they have the least amount of boilerplate for rendering!
@@ -71,6 +76,7 @@ pub struct AtomicPaste {
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// A structure representing a single text file
 pub struct AtomicPasteFSFile {
     // store only the bare minimum for the required file types
     pub path: String,
@@ -93,6 +99,7 @@ pub struct GroupMetadata {
 }
 
 #[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
+/// A user object
 pub struct UserState {
     // selectors
     pub username: String,
@@ -265,6 +272,10 @@ impl BundlesDB {
     // users
 
     // GET
+    /// Get a user by their hashed ID
+    ///
+    /// # Arguments:
+    /// * `hashed` - `String` of the user's hashed ID
     pub async fn get_user_by_hashed(&self, hashed: String) -> DefaultReturn<Option<UserState>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Users\" WHERE \"id_hashed\" = ?"
@@ -303,6 +314,10 @@ impl BundlesDB {
         };
     }
 
+    /// Get a user by their username
+    ///
+    /// # Arguments:
+    /// * `username` - `String` of the user's username
     pub async fn get_user_by_username(&self, username: String) -> DefaultReturn<Option<UserState>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Users\" WHERE \"username\" = ?"
@@ -342,6 +357,10 @@ impl BundlesDB {
     }
 
     // SET
+    /// Create a new user given their username. Returns their hashed ID
+    ///
+    /// # Arguments:
+    /// * `username` - `String` of the user's `username`
     pub async fn create_user(&self, username: String) -> DefaultReturn<Option<String>> {
         // make sure user doesn't already exists
         let existing = &self.get_user_by_username(username.clone()).await;
@@ -414,6 +433,10 @@ impl BundlesDB {
     // logs
 
     // GET
+    /// Get a log by its id
+    ///
+    /// # Arguments:
+    /// * `id` - `String` of the log's `id`
     pub async fn get_log_by_id(&self, id: String) -> DefaultReturn<Option<Log>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Logs\" WHERE \"id\" = ?"
@@ -450,6 +473,11 @@ impl BundlesDB {
     }
 
     // SET
+    /// Create a log given its type and content
+    ///
+    /// # Arguments:
+    /// * `logtype` - `String` of the log's `logtype`
+    /// * `content` - `String` of the log's `content`
     pub async fn create_log(
         &self,
         logtype: String,
@@ -488,6 +516,11 @@ impl BundlesDB {
         };
     }
 
+    /// Edit a log given its ID
+    ///
+    /// # Arguments:
+    /// * `id` - `String` of the log's `id`
+    /// * `content` - `String` of the log's new content
     pub async fn edit_log(&self, id: String, content: String) -> DefaultReturn<Option<String>> {
         // make sure log exists
         let existing = &self.get_log_by_id(id.clone()).await;
@@ -529,6 +562,10 @@ impl BundlesDB {
         };
     }
 
+    /// Delete a log given its id
+    ///
+    /// # Arguments:
+    /// * `id` - `String` of the log's `id`
     pub async fn delete_log(&self, id: String) -> DefaultReturn<Option<String>> {
         // make sure log exists
         let existing = &self.get_log_by_id(id.clone()).await;
@@ -568,6 +605,7 @@ impl BundlesDB {
 
     // pastes
 
+    /// Build a [`Paste`] query with information about it
     async fn build_result_from_query(
         &self,
         query: &str,
@@ -664,6 +702,10 @@ impl BundlesDB {
     }
 
     // GET
+    /// Get a [`Paste`] given its `custom_url`
+    ///
+    /// # Arguments:
+    /// * `url` - `String` of the paste's `custom_url`
     pub async fn get_paste_by_url(&self, url: String) -> DefaultReturn<Option<Paste<String>>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"custom_url\" = ?"
@@ -674,6 +716,10 @@ impl BundlesDB {
         return self.build_result_from_query(query, &url).await;
     }
 
+    /// Get a [`Paste`] given its `id`
+    ///
+    /// # Arguments:
+    /// * `id` - `String` of the paste's `id`
     pub async fn get_paste_by_id(&self, id: String) -> DefaultReturn<Option<Paste<String>>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"id\" = ?"
@@ -684,6 +730,10 @@ impl BundlesDB {
         return self.build_result_from_query(query, &id).await;
     }
 
+    /// Get all [pastes](Paste) owned by a specific user
+    ///
+    /// # Arguments:
+    /// * `owner` - `String` of the owner's `username`
     pub async fn get_pastes_by_owner(
         &self,
         owner: String,
@@ -727,6 +777,10 @@ impl BundlesDB {
         };
     }
 
+    /// Get all atomic [pastes](Paste) owned by a specific user
+    ///
+    /// # Arguments:
+    /// * `owner` - `String` of the owner's `username`
     pub async fn get_atomic_pastes_by_owner(
         &self,
         owner: String,
@@ -772,6 +826,11 @@ impl BundlesDB {
     }
 
     // SET
+    /// Create a new [`Paste`] given various properties
+    ///
+    /// # Arguments:
+    /// * `props` - [`Paste<String>`](Paste)
+    /// * `as_user` - The ID of the user creating the paste
     pub async fn create_paste(
         &self,
         props: &mut Paste<String>,
@@ -946,6 +1005,7 @@ impl BundlesDB {
         };
     }
 
+    /// Edit an existing [`Paste`] given its `custom_url`
     pub async fn edit_paste_by_url(
         &self,
         url: String,
@@ -1046,6 +1106,7 @@ impl BundlesDB {
         };
     }
 
+    /// Update a [`Paste`]'s metadata by its `custom_url`
     pub async fn edit_paste_metadata_by_url(
         &self,
         url: String,
@@ -1128,6 +1189,10 @@ impl BundlesDB {
         };
     }
 
+    /// Count a view to a [`Paste`] given its `custom_url`
+    ///
+    /// # Arguments:
+    /// * `view_as` - The username of the account that viewed the paste
     pub async fn add_view_to_url(
         &self,
         url: &String,
@@ -1192,6 +1257,7 @@ impl BundlesDB {
         };
     }
 
+    /// Delete a [`Paste`] given its `custom_url` and `edit_password`
     pub async fn delete_paste_by_url(
         &self,
         url: String,
@@ -1292,6 +1358,10 @@ impl BundlesDB {
     // groups
 
     // GET
+    /// Get a [`Group`] by its name
+    ///
+    /// # Arguments:
+    /// * `url` - group name
     pub async fn get_group_by_name(&self, url: String) -> DefaultReturn<Option<Group<String>>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Groups\" WHERE \"name\" = ?"
@@ -1326,6 +1396,10 @@ impl BundlesDB {
     }
 
     // SET
+    /// Create a new [`Group`] by its name
+    ///
+    /// # Arguments:
+    /// * `props` - [`Group<GroupMetadata>`](Group)
     pub async fn create_group(&self, props: Group<GroupMetadata>) -> DefaultReturn<Option<String>> {
         let p: &Group<GroupMetadata> = &props; // borrowed props
 

@@ -94,6 +94,7 @@ pub async fn render_paste_ssm_request(
 }
 
 #[post("/api/new")]
+/// Create a new paste (`create_paste`)
 pub async fn create_request(
     req: HttpRequest,
     body: web::Json<CreateInfo>,
@@ -126,6 +127,14 @@ pub async fn create_request(
         // make sure user exists
         if token_user.as_ref().unwrap().success == false {
             return HttpResponse::NotFound().body("Invalid token");
+        }
+    } else {
+        // if server requires an account, return
+        let requires_account = crate::config::get_var("AUTH_REQUIRED");
+
+        if requires_account.is_some() {
+            return HttpResponse::NotAcceptable()
+                .body("This server requires an account to create pastes");
         }
     }
 
@@ -160,6 +169,7 @@ pub async fn create_request(
 }
 
 #[post("/api/edit")]
+/// Edit a paste
 pub async fn edit_request(
     req: HttpRequest,
     body: web::Json<EditInfo>,
@@ -214,6 +224,7 @@ pub async fn edit_request(
 }
 
 #[post("/api/edit-atomic")]
+/// Edit an atomic paste's "file system"
 pub async fn edit_atomic_request(
     req: HttpRequest,
     body: web::Json<EditAtomicInfo>,
@@ -309,6 +320,7 @@ pub async fn edit_atomic_request(
 }
 
 #[post("/api/delete")]
+/// Delete a paste
 pub async fn delete_request(
     req: HttpRequest,
     body: web::Json<DeleteInfo>,
@@ -357,6 +369,7 @@ pub async fn delete_request(
 }
 
 #[post("/api/metadata")]
+/// Edit paste metadata (`edit_paste_metadata_by_url`)
 pub async fn metadata_request(
     req: HttpRequest,
     body: web::Json<MetadataInfo>,
@@ -409,6 +422,7 @@ pub async fn metadata_request(
 }
 
 #[get("/api/exists/{url:.*}")]
+/// Check if a paste exists
 pub async fn exists_request(
     req: HttpRequest,
     data: web::Data<bundlesdb::AppData>,
@@ -423,6 +437,7 @@ pub async fn exists_request(
 }
 
 #[get("/api/url/{url:.*}")]
+/// Get paste by `custom_url`
 pub async fn get_from_url_request(
     req: HttpRequest,
     data: web::Data<bundlesdb::AppData>,
@@ -456,6 +471,7 @@ pub async fn get_from_url_request(
 }
 
 #[get("/api/id/{id:.*}")]
+/// Get paste by ID
 pub async fn get_from_id_request(
     req: HttpRequest,
     data: web::Data<bundlesdb::AppData>,
@@ -489,6 +505,7 @@ pub async fn get_from_id_request(
 }
 
 #[get("/api/owner/{username:.*}")]
+/// Get all pastes by owner
 pub async fn get_from_owner_request(
     req: HttpRequest,
     data: web::Data<bundlesdb::AppData>,

@@ -97,6 +97,8 @@ async fn main() -> std::io::Result<()> {
                 )
                 .show_files_listing(),
             )
+            // docs
+            .service(fs::Files::new("/api/docs", "./target/doc").show_files_listing())
             // POST api
             // POST api::auth
             .service(crate::api::auth::register)

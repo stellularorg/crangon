@@ -102,6 +102,8 @@ fn Login() -> Html {
 }
 
 #[get("/d/auth/register")]
+/// Available at "/d/auth/register"
+/// Still renders even if `REGISTRATION_DISABLED` is present
 pub async fn register_request(req: HttpRequest) -> impl Responder {
     if req.cookie("__Secure-Token").is_some() {
         return HttpResponse::NotFound().body("You're already signed in.");
@@ -118,6 +120,7 @@ pub async fn register_request(req: HttpRequest) -> impl Responder {
 }
 
 #[get("/d/auth/login")]
+/// Available at "/d/auth/login"
 pub async fn login_request(req: HttpRequest) -> impl Responder {
     if req.cookie("__Secure-Token").is_some() {
         return HttpResponse::NotFound().body("You're already signed in.");
@@ -171,6 +174,7 @@ fn build_renderer_with_props(props: Props) -> ServerRenderer<ProfileView> {
 }
 
 #[get("/~{username:.*}")]
+/// Available at "/~{username}"
 pub async fn profile_view_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
     // get paste
     let username: String = req.match_info().get("username").unwrap().to_string();

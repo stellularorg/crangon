@@ -77,6 +77,7 @@ fn build_dashboard_renderer_with_props(props: Props) -> ServerRenderer<Dashboard
 }
 
 #[get("/d/atomic")]
+/// Available at "/d/atomic"
 pub async fn dashboard_request(
     req: HttpRequest,
     data: web::Data<db::bundlesdb::AppData>,
@@ -179,6 +180,7 @@ fn build_new_renderer_with_props(props: NewProps) -> ServerRenderer<CreateNew> {
 }
 
 #[get("/d/atomic/new")]
+/// Available at "/d/atomic/new"
 pub async fn new_request(
     req: HttpRequest,
     data: web::Data<db::bundlesdb::AppData>,
@@ -297,6 +299,7 @@ fn build_fs_renderer_with_props(props: FSProps) -> ServerRenderer<PasteFiles> {
 }
 
 #[get("/d/atomic/{id:.*}")]
+/// Available at "/d/atomic/{id}"
 pub async fn edit_request(
     req: HttpRequest,
     data: web::Data<db::bundlesdb::AppData>,

@@ -193,6 +193,7 @@ fn build_renderer_with_props(props: Props) -> ServerRenderer<Home> {
 }
 
 #[get("/")]
+/// Available at "/"
 pub async fn home_request(
     req: HttpRequest,
     data: web::Data<db::bundlesdb::AppData>,
@@ -292,6 +293,7 @@ pub async fn home_request(
 }
 
 #[get("/robots.txt")]
+/// Available at "/robots.txt"
 pub async fn robotstxt() -> impl Responder {
     return HttpResponse::Ok().body(
         "User-agent: *

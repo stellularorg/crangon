@@ -86,6 +86,7 @@ fn build_user_settings_with_props(props: UserSettingsProps) -> ServerRenderer<Us
 }
 
 #[get("/d/settings")]
+/// Available at "/d/settings"
 pub async fn user_settings_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
     // verify auth status
     let token_cookie = req.cookie("__Secure-Token");
@@ -129,6 +130,7 @@ pub async fn user_settings_request(req: HttpRequest, data: web::Data<AppData>) -
 }
 
 #[get("/d/settings/paste/{url:.*}")]
+/// Available at "/d/settings/paste/{custom_url}"
 pub async fn paste_settings_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
     // get paste
     let url: String = req.match_info().get("url").unwrap().to_string();

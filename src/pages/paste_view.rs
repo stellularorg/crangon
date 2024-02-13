@@ -79,6 +79,7 @@ fn build_renderer_with_props(props: Props) -> ServerRenderer<PasteView> {
 }
 
 #[get("/{url:.*}")]
+/// Available at "/{custom_url}"
 pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
     // get paste
     let url: String = req.match_info().get("url").unwrap().to_string();
@@ -220,6 +221,7 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
 }
 
 #[get("/h/{url:.*}/{path:.*}")]
+/// Available at "/h/{custom_url}/{file_path}"
 pub async fn atomic_paste_view_request(
     req: HttpRequest,
     data: web::Data<AppData>,

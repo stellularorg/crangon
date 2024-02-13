@@ -45,6 +45,8 @@ Environment variables:
 - `DB_PASS "pass"` **required** (only if `--db-type` is `postgres` or `mysql`)
 - `DB_NAME "name"` **required** (only if `--db-type` is `postgres` or `mysql`)
 - `SITE_NAME "name"` optional (defaults to `Bundlrs`)
+- `AUTH_REQUIRED` optional (defaults to `(None)`), disables creating pastes without an account
+- `REGISTRATION_DISABLED` optional (defaults to `(None)`)
 
 ## Features
 

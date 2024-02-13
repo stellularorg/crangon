@@ -16,6 +16,7 @@ pub struct Database<T> {
 
 // ...
 #[cfg(feature = "mysql")]
+/// Create a new "mysql" database
 pub async fn create_db(options: DatabaseOpts) -> Database<sqlx::MySqlPool> {
     // mysql
     let opts = sqlx::mysql::MySqlPoolOptions::new()
@@ -49,6 +50,7 @@ pub async fn create_db(options: DatabaseOpts) -> Database<sqlx::MySqlPool> {
 }
 
 #[cfg(feature = "postgres")]
+/// Create a new "postgres" database
 pub async fn create_db(options: DatabaseOpts) -> Database<sqlx::PgPool> {
     // postgres
     let opts = sqlx::postgres::PgPoolOptions::new()
@@ -82,6 +84,7 @@ pub async fn create_db(options: DatabaseOpts) -> Database<sqlx::PgPool> {
 }
 
 #[cfg(feature = "sqlite")]
+/// Create a new "sqlite" database
 pub async fn create_db(_options: DatabaseOpts) -> Database<sqlx::SqlitePool> {
     // sqlite
     let client = sqlx::SqlitePool::connect("sqlite://bundlrs.db").await;

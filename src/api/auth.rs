@@ -14,6 +14,15 @@ struct LoginInfo {
 
 #[post("/api/auth/register")]
 pub async fn register(body: web::Json<RegisterInfo>, data: web::Data<AppData>) -> impl Responder {
+    // if server disabled registration, return
+    let disabled = crate::config::get_var("REGISTRATION_DISABLED");
+
+    if disabled.is_some() {
+        return HttpResponse::NotAcceptable()
+            .body("This server requires has registration disabled");
+    }
+
+    // ...
     let username = &body.username.trim();
     let res = data.db.create_user(username.to_string()).await;
 

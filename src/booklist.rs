@@ -1,16 +1,22 @@
-// the "booklist" is a file stored in the cwd which contains a list of blocked URLs
-// these URLs can be claimed, but will always return the same dummy record when fetched from the database
-// example booklist:
-//
-// ;
-// url1;url2;url3
-//
-// example booklist 2:
-//
-// ,
-// url1, url2, url3
-//
-// the first line of a booklist defines the separator (\n works)
+//! The "booklist" is a file stored in the cwd which contains a list of blocked URLs.
+//!
+//! These URLs can be claimed, but will always return the same dummy record when fetched from the database.
+//!
+//! # Example:
+//!
+//! ```
+//! ;
+//! url1;url2;url3
+//! ```
+//!
+//! # Example:
+//!
+//! ```
+//! ,
+//! url1, url2, url3
+//! ```
+//!
+//! The first line of a booklist defines the separator (\n works)
 
 use std::fs;
 

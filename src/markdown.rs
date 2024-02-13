@@ -8,6 +8,10 @@ struct Heading<'l> {
     pub id: String,
 }
 
+/// Parse raw Markdown input into HTML
+/// 
+/// # Arguments:
+/// * `input` - `String` containing the Markdown input to be parsed
 pub fn parse_markdown(input: &String) -> String {
     let mut out: String = input.to_owned();
 
