@@ -459,6 +459,19 @@ pub async fn get_from_url_request(
             .body("You do not have permission to view this paste's contents.");
     }
 
+    // if res.metadata contains a view password, return fail
+    if res.payload.is_some()
+        && res
+            .clone()
+            .payload
+            .unwrap()
+            .metadata
+            .contains("\"view_password\":\"")
+    {
+        return HttpResponse::NotFound()
+            .body("You do not have permission to view this paste's contents.");
+    }
+
     // return
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
@@ -488,6 +501,19 @@ pub async fn get_from_id_request(
             .unwrap()
             .metadata
             .contains("\"private_source\":\"on\",")
+    {
+        return HttpResponse::NotFound()
+            .body("You do not have permission to view this paste's contents.");
+    }
+
+    // if res.metadata contains a view password, return fail
+    if res.payload.is_some()
+        && res
+            .clone()
+            .payload
+            .unwrap()
+            .metadata
+            .contains("\"view_password\":\"")
     {
         return HttpResponse::NotFound()
             .body("You do not have permission to view this paste's contents.");

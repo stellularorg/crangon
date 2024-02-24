@@ -8,6 +8,7 @@ use crate::db::bundlesdb::{self, AppData, Paste};
 use crate::utility::format_html;
 
 use crate::components::navigation::Footer;
+use crate::pages::paste_view;
 
 #[derive(Default, Properties, PartialEq)]
 struct Props {
@@ -131,7 +132,11 @@ pub async fn user_settings_request(req: HttpRequest, data: web::Data<AppData>) -
 
 #[get("/d/settings/paste/{url:.*}")]
 /// Available at "/d/settings/paste/{custom_url}"
-pub async fn paste_settings_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
+pub async fn paste_settings_request(
+    req: HttpRequest,
+    data: web::Data<AppData>,
+    info: web::Query<paste_view::PasteViewProps>,
+) -> impl Responder {
     // get paste
     let url: String = req.match_info().get("url").unwrap().to_string();
     let url_c = url.clone();
@@ -165,8 +170,36 @@ pub async fn paste_settings_request(req: HttpRequest, data: web::Data<AppData>) 
     }
 
     // ...
+    let unwrap = paste.payload.clone().unwrap();
+    let metadata = serde_json::from_str::<bundlesdb::PasteMetadata>(&unwrap.metadata).unwrap();
+
+    // handle view password
+    if metadata.view_password.is_some() && info.view.is_none() {
+        let renderer = paste_view::build_password_ask_renderer_with_props(paste_view::Props {
+            paste: unwrap,
+            auth_state: if req.cookie("__Secure-Token").is_some() {
+                Option::Some(req.cookie("__Secure-Token").is_some())
+            } else {
+                Option::Some(false)
+            },
+        });
+
+        let render = renderer.render();
+        return HttpResponse::Ok()
+            .append_header(("Set-Cookie", ""))
+            .append_header(("Content-Type", "text/html"))
+            .body(format_html(render.await, ""));
+    }
+    
+    // (check password)
+    if info.view.is_some() && info.view.as_ref().unwrap() != &metadata.view_password.unwrap() {
+        return HttpResponse::NotFound()
+            .body("You do not have permission to view this paste's contents.");
+    }
+
+    // ...
     let renderer = build_paste_settings_with_props(Props {
-        paste: paste.payload.unwrap(),
+        paste: paste.payload.clone().unwrap(),
         auth_state: if req.cookie("__Secure-Token").is_some() {
             Option::Some(req.cookie("__Secure-Token").is_some())
         } else {

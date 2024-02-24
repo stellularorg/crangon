@@ -64,6 +64,7 @@ pub struct PasteMetadata {
     pub description: Option<String>,
     pub favicon: Option<String>,
     pub embed_color: Option<String>,
+    pub view_password: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -636,6 +637,7 @@ impl BundlesDB {
                         description: Option::Some(String::new()),
                         favicon: Option::None,
                         embed_color: Option::None,
+                        view_password: Option::None,
                     })
                     .unwrap(),
                     views: 0,
@@ -851,6 +853,7 @@ impl BundlesDB {
             description: Option::Some(String::new()),
             favicon: Option::None,
             embed_color: Option::Some(String::from("#ff9999")),
+            view_password: Option::None,
         };
 
         // check values

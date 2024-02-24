@@ -11,9 +11,14 @@ use crate::utility::format_html;
 use crate::components::navigation::Footer;
 
 #[derive(Default, Properties, PartialEq)]
-struct Props {
+pub struct Props {
     pub paste: Paste<String>,
     pub auth_state: Option<bool>,
+}
+
+#[derive(Default, Properties, PartialEq, serde::Deserialize)]
+pub struct PasteViewProps {
+    pub view: Option<String>,
 }
 
 #[function_component]
@@ -21,6 +26,7 @@ fn PasteView(props: &Props) -> Html {
     let content = Html::from_html_unchecked(AttrValue::from(props.paste.content_html.clone()));
     let metadata = serde_json::from_str::<bundlesdb::PasteMetadata>(&props.paste.metadata).unwrap();
 
+    // default return
     return html! {
         <main class="flex flex-column g-4">
             <div id="secret" />
@@ -33,7 +39,7 @@ fn PasteView(props: &Props) -> Html {
                 {content}
             </div>
 
-            <div class="flex justify-space-between g-4 full">
+            <div class="flex justify-space-between g-4 full" id="paste-info-box">
                 <div class="flex g-4 flex-wrap mobile:flex-column">
                     <a class="button round" href={format!("/?editing={}", &props.paste.custom_url)}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
@@ -78,9 +84,53 @@ fn build_renderer_with_props(props: Props) -> ServerRenderer<PasteView> {
     return ServerRenderer::<PasteView>::with_props(|| props);
 }
 
+#[function_component]
+pub fn PastePasswordAsk(props: &Props) -> Html {
+    // default return
+    return html! {
+        <div class="flex flex-column g-4" style="height: 100dvh;">
+            <main class="small flex flex-column g-4 align-center">
+                <div class="card secondary round border" style="width: 25rem;" id="forms">
+                    <h2 class="no-margin text-center full">{props.paste.custom_url.clone()}</h2>
+
+                    <hr />
+
+                    <form class="full flex flex-column g-4" id="login-to-paste">
+                        <label for="view"><b>{"View Password"}</b></label>
+
+                        <input
+                            type="text"
+                            name="view"
+                            id="view"
+                            placeholder="Paste View Password"
+                            class="full round"
+                            minlength={4}
+                            maxlength={32}
+                        />
+
+                        <hr />
+
+                        <button class="bundles-primary full round">
+                            {"Continue"}
+                        </button>
+                    </form>
+                </div>
+            </main>
+        </div>
+    };
+}
+
+pub fn build_password_ask_renderer_with_props(props: Props) -> ServerRenderer<PastePasswordAsk> {
+    return ServerRenderer::<PastePasswordAsk>::with_props(|| props);
+}
+
 #[get("/{url:.*}")]
 /// Available at "/{custom_url}"
-pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
+pub async fn paste_view_request(
+    req: HttpRequest,
+    data: web::Data<AppData>,
+    info: web::Query<PasteViewProps>,
+) -> impl Responder {
     // get paste
     let url: String = req.match_info().get("url").unwrap().to_string();
     let url_c = url.clone();
@@ -99,6 +149,33 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
     }
 
     let unwrap = paste.payload.as_ref().unwrap();
+
+    // ...
+    let metadata = serde_json::from_str::<bundlesdb::PasteMetadata>(&unwrap.metadata).unwrap();
+
+    // handle view password
+    if metadata.view_password.is_some() && info.view.is_none() {
+        let renderer = build_password_ask_renderer_with_props(Props {
+            paste: unwrap.clone(),
+            auth_state: if req.cookie("__Secure-Token").is_some() {
+                Option::Some(req.cookie("__Secure-Token").is_some())
+            } else {
+                Option::Some(false)
+            },
+        });
+
+        let render = renderer.render();
+        return HttpResponse::Ok()
+            .append_header(("Set-Cookie", ""))
+            .append_header(("Content-Type", "text/html"))
+            .body(format_html(render.await, ""));
+    }
+
+    // (check password)
+    if info.view.is_some() && info.view.as_ref().unwrap() != &metadata.view_password.unwrap() {
+        return HttpResponse::NotFound()
+            .body("You do not have permission to view this paste's contents.");
+    }
 
     // handle atomic pastes (just return index.html)
     if unwrap.content.contains("\"_is_atomic\":true") {
@@ -120,9 +197,6 @@ pub async fn paste_view_request(req: HttpRequest, data: web::Data<AppData>) -> i
             .append_header(("Content-Type", "text/html"))
             .body(index_html.unwrap().content.clone());
     }
-
-    // ...
-    let metadata = serde_json::from_str::<bundlesdb::PasteMetadata>(&unwrap.metadata).unwrap();
 
     // verify auth status
     let token_cookie = req.cookie("__Secure-Token");

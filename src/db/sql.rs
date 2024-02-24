@@ -22,8 +22,8 @@ pub async fn create_db(options: DatabaseOpts) -> Database<sqlx::MySqlPool> {
     let opts = sqlx::mysql::MySqlPoolOptions::new()
         .max_connections(25)
         .acquire_timeout(std::time::Duration::from_millis(1000))
-        .idle_timeout(Some(std::time::Duration::from_secs(60)))
-        .max_lifetime(Some(std::time::Duration::from_secs(120)));
+        .idle_timeout(Some(std::time::Duration::from_secs(60)));
+    // .max_lifetime(Some(std::time::Duration::from_secs(120)));
 
     let client = opts
         .connect(&format!(
@@ -56,8 +56,8 @@ pub async fn create_db(options: DatabaseOpts) -> Database<sqlx::PgPool> {
     let opts = sqlx::postgres::PgPoolOptions::new()
         .max_connections(25)
         .acquire_timeout(std::time::Duration::from_millis(1000))
-        .idle_timeout(Some(std::time::Duration::from_secs(60)))
-        .max_lifetime(Some(std::time::Duration::from_secs(120)));
+        .idle_timeout(Some(std::time::Duration::from_secs(60)));
+    // .max_lifetime(Some(std::time::Duration::from_secs(120)));
 
     let client = opts
         .connect(&format!(

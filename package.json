@@ -14,7 +14,7 @@
     "build:release": "./scripts/download_styles.sh && cargo build -r --no-default-features --features sqlite",
     "build:release:mysql": "./scripts/download_styles.sh && cargo build -r --no-default-features --features mysql",
     "build:release:postgres": "./scripts/download_styles.sh && cargo build -r --no-default-features --features postgres",
-    "build:docs": "cargo doc --no-deps"
+    "build:docs": "cargo doc --no-deps --document-private-items"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.12.0",
