@@ -130,12 +130,14 @@ pub struct Log {
 #[cfg(feature = "postgres")]
 pub struct BundlesDB {
     pub db: Database<sqlx::PgPool>,
+    pub paste_cache: CacheStore<Paste<String>>,
 }
 
 #[derive(Clone)]
 #[cfg(feature = "mysql")]
 pub struct BundlesDB {
     pub db: Database<sqlx::MySqlPool>,
+    pub paste_cache: CacheStore<Paste<String>>,
 }
 
 #[derive(Clone)]
