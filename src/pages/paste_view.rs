@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use actix_web::HttpResponse;
 use actix_web::{get, web, HttpRequest, Responder};
 
@@ -128,7 +130,7 @@ pub fn build_password_ask_renderer_with_props(props: Props) -> ServerRenderer<Pa
 /// Available at "/{custom_url}"
 pub async fn paste_view_request(
     req: HttpRequest,
-    data: web::Data<AppData>,
+    data: web::Data<Mutex<AppData>>,
     info: web::Query<PasteViewProps>,
 ) -> impl Responder {
     // get paste
@@ -136,7 +138,7 @@ pub async fn paste_view_request(
     let url_c = url.clone();
 
     let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> =
-        data.db.get_paste_by_url(url).await;
+        data.lock().unwrap().db.get_paste_by_url(url).await;
 
     if paste.success == false {
         let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();
@@ -204,7 +206,7 @@ pub async fn paste_view_request(
 
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.db
+            data.lock().unwrap().db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -221,7 +223,7 @@ pub async fn paste_view_request(
         // count view (this will check for an existing view!)
         let payload = &token_user.as_ref().unwrap().payload;
         if payload.as_ref().is_some() {
-            data.db
+            data.lock().unwrap().db
                 .add_view_to_url(&url_c, &payload.as_ref().unwrap().username)
                 .await;
         }
@@ -298,14 +300,14 @@ pub async fn paste_view_request(
 /// Available at "/h/{custom_url}/{file_path}"
 pub async fn atomic_paste_view_request(
     req: HttpRequest,
-    data: web::Data<AppData>,
+    data: web::Data<Mutex<AppData>>,
 ) -> impl Responder {
     // get paste
     let url: String = req.match_info().get("url").unwrap().to_string();
     let path: String = req.match_info().get("path").unwrap().to_string();
 
     let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> =
-        data.db.get_paste_by_url(url).await;
+        data.lock().unwrap().db.get_paste_by_url(url).await;
 
     if paste.success == false {
         let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();

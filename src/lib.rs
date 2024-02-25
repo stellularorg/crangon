@@ -5,7 +5,6 @@
 #![doc(issue_tracker_base_url = "https://code.stellular.org/SentryTwo/bundlrs/issues/")]
 
 pub mod api;
-pub mod booklist;
 mod components;
 mod config;
 pub mod db;

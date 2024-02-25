@@ -1,7 +1,10 @@
 //! # BundlesDB
 //! Database handler for all database types
 
-use super::sql::{self, Database, DatabaseOpts};
+use super::{
+    cache::CacheStore,
+    sql::{self, Database, DatabaseOpts},
+};
 use sqlx::{Column, Row};
 
 use crate::utility;
@@ -139,12 +142,14 @@ pub struct BundlesDB {
 #[cfg(feature = "sqlite")]
 pub struct BundlesDB {
     pub db: Database<sqlx::SqlitePool>,
+    pub paste_cache: CacheStore<Paste<String>>,
 }
 
 impl BundlesDB {
     pub async fn new(options: DatabaseOpts) -> BundlesDB {
         return BundlesDB {
             db: sql::create_db(options).await,
+            paste_cache: CacheStore::new(),
         };
     }
 
@@ -206,7 +211,7 @@ impl BundlesDB {
     }
 
     #[cfg(feature = "sqlite")]
-    fn textify_row(&self, row: sqlx::sqlite::SqliteRow) -> DatabaseReturn {
+    fn textify_row(&mut self, row: sqlx::sqlite::SqliteRow) -> DatabaseReturn {
         // get all columns
         let columns = row.columns();
 
@@ -223,7 +228,7 @@ impl BundlesDB {
     }
 
     #[cfg(feature = "postgres")]
-    fn textify_row(&self, row: sqlx::postgres::PgRow) -> DatabaseReturn {
+    fn textify_row(&mut self, row: sqlx::postgres::PgRow) -> DatabaseReturn {
         // get all columns
         let columns = row.columns();
 
@@ -240,7 +245,7 @@ impl BundlesDB {
     }
 
     #[cfg(feature = "mysql")]
-    fn textify_row(&self, row: sqlx::mysql::MySqlRow) -> DatabaseReturn {
+    fn textify_row(&mut self, row: sqlx::mysql::MySqlRow) -> DatabaseReturn {
         // get all columns
         let columns = row.columns();
 
@@ -277,7 +282,7 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `hashed` - `String` of the user's hashed ID
-    pub async fn get_user_by_hashed(&self, hashed: String) -> DefaultReturn<Option<UserState>> {
+    pub async fn get_user_by_hashed(&mut self, hashed: String) -> DefaultReturn<Option<UserState>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Users\" WHERE \"id_hashed\" = ?"
         } else {
@@ -319,7 +324,10 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `username` - `String` of the user's username
-    pub async fn get_user_by_username(&self, username: String) -> DefaultReturn<Option<UserState>> {
+    pub async fn get_user_by_username(
+        &mut self,
+        username: String,
+    ) -> DefaultReturn<Option<UserState>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Users\" WHERE \"username\" = ?"
         } else {
@@ -362,7 +370,7 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `username` - `String` of the user's `username`
-    pub async fn create_user(&self, username: String) -> DefaultReturn<Option<String>> {
+    pub async fn create_user(&mut self, username: String) -> DefaultReturn<Option<String>> {
         // make sure user doesn't already exists
         let existing = &self.get_user_by_username(username.clone()).await;
         if existing.success {
@@ -438,7 +446,7 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `id` - `String` of the log's `id`
-    pub async fn get_log_by_id(&self, id: String) -> DefaultReturn<Option<Log>> {
+    pub async fn get_log_by_id(&mut self, id: String) -> DefaultReturn<Option<Log>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Logs\" WHERE \"id\" = ?"
         } else {
@@ -480,7 +488,7 @@ impl BundlesDB {
     /// * `logtype` - `String` of the log's `logtype`
     /// * `content` - `String` of the log's `content`
     pub async fn create_log(
-        &self,
+        &mut self,
         logtype: String,
         content: String,
     ) -> DefaultReturn<Option<String>> {
@@ -522,7 +530,7 @@ impl BundlesDB {
     /// # Arguments:
     /// * `id` - `String` of the log's `id`
     /// * `content` - `String` of the log's new content
-    pub async fn edit_log(&self, id: String, content: String) -> DefaultReturn<Option<String>> {
+    pub async fn edit_log(&mut self, id: String, content: String) -> DefaultReturn<Option<String>> {
         // make sure log exists
         let existing = &self.get_log_by_id(id.clone()).await;
         if !existing.success {
@@ -567,7 +575,7 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `id` - `String` of the log's `id`
-    pub async fn delete_log(&self, id: String) -> DefaultReturn<Option<String>> {
+    pub async fn delete_log(&mut self, id: String) -> DefaultReturn<Option<String>> {
         // make sure log exists
         let existing = &self.get_log_by_id(id.clone()).await;
         if !existing.success {
@@ -606,46 +614,65 @@ impl BundlesDB {
 
     // pastes
 
+    /// Count the `view_paste` logs for a specific [`Paste`]
+    async fn count_paste_views(&mut self, custom_url: String) -> usize {
+        let c = &self.db.client;
+
+        // count views
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE ?"
+        } else {
+            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE $1"
+        };
+
+        let views_res = sqlx::query(query)
+            .bind::<&String>(&format!("{}::%", &custom_url))
+            .fetch_all(c)
+            .await;
+
+        if views_res.is_err() {
+            return 0;
+        }
+
+        return views_res.unwrap().len();
+    }
+
     /// Build a [`Paste`] query with information about it
     async fn build_result_from_query(
-        &self,
+        &mut self,
         query: &str,
         selector: &str,
+        allow_cache: bool,
     ) -> DefaultReturn<Option<Paste<String>>> {
-        // check if we're fetching a booklist url
-        let is_banned = crate::booklist::check_booklist(&selector.to_lowercase());
+        // ...
+        let exists_in_cache = &self.paste_cache.load(selector).is_some();
 
-        if is_banned == true {
+        if (exists_in_cache == &true) && allow_cache {
+            // get views
+            // if allow_cache is true, `selector` should ALWAYS be the custom_url since the cache stores by that, not ID
+            let views = &self.count_paste_views(selector.to_owned()).await;
+            let paste = &self.paste_cache.load(selector).unwrap();
+
+            // return
             return DefaultReturn {
                 success: true,
-                message: String::from("Paste exists (booklist)"),
+                message: String::from("Paste exists"),
                 payload: Option::Some(Paste {
-                    custom_url: selector.to_string(),
-                    id: String::new(),
-                    group_name: String::new(),
-                    edit_password: String::new(),
-                    pub_date: 0,
-                    edit_date: 0,
-                    content: String::new(),
-                    content_html: String::from(
-                        "This custom URL has been blocked by the server booklist.txt file. This is an automatically generated body content.",
-                    ),
-                    metadata: serde_json::to_string::<PasteMetadata>(&PasteMetadata {
-                        owner: String::from(""),
-                        private_source: String::from("on"),
-                        title: Option::Some(String::new()),
-                        description: Option::Some(String::new()),
-                        favicon: Option::None,
-                        embed_color: Option::None,
-                        view_password: Option::None,
-                    })
-                    .unwrap(),
-                    views: 0,
+                    custom_url: paste.custom_url.to_string(),
+                    id: paste.id.to_string(),
+                    group_name: paste.group_name.to_string(),
+                    edit_password: paste.edit_password.to_string(),
+                    pub_date: paste.pub_date,
+                    edit_date: paste.edit_date,
+                    content: paste.content.to_string(),
+                    content_html: paste.content_html.to_string(),
+                    metadata: paste.metadata.to_string(),
+                    views: views.to_owned(),
                 }),
             };
         }
 
-        // ...
+        // fetch from db
         let c = &self.db.client;
         let res = sqlx::query(query)
             .bind::<&String>(&selector.to_lowercase())
@@ -664,42 +691,35 @@ impl BundlesDB {
         let row = res.unwrap();
         let row = self.textify_row(row).data;
 
-        // count views
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE ?"
-        } else {
-            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE $1"
-        };
-
-        let views_res = sqlx::query(query)
-            .bind::<&String>(&format!("{}::%", &row.get("custom_url").unwrap()))
-            .fetch_all(c)
+        // get views
+        let views = &self
+            .count_paste_views(row.get("custom_url").unwrap().to_owned())
             .await;
 
-        if views_res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from(views_res.err().unwrap().to_string()),
-                payload: Option::None,
-            };
+        // add to cache
+        let paste = Paste {
+            custom_url: row.get("custom_url").unwrap().to_string(),
+            id: row.get("id").unwrap().to_string(),
+            group_name: row.get("group_name").unwrap().to_string(),
+            edit_password: row.get("edit_password").unwrap().to_string(),
+            pub_date: row.get("pub_date").unwrap().parse::<u128>().unwrap(),
+            edit_date: row.get("edit_date").unwrap().parse::<u128>().unwrap(),
+            content: row.get("content").unwrap().to_string(),
+            content_html: row.get("content_html").unwrap().to_string(),
+            metadata: row.get("metadata").unwrap().to_string(),
+            views: views.to_owned(),
+        };
+
+        if allow_cache {
+            self.paste_cache
+                .store(row.get("custom_url").unwrap().to_string(), paste.clone());
         }
 
         // return
         return DefaultReturn {
             success: true,
             message: String::from("Paste exists"),
-            payload: Option::Some(Paste {
-                custom_url: row.get("custom_url").unwrap().to_string(),
-                id: row.get("id").unwrap().to_string(),
-                group_name: row.get("group_name").unwrap().to_string(),
-                edit_password: row.get("edit_password").unwrap().to_string(),
-                pub_date: row.get("pub_date").unwrap().parse::<u128>().unwrap(),
-                edit_date: row.get("edit_date").unwrap().parse::<u128>().unwrap(),
-                content: row.get("content").unwrap().to_string(),
-                content_html: row.get("content_html").unwrap().to_string(),
-                metadata: row.get("metadata").unwrap().to_string(),
-                views: views_res.unwrap().len(),
-            }),
+            payload: Option::Some(paste),
         };
     }
 
@@ -708,28 +728,28 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `url` - `String` of the paste's `custom_url`
-    pub async fn get_paste_by_url(&self, url: String) -> DefaultReturn<Option<Paste<String>>> {
+    pub async fn get_paste_by_url(&mut self, url: String) -> DefaultReturn<Option<Paste<String>>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"custom_url\" = ?"
         } else {
             "SELECT * FROM \"Pastes\" WHERE \"custom_url\" = $1"
         };
 
-        return self.build_result_from_query(query, &url).await;
+        return self.build_result_from_query(query, &url, true).await;
     }
 
     /// Get a [`Paste`] given its `id`
     ///
     /// # Arguments:
     /// * `id` - `String` of the paste's `id`
-    pub async fn get_paste_by_id(&self, id: String) -> DefaultReturn<Option<Paste<String>>> {
+    pub async fn get_paste_by_id(&mut self, id: String) -> DefaultReturn<Option<Paste<String>>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"id\" = ?"
         } else {
             "SELECT * FROM \"Pastes\" WHERE \"id\" = $1"
         };
 
-        return self.build_result_from_query(query, &id).await;
+        return self.build_result_from_query(query, &id, false).await;
     }
 
     /// Get all [pastes](Paste) owned by a specific user
@@ -737,7 +757,7 @@ impl BundlesDB {
     /// # Arguments:
     /// * `owner` - `String` of the owner's `username`
     pub async fn get_pastes_by_owner(
-        &self,
+        &mut self,
         owner: String,
     ) -> DefaultReturn<Option<Vec<PasteIdentifier>>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
@@ -784,7 +804,7 @@ impl BundlesDB {
     /// # Arguments:
     /// * `owner` - `String` of the owner's `username`
     pub async fn get_atomic_pastes_by_owner(
-        &self,
+        &mut self,
         owner: String,
     ) -> DefaultReturn<Option<Vec<PasteIdentifier>>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
@@ -834,7 +854,7 @@ impl BundlesDB {
     /// * `props` - [`Paste<String>`](Paste)
     /// * `as_user` - The ID of the user creating the paste
     pub async fn create_paste(
-        &self,
+        &mut self,
         props: &mut Paste<String>,
         as_user: Option<String>, // id of paste owner
     ) -> DefaultReturn<Option<Paste<String>>> {
@@ -1010,7 +1030,7 @@ impl BundlesDB {
 
     /// Edit an existing [`Paste`] given its `custom_url`
     pub async fn edit_paste_by_url(
-        &self,
+        &mut self,
         url: String,
         content: String,
         edit_password: String,
@@ -1101,6 +1121,10 @@ impl BundlesDB {
             };
         }
 
+        // we're not even going to update the cache, just purge the paste from the cache
+        // this also means we don't have to handle any decisions on if the paste custom_url changed or not
+        self.paste_cache.clear(&custom_url);
+
         // return
         return DefaultReturn {
             success: true,
@@ -1111,7 +1135,7 @@ impl BundlesDB {
 
     /// Update a [`Paste`]'s metadata by its `custom_url`
     pub async fn edit_paste_metadata_by_url(
-        &self,
+        &mut self,
         url: String,
         metadata: PasteMetadata,
         edit_password: String,
@@ -1184,6 +1208,10 @@ impl BundlesDB {
             };
         }
 
+        // we're not even going to update the cache, just purge the paste from the cache
+        // this also means we don't have to handle any decisions on if the paste custom_url changed or not
+        self.paste_cache.clear(&url);
+
         // return
         return DefaultReturn {
             success: true,
@@ -1197,7 +1225,7 @@ impl BundlesDB {
     /// # Arguments:
     /// * `view_as` - The username of the account that viewed the paste
     pub async fn add_view_to_url(
-        &self,
+        &mut self,
         url: &String,
         view_as: &String, // username of account that is viewing this paste
     ) -> DefaultReturn<Option<String>> {
@@ -1262,7 +1290,7 @@ impl BundlesDB {
 
     /// Delete a [`Paste`] given its `custom_url` and `edit_password`
     pub async fn delete_paste_by_url(
-        &self,
+        &mut self,
         url: String,
         edit_password: String,
         delete_as: Option<String>,
@@ -1350,6 +1378,9 @@ impl BundlesDB {
             };
         }
 
+        // remove from cache
+        self.paste_cache.clear(&url);
+
         // return
         return DefaultReturn {
             success: true,
@@ -1365,7 +1396,7 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `url` - group name
-    pub async fn get_group_by_name(&self, url: String) -> DefaultReturn<Option<Group<String>>> {
+    pub async fn get_group_by_name(&mut self, url: String) -> DefaultReturn<Option<Group<String>>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Groups\" WHERE \"name\" = ?"
         } else {
@@ -1403,7 +1434,10 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `props` - [`Group<GroupMetadata>`](Group)
-    pub async fn create_group(&self, props: Group<GroupMetadata>) -> DefaultReturn<Option<String>> {
+    pub async fn create_group(
+        &mut self,
+        props: Group<GroupMetadata>,
+    ) -> DefaultReturn<Option<String>> {
         let p: &Group<GroupMetadata> = &props; // borrowed props
 
         // make sure group does not exist

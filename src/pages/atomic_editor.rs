@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use actix_web::HttpRequest;
 use actix_web::{get, web, HttpResponse, Responder};
 
@@ -80,7 +82,7 @@ fn build_dashboard_renderer_with_props(props: Props) -> ServerRenderer<Dashboard
 /// Available at "/d/atomic"
 pub async fn dashboard_request(
     req: HttpRequest,
-    data: web::Data<db::bundlesdb::AppData>,
+    data: web::Data<Mutex<db::bundlesdb::AppData>>,
 ) -> impl Responder {
     // verify auth status
     let token_cookie = req.cookie("__Secure-Token");
@@ -88,7 +90,9 @@ pub async fn dashboard_request(
 
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.db
+            data.lock()
+                .unwrap()
+                .db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -113,6 +117,8 @@ You can create an account at: /d/auth/register",
 
     // fetch pastes
     let pastes = data
+        .lock()
+        .unwrap()
         .db
         .get_atomic_pastes_by_owner(token_user.clone().unwrap().payload.unwrap().username)
         .await;
@@ -183,7 +189,7 @@ fn build_new_renderer_with_props(props: NewProps) -> ServerRenderer<CreateNew> {
 /// Available at "/d/atomic/new"
 pub async fn new_request(
     req: HttpRequest,
-    data: web::Data<db::bundlesdb::AppData>,
+    data: web::Data<Mutex<db::bundlesdb::AppData>>,
 ) -> impl Responder {
     // verify auth status
     let token_cookie = req.cookie("__Secure-Token");
@@ -191,7 +197,9 @@ pub async fn new_request(
 
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.db
+            data.lock()
+                .unwrap()
+                .db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -302,7 +310,7 @@ fn build_fs_renderer_with_props(props: FSProps) -> ServerRenderer<PasteFiles> {
 /// Available at "/d/atomic/{id}"
 pub async fn edit_request(
     req: HttpRequest,
-    data: web::Data<db::bundlesdb::AppData>,
+    data: web::Data<Mutex<db::bundlesdb::AppData>>,
     info: web::Query<EditQueryProps>,
 ) -> impl Responder {
     // verify auth status
@@ -311,7 +319,9 @@ pub async fn edit_request(
 
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.db
+            data.lock()
+                .unwrap()
+                .db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -336,7 +346,8 @@ You can create an account at: /d/auth/register",
 
     // get paste
     let id: String = req.match_info().get("id").unwrap().to_string();
-    let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> = data.db.get_paste_by_id(id).await;
+    let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> =
+        data.lock().unwrap().db.get_paste_by_id(id).await;
 
     if paste.success == false {
         let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();

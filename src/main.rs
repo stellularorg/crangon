@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use actix_files as fs;
 use actix_web::{web, App, HttpResponse, HttpServer};
 use dotenv;
@@ -16,14 +18,15 @@ mod pages;
 mod markdown;
 mod ssm;
 
-mod booklist;
-
 use crate::db::bundlesdb::{AppData, BundlesDB};
 use crate::db::sql::DatabaseOpts;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv::dotenv().ok();
+
+    // std::env::set_var("RUST_LOG", "debug");
+    env_logger::init();
 
     // ...
     let args: Vec<String> = config::collect_arguments();
@@ -79,10 +82,13 @@ async fn main() -> std::io::Result<()> {
     // start server
     println!("Starting server at: http://localhost:{port}");
 
+    // create data
+    let data = web::Data::new(Mutex::new(AppData { db: db.clone() }));
+
     // serve routes
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(AppData { db: db.clone() }))
+            .app_data(web::Data::clone(&data))
             // middleware
             .wrap(actix_web::middleware::Logger::default())
             // static dir

@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
 
 use crate::db::bundlesdb::{self, AtomicPasteFSFile};
@@ -62,10 +64,10 @@ pub async fn render_ssm_request(body: web::Json<RenderInfo>) -> impl Responder {
 #[get("/api/ssm/{url:.*}")]
 pub async fn render_paste_ssm_request(
     req: HttpRequest,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<Mutex<bundlesdb::AppData>>,
 ) -> impl Responder {
     let custom_url: String = req.match_info().get("url").unwrap().to_string();
-    let res = data.db.get_paste_by_url(custom_url).await;
+    let res = data.lock().unwrap().db.get_paste_by_url(custom_url).await;
 
     if !res.success {
         return HttpResponse::NotFound()
@@ -98,7 +100,7 @@ pub async fn render_paste_ssm_request(
 pub async fn create_request(
     req: HttpRequest,
     body: web::Json<CreateInfo>,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<Mutex<bundlesdb::AppData>>,
 ) -> impl Responder {
     let custom_url: String = body.custom_url.trim().to_string();
     let edit_password: &String = &body.edit_password;
@@ -115,7 +117,9 @@ pub async fn create_request(
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.db
+            data.lock()
+                .unwrap()
+                .db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -140,6 +144,8 @@ pub async fn create_request(
 
     // create paste
     let res = data
+        .lock()
+        .unwrap()
         .db
         .create_paste(
             &mut bundlesdb::Paste {
@@ -173,7 +179,7 @@ pub async fn create_request(
 pub async fn edit_request(
     req: HttpRequest,
     body: web::Json<EditInfo>,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<Mutex<bundlesdb::AppData>>,
 ) -> impl Responder {
     let custom_url: String = body.custom_url.trim().to_string();
     let content: String = body.content.trim().to_string();
@@ -185,7 +191,9 @@ pub async fn edit_request(
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.db
+            data.lock()
+                .unwrap()
+                .db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -202,6 +210,8 @@ pub async fn edit_request(
 
     // ...
     let res = data
+        .lock()
+        .unwrap()
         .db
         .edit_paste_by_url(
             custom_url,
@@ -228,7 +238,7 @@ pub async fn edit_request(
 pub async fn edit_atomic_request(
     req: HttpRequest,
     body: web::Json<EditAtomicInfo>,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<Mutex<bundlesdb::AppData>>,
 ) -> impl Responder {
     // this is essentially the same as edit_request but it handles the atomic JSON file system
     // ...it does NOT accept an edit password! users must be authenticated
@@ -240,7 +250,9 @@ pub async fn edit_atomic_request(
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.db
+            data.lock()
+                .unwrap()
+                .db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -256,8 +268,12 @@ pub async fn edit_atomic_request(
     }
 
     // get paste
-    let paste: bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>> =
-        data.db.get_paste_by_url(custom_url.clone()).await;
+    let paste: bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>> = data
+        .lock()
+        .unwrap()
+        .db
+        .get_paste_by_url(custom_url.clone())
+        .await;
 
     if paste.success == false {
         return HttpResponse::Ok()
@@ -298,6 +314,8 @@ pub async fn edit_atomic_request(
 
     // ...
     let res = data
+        .lock()
+        .unwrap()
         .db
         .edit_paste_by_url(
             custom_url,
@@ -324,7 +342,7 @@ pub async fn edit_atomic_request(
 pub async fn delete_request(
     req: HttpRequest,
     body: web::Json<DeleteInfo>,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<Mutex<bundlesdb::AppData>>,
 ) -> impl Responder {
     let custom_url: String = body.custom_url.trim().to_string();
     let edit_password: String = body.edit_password.to_owned();
@@ -333,7 +351,9 @@ pub async fn delete_request(
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.db
+            data.lock()
+                .unwrap()
+                .db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -350,6 +370,8 @@ pub async fn delete_request(
 
     // delete
     let res = data
+        .lock()
+        .unwrap()
         .db
         .delete_paste_by_url(
             custom_url,
@@ -373,7 +395,7 @@ pub async fn delete_request(
 pub async fn metadata_request(
     req: HttpRequest,
     body: web::Json<MetadataInfo>,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<Mutex<bundlesdb::AppData>>,
 ) -> impl Responder {
     let custom_url: String = body.custom_url.trim().to_string();
     let edit_password: String = body.edit_password.to_owned();
@@ -385,7 +407,9 @@ pub async fn metadata_request(
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.db
+            data.lock()
+                .unwrap()
+                .db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -402,6 +426,8 @@ pub async fn metadata_request(
 
     // ...
     let res = data
+        .lock()
+        .unwrap()
         .db
         .edit_paste_metadata_by_url(
             custom_url,
@@ -425,10 +451,10 @@ pub async fn metadata_request(
 /// Check if a paste exists
 pub async fn exists_request(
     req: HttpRequest,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<Mutex<bundlesdb::AppData>>,
 ) -> impl Responder {
     let custom_url: String = req.match_info().get("url").unwrap().to_string();
-    let res = data.db.get_paste_by_url(custom_url).await;
+    let res = data.lock().unwrap().db.get_paste_by_url(custom_url).await;
 
     // return
     return HttpResponse::Ok()
@@ -440,11 +466,11 @@ pub async fn exists_request(
 /// Get paste by `custom_url`
 pub async fn get_from_url_request(
     req: HttpRequest,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<Mutex<bundlesdb::AppData>>,
 ) -> impl Responder {
     let custom_url: String = req.match_info().get("url").unwrap().to_string();
     let res: bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>> =
-        data.db.get_paste_by_url(custom_url).await;
+        data.lock().unwrap().db.get_paste_by_url(custom_url).await;
 
     // if res.metadata contains '"private_source":"on"', return NotFound
     if res.payload.is_some()
@@ -487,11 +513,11 @@ pub async fn get_from_url_request(
 /// Get paste by ID
 pub async fn get_from_id_request(
     req: HttpRequest,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<Mutex<bundlesdb::AppData>>,
 ) -> impl Responder {
     let id: String = req.match_info().get("id").unwrap().to_string();
     let res: bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>> =
-        data.db.get_paste_by_id(id).await;
+        data.lock().unwrap().db.get_paste_by_id(id).await;
 
     // if res.metadata contains '"private_source":"on"', return NotFound
     if res.payload.is_some()
@@ -534,11 +560,11 @@ pub async fn get_from_id_request(
 /// Get all pastes by owner
 pub async fn get_from_owner_request(
     req: HttpRequest,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<Mutex<bundlesdb::AppData>>,
 ) -> impl Responder {
     let username: String = req.match_info().get("username").unwrap().to_string();
     let res: bundlesdb::DefaultReturn<Option<Vec<bundlesdb::PasteIdentifier>>> =
-        data.db.get_pastes_by_owner(username).await;
+        data.lock().unwrap().db.get_pastes_by_owner(username).await;
 
     // return
     return HttpResponse::Ok()

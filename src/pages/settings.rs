@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use actix_web::HttpResponse;
 use actix_web::{get, web, HttpRequest, Responder};
 
@@ -88,14 +90,19 @@ fn build_user_settings_with_props(props: UserSettingsProps) -> ServerRenderer<Us
 
 #[get("/d/settings")]
 /// Available at "/d/settings"
-pub async fn user_settings_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
+pub async fn user_settings_request(
+    req: HttpRequest,
+    data: web::Data<Mutex<AppData>>,
+) -> impl Responder {
     // verify auth status
     let token_cookie = req.cookie("__Secure-Token");
     let mut set_cookie: &str = "";
 
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.db
+            data.lock()
+                .unwrap()
+                .db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -134,7 +141,7 @@ pub async fn user_settings_request(req: HttpRequest, data: web::Data<AppData>) -
 /// Available at "/d/settings/paste/{custom_url}"
 pub async fn paste_settings_request(
     req: HttpRequest,
-    data: web::Data<AppData>,
+    data: web::Data<Mutex<AppData>>,
     info: web::Query<paste_view::PasteViewProps>,
 ) -> impl Responder {
     // get paste
@@ -142,7 +149,7 @@ pub async fn paste_settings_request(
     let url_c = url.clone();
 
     let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> =
-        data.db.get_paste_by_url(url).await;
+        data.lock().unwrap().db.get_paste_by_url(url).await;
 
     if paste.success == false {
         return HttpResponse::NotFound().body(paste.message);
@@ -154,7 +161,9 @@ pub async fn paste_settings_request(
 
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.db
+            data.lock()
+                .unwrap()
+                .db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -190,7 +199,7 @@ pub async fn paste_settings_request(
             .append_header(("Content-Type", "text/html"))
             .body(format_html(render.await, ""));
     }
-    
+
     // (check password)
     if info.view.is_some() && info.view.as_ref().unwrap() != &metadata.view_password.unwrap() {
         return HttpResponse::NotFound()

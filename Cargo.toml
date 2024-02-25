@@ -3,7 +3,7 @@ name = "bundlrs"
 authors = ["hkau"]
 license = "MIT"
 
-version = "0.8.1"
+version = "0.8.2"
 edition = "2021"
 
 rust-version = "1.75"
@@ -21,6 +21,7 @@ actix-files = "0.6.5"
 actix-web = "4.4.1"
 dotenv = "0.15.0"
 either = "1.9.0"
+env_logger = "0.11.2"
 hex_fmt = "0.3.0"
 idna = "0.5.0"
 pulldown-cmark = "0.9.3"
