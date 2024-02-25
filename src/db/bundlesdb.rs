@@ -1105,7 +1105,7 @@ impl BundlesDB {
         let c = &self.db.client;
         let res = sqlx::query(query)
             .bind::<&String>(&content)
-            .bind::<&String>(&crate::markdown::parse_markdown(&content))
+            .bind::<&String>(&crate::markdown::render::parse_markdown(&content))
             .bind::<&String>(&edit_password_hash)
             .bind::<&String>(&custom_url)
             .bind::<&String>(&utility::unix_epoch_timestamp().to_string()) // update edit_date

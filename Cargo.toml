@@ -3,7 +3,7 @@ name = "bundlrs"
 authors = ["hkau"]
 license = "MIT"
 
-version = "0.8.2"
+version = "0.9.0"
 edition = "2021"
 
 rust-version = "1.75"
@@ -19,12 +19,14 @@ default = ["sqlite"]
 [dependencies]
 actix-files = "0.6.5"
 actix-web = "4.4.1"
+comrak = "0.21.0"
 dotenv = "0.15.0"
 either = "1.9.0"
 env_logger = "0.11.2"
 hex_fmt = "0.3.0"
 idna = "0.5.0"
-pulldown-cmark = "0.9.3"
+pest = "2.7.7"
+pest_derive = "2.7.7"
 regex = "1.10.2"
 serde = "1.0.195"
 serde_json = "1.0.111"

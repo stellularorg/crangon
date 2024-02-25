@@ -51,7 +51,7 @@ struct MetadataInfo {
 pub async fn render_request(body: web::Json<RenderInfo>) -> impl Responder {
     return HttpResponse::Ok()
         .append_header(("Content-Type", "text/html"))
-        .body(markdown::parse_markdown(&body.text));
+        .body(markdown::render::parse_markdown(&body.text));
 }
 
 #[post("/api/ssm")]
@@ -153,7 +153,7 @@ pub async fn create_request(
                 id: String::new(), // reassigned anyways, this doesn't matter
                 edit_password: edit_password.to_string(),
                 content: content.clone(),
-                content_html: crate::markdown::parse_markdown(&content), // go ahead and render the content
+                content_html: crate::markdown::render::parse_markdown(&content), // go ahead and render the content
                 pub_date: utility::unix_epoch_timestamp(),
                 edit_date: utility::unix_epoch_timestamp(),
                 group_name: g_name_for_real.to_string(),
