@@ -16,7 +16,7 @@ impl<T> CacheStore<T> {
         self.objects.insert(key, value)
     }
 
-    pub fn load(&mut self, key: &str) -> Option<&T> {
+    pub fn load(&self, key: &str) -> Option<&T> {
         self.objects.get(key)
     }
 

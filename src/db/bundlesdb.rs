@@ -1,6 +1,5 @@
 //! # BundlesDB
 //! Database handler for all database types
-
 use super::{
     cache::CacheStore,
     sql::{self, Database, DatabaseOpts},
@@ -11,6 +10,9 @@ use crate::utility;
 use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
+
+use once_cell::sync::Lazy;
+use std::sync::Mutex;
 
 #[derive(Clone)]
 pub struct AppData {
@@ -130,36 +132,32 @@ pub struct Log {
 #[cfg(feature = "postgres")]
 pub struct BundlesDB {
     pub db: Database<sqlx::PgPool>,
-    pub paste_cache: CacheStore<Paste<String>>,
-    pub auth_cache: CacheStore<UserState>,
 }
 
 #[derive(Clone)]
 #[cfg(feature = "mysql")]
 pub struct BundlesDB {
     pub db: Database<sqlx::MySqlPool>,
-    pub paste_cache: CacheStore<Paste<String>>,
-    pub auth_cache: CacheStore<UserState>,
 }
 
 #[derive(Clone)]
 #[cfg(feature = "sqlite")]
 pub struct BundlesDB {
     pub db: Database<sqlx::SqlitePool>,
-    pub paste_cache: CacheStore<Paste<String>>,
-    pub auth_cache: CacheStore<UserState>,
 }
+
+static PASTE_CACHE: Lazy<Mutex<CacheStore<Paste<String>>>> =
+    Lazy::new(|| Mutex::new(CacheStore::new()));
+static AUTH_CACHE: Lazy<Mutex<CacheStore<UserState>>> = Lazy::new(|| Mutex::new(CacheStore::new()));
 
 impl BundlesDB {
     pub async fn new(options: DatabaseOpts) -> BundlesDB {
         return BundlesDB {
             db: sql::create_db(options).await,
-            paste_cache: CacheStore::new(),
-            auth_cache: CacheStore::new(),
         };
     }
 
-    pub async fn init(&mut self) {
+    pub async fn init(&self) {
         // ...
 
         // create tables
@@ -217,7 +215,7 @@ impl BundlesDB {
     }
 
     #[cfg(feature = "sqlite")]
-    fn textify_row(&mut self, row: sqlx::sqlite::SqliteRow) -> DatabaseReturn {
+    fn textify_row(&self, row: sqlx::sqlite::SqliteRow) -> DatabaseReturn {
         // get all columns
         let columns = row.columns();
 
@@ -234,7 +232,7 @@ impl BundlesDB {
     }
 
     #[cfg(feature = "postgres")]
-    fn textify_row(&mut self, row: sqlx::postgres::PgRow) -> DatabaseReturn {
+    fn textify_row(&self, row: sqlx::postgres::PgRow) -> DatabaseReturn {
         // get all columns
         let columns = row.columns();
 
@@ -251,7 +249,7 @@ impl BundlesDB {
     }
 
     #[cfg(feature = "mysql")]
-    fn textify_row(&mut self, row: sqlx::mysql::MySqlRow) -> DatabaseReturn {
+    fn textify_row(&self, row: sqlx::mysql::MySqlRow) -> DatabaseReturn {
         // get all columns
         let columns = row.columns();
 
@@ -288,14 +286,17 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `hashed` - `String` of the user's hashed ID
-    pub async fn get_user_by_hashed(&mut self, hashed: String) -> DefaultReturn<Option<UserState>> {
+    pub async fn get_user_by_hashed(&self, hashed: String) -> DefaultReturn<Option<UserState>> {
         // ...
-        let exists_in_cache = &self.paste_cache.load(&hashed).is_some();
+        let paste_cache = PASTE_CACHE.lock().unwrap();
+        let mut auth_cache = AUTH_CACHE.lock().unwrap();
 
-        if exists_in_cache == &true {
+        let exists_in_cache = paste_cache.load(&hashed).is_some();
+
+        if exists_in_cache == true {
             // get views
             // if allow_cache is true, `selector` should ALWAYS be the custom_url since the cache stores by that, not ID
-            let user = &self.auth_cache.load(&hashed).unwrap();
+            let user = auth_cache.load(&hashed).unwrap();
 
             // return
             return DefaultReturn {
@@ -343,8 +344,7 @@ impl BundlesDB {
             timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
         };
 
-        self.auth_cache
-            .store(row.get("id_hashed").unwrap().to_string(), user.clone());
+        auth_cache.store(row.get("id_hashed").unwrap().to_string(), user.clone());
 
         // return
         return DefaultReturn {
@@ -358,10 +358,7 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `username` - `String` of the user's username
-    pub async fn get_user_by_username(
-        &mut self,
-        username: String,
-    ) -> DefaultReturn<Option<UserState>> {
+    pub async fn get_user_by_username(&self, username: String) -> DefaultReturn<Option<UserState>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Users\" WHERE \"username\" = ?"
         } else {
@@ -404,7 +401,7 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `username` - `String` of the user's `username`
-    pub async fn create_user(&mut self, username: String) -> DefaultReturn<Option<String>> {
+    pub async fn create_user(&self, username: String) -> DefaultReturn<Option<String>> {
         // make sure user doesn't already exists
         let existing = &self.get_user_by_username(username.clone()).await;
         if existing.success {
@@ -480,7 +477,7 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `id` - `String` of the log's `id`
-    pub async fn get_log_by_id(&mut self, id: String) -> DefaultReturn<Option<Log>> {
+    pub async fn get_log_by_id(&self, id: String) -> DefaultReturn<Option<Log>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Logs\" WHERE \"id\" = ?"
         } else {
@@ -522,7 +519,7 @@ impl BundlesDB {
     /// * `logtype` - `String` of the log's `logtype`
     /// * `content` - `String` of the log's `content`
     pub async fn create_log(
-        &mut self,
+        &self,
         logtype: String,
         content: String,
     ) -> DefaultReturn<Option<String>> {
@@ -564,7 +561,7 @@ impl BundlesDB {
     /// # Arguments:
     /// * `id` - `String` of the log's `id`
     /// * `content` - `String` of the log's new content
-    pub async fn edit_log(&mut self, id: String, content: String) -> DefaultReturn<Option<String>> {
+    pub async fn edit_log(&self, id: String, content: String) -> DefaultReturn<Option<String>> {
         // make sure log exists
         let existing = &self.get_log_by_id(id.clone()).await;
         if !existing.success {
@@ -609,7 +606,7 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `id` - `String` of the log's `id`
-    pub async fn delete_log(&mut self, id: String) -> DefaultReturn<Option<String>> {
+    pub async fn delete_log(&self, id: String) -> DefaultReturn<Option<String>> {
         // make sure log exists
         let existing = &self.get_log_by_id(id.clone()).await;
         if !existing.success {
@@ -649,7 +646,7 @@ impl BundlesDB {
     // pastes
 
     /// Count the `view_paste` logs for a specific [`Paste`]
-    async fn count_paste_views(&mut self, custom_url: String) -> usize {
+    async fn count_paste_views(&self, custom_url: String) -> usize {
         let c = &self.db.client;
 
         // count views
@@ -673,19 +670,20 @@ impl BundlesDB {
 
     /// Build a [`Paste`] query with information about it
     async fn build_result_from_query(
-        &mut self,
+        &self,
         query: &str,
         selector: &str,
         allow_cache: bool,
     ) -> DefaultReturn<Option<Paste<String>>> {
         // ...
-        let exists_in_cache = &self.paste_cache.load(selector).is_some();
+        let mut paste_cache = PASTE_CACHE.lock().unwrap();
+        let exists_in_cache = paste_cache.load(selector).is_some();
 
-        if (exists_in_cache == &true) && allow_cache {
+        if (exists_in_cache == true) && allow_cache {
             // get views
             // if allow_cache is true, `selector` should ALWAYS be the custom_url since the cache stores by that, not ID
             let views = &self.count_paste_views(selector.to_owned()).await;
-            let paste = &self.paste_cache.load(selector).unwrap();
+            let paste = paste_cache.load(selector).unwrap();
 
             // return
             return DefaultReturn {
@@ -745,8 +743,7 @@ impl BundlesDB {
         };
 
         if allow_cache {
-            self.paste_cache
-                .store(row.get("custom_url").unwrap().to_string(), paste.clone());
+            paste_cache.store(row.get("custom_url").unwrap().to_string(), paste.clone());
         }
 
         // return
@@ -762,7 +759,7 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `url` - `String` of the paste's `custom_url`
-    pub async fn get_paste_by_url(&mut self, url: String) -> DefaultReturn<Option<Paste<String>>> {
+    pub async fn get_paste_by_url(&self, url: String) -> DefaultReturn<Option<Paste<String>>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"custom_url\" = ?"
         } else {
@@ -776,7 +773,7 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `id` - `String` of the paste's `id`
-    pub async fn get_paste_by_id(&mut self, id: String) -> DefaultReturn<Option<Paste<String>>> {
+    pub async fn get_paste_by_id(&self, id: String) -> DefaultReturn<Option<Paste<String>>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"id\" = ?"
         } else {
@@ -791,7 +788,7 @@ impl BundlesDB {
     /// # Arguments:
     /// * `owner` - `String` of the owner's `username`
     pub async fn get_pastes_by_owner(
-        &mut self,
+        &self,
         owner: String,
     ) -> DefaultReturn<Option<Vec<PasteIdentifier>>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
@@ -838,7 +835,7 @@ impl BundlesDB {
     /// # Arguments:
     /// * `owner` - `String` of the owner's `username`
     pub async fn get_atomic_pastes_by_owner(
-        &mut self,
+        &self,
         owner: String,
     ) -> DefaultReturn<Option<Vec<PasteIdentifier>>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
@@ -888,7 +885,7 @@ impl BundlesDB {
     /// * `props` - [`Paste<String>`](Paste)
     /// * `as_user` - The ID of the user creating the paste
     pub async fn create_paste(
-        &mut self,
+        &self,
         props: &mut Paste<String>,
         as_user: Option<String>, // id of paste owner
     ) -> DefaultReturn<Option<Paste<String>>> {
@@ -1064,7 +1061,7 @@ impl BundlesDB {
 
     /// Edit an existing [`Paste`] given its `custom_url`
     pub async fn edit_paste_by_url(
-        &mut self,
+        &self,
         url: String,
         content: String,
         edit_password: String,
@@ -1157,7 +1154,8 @@ impl BundlesDB {
 
         // we're not even going to update the cache, just purge the paste from the cache
         // this also means we don't have to handle any decisions on if the paste custom_url changed or not
-        self.paste_cache.clear(&custom_url);
+        let mut paste_cache = PASTE_CACHE.lock().unwrap();
+        paste_cache.clear(&custom_url);
 
         // return
         return DefaultReturn {
@@ -1169,7 +1167,7 @@ impl BundlesDB {
 
     /// Update a [`Paste`]'s metadata by its `custom_url`
     pub async fn edit_paste_metadata_by_url(
-        &mut self,
+        &self,
         url: String,
         metadata: PasteMetadata,
         edit_password: String,
@@ -1244,7 +1242,8 @@ impl BundlesDB {
 
         // we're not even going to update the cache, just purge the paste from the cache
         // this also means we don't have to handle any decisions on if the paste custom_url changed or not
-        self.paste_cache.clear(&url);
+        let mut paste_cache = PASTE_CACHE.lock().unwrap();
+        paste_cache.clear(&url);
 
         // return
         return DefaultReturn {
@@ -1259,7 +1258,7 @@ impl BundlesDB {
     /// # Arguments:
     /// * `view_as` - The username of the account that viewed the paste
     pub async fn add_view_to_url(
-        &mut self,
+        &self,
         url: &String,
         view_as: &String, // username of account that is viewing this paste
     ) -> DefaultReturn<Option<String>> {
@@ -1324,7 +1323,7 @@ impl BundlesDB {
 
     /// Delete a [`Paste`] given its `custom_url` and `edit_password`
     pub async fn delete_paste_by_url(
-        &mut self,
+        &self,
         url: String,
         edit_password: String,
         delete_as: Option<String>,
@@ -1413,7 +1412,8 @@ impl BundlesDB {
         }
 
         // remove from cache
-        self.paste_cache.clear(&url);
+        let mut paste_cache = PASTE_CACHE.lock().unwrap();
+        paste_cache.clear(&url);
 
         // return
         return DefaultReturn {
@@ -1430,7 +1430,7 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `url` - group name
-    pub async fn get_group_by_name(&mut self, url: String) -> DefaultReturn<Option<Group<String>>> {
+    pub async fn get_group_by_name(&self, url: String) -> DefaultReturn<Option<Group<String>>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Groups\" WHERE \"name\" = ?"
         } else {
@@ -1468,10 +1468,7 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `props` - [`Group<GroupMetadata>`](Group)
-    pub async fn create_group(
-        &mut self,
-        props: Group<GroupMetadata>,
-    ) -> DefaultReturn<Option<String>> {
+    pub async fn create_group(&self, props: Group<GroupMetadata>) -> DefaultReturn<Option<String>> {
         let p: &Group<GroupMetadata> = &props; // borrowed props
 
         // make sure group does not exist

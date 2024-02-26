@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use actix_web::HttpResponse;
 use actix_web::{get, web, HttpRequest, Responder};
 
@@ -90,23 +88,14 @@ fn build_user_settings_with_props(props: UserSettingsProps) -> ServerRenderer<Us
 
 #[get("/d/settings")]
 /// Available at "/d/settings"
-pub async fn user_settings_request(
-    req: HttpRequest,
-    data: web::Data<Mutex<AppData>>,
-) -> impl Responder {
-    let mut lock = match data.lock() {
-        Ok(lock) => lock,
-        // the poisoned guard tells us that something panicked while handling a locked guard
-        Err(poisoned) => poisoned.into_inner(),
-    };
-
+pub async fn user_settings_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
     // verify auth status
     let token_cookie = req.cookie("__Secure-Token");
     let mut set_cookie: &str = "";
 
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            lock.db
+            data.db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -145,21 +134,15 @@ pub async fn user_settings_request(
 /// Available at "/d/settings/paste/{custom_url}"
 pub async fn paste_settings_request(
     req: HttpRequest,
-    data: web::Data<Mutex<AppData>>,
+    data: web::Data<AppData>,
     info: web::Query<paste_view::PasteViewProps>,
 ) -> impl Responder {
     // get paste
     let url: String = req.match_info().get("url").unwrap().to_string();
     let url_c = url.clone();
 
-    let mut lock = match data.lock() {
-        Ok(lock) => lock,
-        // the poisoned guard tells us that something panicked while handling a locked guard
-        Err(poisoned) => poisoned.into_inner(),
-    };
-
     let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> =
-        lock.db.get_paste_by_url(url).await;
+        data.db.get_paste_by_url(url).await;
 
     if paste.success == false {
         return HttpResponse::NotFound().body(paste.message);
@@ -171,7 +154,7 @@ pub async fn paste_settings_request(
 
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            lock.db
+            data.db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )

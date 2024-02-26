@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use actix_web::HttpResponse;
 use actix_web::{get, web, HttpRequest, Responder};
 
@@ -177,22 +175,13 @@ fn build_renderer_with_props(props: Props) -> ServerRenderer<ProfileView> {
 
 #[get("/~{username:.*}")]
 /// Available at "/~{username}"
-pub async fn profile_view_request(
-    req: HttpRequest,
-    data: web::Data<Mutex<AppData>>,
-) -> impl Responder {
+pub async fn profile_view_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
     // get paste
     let username: String = req.match_info().get("username").unwrap().to_string();
     let username_c = username.clone();
 
-    let mut lock = match data.lock() {
-        Ok(lock) => lock,
-        // the poisoned guard tells us that something panicked while handling a locked guard
-        Err(poisoned) => poisoned.into_inner(),
-    };
-
     let user: bundlesdb::DefaultReturn<Option<UserState>> =
-        lock.db.get_user_by_username(username).await;
+        data.db.get_user_by_username(username).await;
 
     if user.success == false {
         let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();
@@ -212,7 +201,7 @@ pub async fn profile_view_request(
 
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            lock.db
+            data.db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -229,7 +218,7 @@ pub async fn profile_view_request(
 
     // ...
     let pastes_res: bundlesdb::DefaultReturn<Option<Vec<bundlesdb::PasteIdentifier>>> =
-        lock.db.get_pastes_by_owner(username_c.clone()).await;
+        data.db.get_pastes_by_owner(username_c.clone()).await;
 
     let renderer = build_renderer_with_props(Props {
         user: unwrap.clone(),

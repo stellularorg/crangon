@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
 
 use crate::db::bundlesdb::{self, AtomicPasteFSFile};
@@ -64,17 +62,10 @@ pub async fn render_ssm_request(body: web::Json<RenderInfo>) -> impl Responder {
 #[get("/api/ssm/{url:.*}")]
 pub async fn render_paste_ssm_request(
     req: HttpRequest,
-    data: web::Data<Mutex<bundlesdb::AppData>>,
+    data: web::Data<bundlesdb::AppData>,
 ) -> impl Responder {
     let custom_url: String = req.match_info().get("url").unwrap().to_string();
-
-    let mut lock = match data.lock() {
-        Ok(lock) => lock,
-        // the poisoned guard tells us that something panicked while handling a locked guard
-        Err(poisoned) => poisoned.into_inner(),
-    };
-
-    let res = lock.db.get_paste_by_url(custom_url).await;
+    let res = data.db.get_paste_by_url(custom_url).await;
 
     if !res.success {
         return HttpResponse::NotFound()
@@ -107,7 +98,7 @@ pub async fn render_paste_ssm_request(
 pub async fn create_request(
     req: HttpRequest,
     body: web::Json<CreateInfo>,
-    data: web::Data<Mutex<bundlesdb::AppData>>,
+    data: web::Data<bundlesdb::AppData>,
 ) -> impl Responder {
     let custom_url: String = body.custom_url.trim().to_string();
     let edit_password: &String = &body.edit_password;
@@ -120,17 +111,11 @@ pub async fn create_request(
         ""
     };
 
-    let mut lock = match data.lock() {
-        Ok(lock) => lock,
-        // the poisoned guard tells us that something panicked while handling a locked guard
-        Err(poisoned) => poisoned.into_inner(),
-    };
-
     // get owner
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            lock.db
+            data.db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -154,7 +139,7 @@ pub async fn create_request(
     }
 
     // create paste
-    let res = lock
+    let res = data
         .db
         .create_paste(
             &mut bundlesdb::Paste {
@@ -188,7 +173,7 @@ pub async fn create_request(
 pub async fn edit_request(
     req: HttpRequest,
     body: web::Json<EditInfo>,
-    data: web::Data<Mutex<bundlesdb::AppData>>,
+    data: web::Data<bundlesdb::AppData>,
 ) -> impl Responder {
     let custom_url: String = body.custom_url.trim().to_string();
     let content: String = body.content.trim().to_string();
@@ -196,17 +181,11 @@ pub async fn edit_request(
     let new_url: Option<String> = body.new_custom_url.to_owned();
     let new_edit_password: Option<String> = body.new_edit_password.to_owned();
 
-    let mut lock = match data.lock() {
-        Ok(lock) => lock,
-        // the poisoned guard tells us that something panicked while handling a locked guard
-        Err(poisoned) => poisoned.into_inner(),
-    };
-
     // get owner
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            lock.db
+            data.db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -222,7 +201,7 @@ pub async fn edit_request(
     }
 
     // ...
-    let res = lock
+    let res = data
         .db
         .edit_paste_by_url(
             custom_url,
@@ -249,7 +228,7 @@ pub async fn edit_request(
 pub async fn edit_atomic_request(
     req: HttpRequest,
     body: web::Json<EditAtomicInfo>,
-    data: web::Data<Mutex<bundlesdb::AppData>>,
+    data: web::Data<bundlesdb::AppData>,
 ) -> impl Responder {
     // this is essentially the same as edit_request but it handles the atomic JSON file system
     // ...it does NOT accept an edit password! users must be authenticated
@@ -257,17 +236,11 @@ pub async fn edit_atomic_request(
     let path: String = body.path.trim().to_string();
     let content: String = body.content.trim().to_string();
 
-    let mut lock = match data.lock() {
-        Ok(lock) => lock,
-        // the poisoned guard tells us that something panicked while handling a locked guard
-        Err(poisoned) => poisoned.into_inner(),
-    };
-
     // get owner
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            lock.db
+            data.db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -284,7 +257,7 @@ pub async fn edit_atomic_request(
 
     // get paste
     let paste: bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>> =
-        lock.db.get_paste_by_url(custom_url.clone()).await;
+        data.db.get_paste_by_url(custom_url.clone()).await;
 
     if paste.success == false {
         return HttpResponse::Ok()
@@ -324,7 +297,7 @@ pub async fn edit_atomic_request(
     });
 
     // ...
-    let res = lock
+    let res = data
         .db
         .edit_paste_by_url(
             custom_url,
@@ -351,22 +324,16 @@ pub async fn edit_atomic_request(
 pub async fn delete_request(
     req: HttpRequest,
     body: web::Json<DeleteInfo>,
-    data: web::Data<Mutex<bundlesdb::AppData>>,
+    data: web::Data<bundlesdb::AppData>,
 ) -> impl Responder {
     let custom_url: String = body.custom_url.trim().to_string();
     let edit_password: String = body.edit_password.to_owned();
-
-    let mut lock = match data.lock() {
-        Ok(lock) => lock,
-        // the poisoned guard tells us that something panicked while handling a locked guard
-        Err(poisoned) => poisoned.into_inner(),
-    };
 
     // get owner
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            lock.db
+            data.db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -382,7 +349,7 @@ pub async fn delete_request(
     }
 
     // delete
-    let res = lock
+    let res = data
         .db
         .delete_paste_by_url(
             custom_url,
@@ -406,7 +373,7 @@ pub async fn delete_request(
 pub async fn metadata_request(
     req: HttpRequest,
     body: web::Json<MetadataInfo>,
-    data: web::Data<Mutex<bundlesdb::AppData>>,
+    data: web::Data<bundlesdb::AppData>,
 ) -> impl Responder {
     let custom_url: String = body.custom_url.trim().to_string();
     let edit_password: String = body.edit_password.to_owned();
@@ -414,17 +381,11 @@ pub async fn metadata_request(
     let m = body.metadata.to_owned();
     let metadata: bundlesdb::PasteMetadata = m;
 
-    let mut lock = match data.lock() {
-        Ok(lock) => lock,
-        // the poisoned guard tells us that something panicked while handling a locked guard
-        Err(poisoned) => poisoned.into_inner(),
-    };
-
     // get owner
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            lock.db
+            data.db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -440,7 +401,7 @@ pub async fn metadata_request(
     }
 
     // ...
-    let res = lock
+    let res = data
         .db
         .edit_paste_metadata_by_url(
             custom_url,
@@ -464,17 +425,10 @@ pub async fn metadata_request(
 /// Check if a paste exists
 pub async fn exists_request(
     req: HttpRequest,
-    data: web::Data<Mutex<bundlesdb::AppData>>,
+    data: web::Data<bundlesdb::AppData>,
 ) -> impl Responder {
     let custom_url: String = req.match_info().get("url").unwrap().to_string();
-
-    let mut lock = match data.lock() {
-        Ok(lock) => lock,
-        // the poisoned guard tells us that something panicked while handling a locked guard
-        Err(poisoned) => poisoned.into_inner(),
-    };
-
-    let res = lock.db.get_paste_by_url(custom_url).await;
+    let res = data.db.get_paste_by_url(custom_url).await;
 
     // return
     return HttpResponse::Ok()
@@ -486,18 +440,11 @@ pub async fn exists_request(
 /// Get paste by `custom_url`
 pub async fn get_from_url_request(
     req: HttpRequest,
-    data: web::Data<Mutex<bundlesdb::AppData>>,
+    data: web::Data<bundlesdb::AppData>,
 ) -> impl Responder {
     let custom_url: String = req.match_info().get("url").unwrap().to_string();
-
-    let mut lock = match data.lock() {
-        Ok(lock) => lock,
-        // the poisoned guard tells us that something panicked while handling a locked guard
-        Err(poisoned) => poisoned.into_inner(),
-    };
-
     let res: bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>> =
-        lock.db.get_paste_by_url(custom_url).await;
+        data.db.get_paste_by_url(custom_url).await;
 
     // if res.metadata contains '"private_source":"on"', return NotFound
     if res.payload.is_some()
@@ -540,18 +487,11 @@ pub async fn get_from_url_request(
 /// Get paste by ID
 pub async fn get_from_id_request(
     req: HttpRequest,
-    data: web::Data<Mutex<bundlesdb::AppData>>,
+    data: web::Data<bundlesdb::AppData>,
 ) -> impl Responder {
     let id: String = req.match_info().get("id").unwrap().to_string();
-
-    let mut lock = match data.lock() {
-        Ok(lock) => lock,
-        // the poisoned guard tells us that something panicked while handling a locked guard
-        Err(poisoned) => poisoned.into_inner(),
-    };
-
     let res: bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>> =
-        lock.db.get_paste_by_id(id).await;
+        data.db.get_paste_by_id(id).await;
 
     // if res.metadata contains '"private_source":"on"', return NotFound
     if res.payload.is_some()
@@ -594,18 +534,11 @@ pub async fn get_from_id_request(
 /// Get all pastes by owner
 pub async fn get_from_owner_request(
     req: HttpRequest,
-    data: web::Data<Mutex<bundlesdb::AppData>>,
+    data: web::Data<bundlesdb::AppData>,
 ) -> impl Responder {
     let username: String = req.match_info().get("username").unwrap().to_string();
-
-    let mut lock = match data.lock() {
-        Ok(lock) => lock,
-        // the poisoned guard tells us that something panicked while handling a locked guard
-        Err(poisoned) => poisoned.into_inner(),
-    };
-
     let res: bundlesdb::DefaultReturn<Option<Vec<bundlesdb::PasteIdentifier>>> =
-        lock.db.get_pastes_by_owner(username).await;
+        data.db.get_pastes_by_owner(username).await;
 
     // return
     return HttpResponse::Ok()

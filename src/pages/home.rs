@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use actix_web::HttpRequest;
 use actix_web::{get, web, HttpResponse, Responder};
 
@@ -198,22 +196,16 @@ fn build_renderer_with_props(props: Props) -> ServerRenderer<Home> {
 /// Available at "/"
 pub async fn home_request(
     req: HttpRequest,
-    data: web::Data<Mutex<db::bundlesdb::AppData>>,
+    data: web::Data<db::bundlesdb::AppData>,
     info: web::Query<Props>,
 ) -> impl Responder {
-    let mut lock = match data.lock() {
-        Ok(lock) => lock,
-        // the poisoned guard tells us that something panicked while handling a locked guard
-        Err(poisoned) => poisoned.into_inner(),
-    };
-
     // verify auth status
     let token_cookie = req.cookie("__Secure-Token");
     let mut set_cookie: &str = "";
 
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            lock.db
+            data.db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -232,7 +224,7 @@ pub async fn home_request(
     let str: &Option<String> = &info.editing;
 
     let paste = if str.is_some() {
-        Option::Some(lock.db.get_paste_by_url(str.to_owned().unwrap()).await)
+        Option::Some(data.db.get_paste_by_url(str.to_owned().unwrap()).await)
     } else {
         Option::None
     };

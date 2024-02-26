@@ -1,5 +1,3 @@
-use std::sync::Mutex;
-
 use actix_files as fs;
 use actix_web::{web, App, HttpResponse, HttpServer};
 use dotenv;
@@ -83,7 +81,7 @@ async fn main() -> std::io::Result<()> {
     println!("Starting server at: http://localhost:{port}");
 
     // create data
-    let data = web::Data::new(Mutex::new(AppData { db: db.clone() }));
+    let data = web::Data::new(AppData { db: db.clone() });
 
     // serve routes
     HttpServer::new(move || {
