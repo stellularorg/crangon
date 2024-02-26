@@ -137,15 +137,14 @@ pub async fn paste_view_request(
     let url: String = req.match_info().get("url").unwrap().to_string();
     let url_c = url.clone();
 
-    let lock = data.lock();
-
-    if lock.is_err() {
-        return HttpResponse::InternalServerError()
-            .body(format!("Internal error, please report this at https://code.stellular.org/SentryTwo/bundlrs/issues\n\n{}", lock.err().unwrap()));
-    }
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
 
     let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> =
-        lock.unwrap().db.get_paste_by_url(url).await;
+        lock.db.get_paste_by_url(url).await;
 
     if paste.success == false {
         let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();
