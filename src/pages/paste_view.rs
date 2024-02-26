@@ -174,7 +174,10 @@ pub async fn paste_view_request(
     }
 
     // (check password)
-    if info.view.is_some() && info.view.as_ref().unwrap() != &metadata.view_password.unwrap() {
+    if info.view.is_some()
+        && metadata.view_password.is_some()
+        && info.view.as_ref().unwrap() != &metadata.view_password.unwrap()
+    {
         return HttpResponse::NotFound()
             .body("You do not have permission to view this paste's contents.");
     }
@@ -206,7 +209,9 @@ pub async fn paste_view_request(
 
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.lock().unwrap().db
+            data.lock()
+                .unwrap()
+                .db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -223,7 +228,9 @@ pub async fn paste_view_request(
         // count view (this will check for an existing view!)
         let payload = &token_user.as_ref().unwrap().payload;
         if payload.as_ref().is_some() {
-            data.lock().unwrap().db
+            data.lock()
+                .unwrap()
+                .db
                 .add_view_to_url(&url_c, &payload.as_ref().unwrap().username)
                 .await;
         }

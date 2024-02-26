@@ -131,6 +131,7 @@ pub struct Log {
 pub struct BundlesDB {
     pub db: Database<sqlx::PgPool>,
     pub paste_cache: CacheStore<Paste<String>>,
+    pub auth_cache: CacheStore<UserState>,
 }
 
 #[derive(Clone)]
@@ -138,6 +139,7 @@ pub struct BundlesDB {
 pub struct BundlesDB {
     pub db: Database<sqlx::MySqlPool>,
     pub paste_cache: CacheStore<Paste<String>>,
+    pub auth_cache: CacheStore<UserState>,
 }
 
 #[derive(Clone)]
@@ -145,6 +147,7 @@ pub struct BundlesDB {
 pub struct BundlesDB {
     pub db: Database<sqlx::SqlitePool>,
     pub paste_cache: CacheStore<Paste<String>>,
+    pub auth_cache: CacheStore<UserState>,
 }
 
 impl BundlesDB {
@@ -152,6 +155,7 @@ impl BundlesDB {
         return BundlesDB {
             db: sql::create_db(options).await,
             paste_cache: CacheStore::new(),
+            auth_cache: CacheStore::new(),
         };
     }
 
@@ -285,6 +289,28 @@ impl BundlesDB {
     /// # Arguments:
     /// * `hashed` - `String` of the user's hashed ID
     pub async fn get_user_by_hashed(&mut self, hashed: String) -> DefaultReturn<Option<UserState>> {
+        // ...
+        let exists_in_cache = &self.paste_cache.load(&hashed).is_some();
+
+        if exists_in_cache == &true {
+            // get views
+            // if allow_cache is true, `selector` should ALWAYS be the custom_url since the cache stores by that, not ID
+            let user = &self.auth_cache.load(&hashed).unwrap();
+
+            // return
+            return DefaultReturn {
+                success: true,
+                message: String::from("User exists"),
+                payload: Option::Some(UserState {
+                    username: user.username.to_string(),
+                    id_hashed: user.id_hashed.to_string(),
+                    role: user.role.to_string(),
+                    timestamp: user.timestamp,
+                }),
+            };
+        }
+
+        // fetch from database
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Users\" WHERE \"id_hashed\" = ?"
         } else {
@@ -309,16 +335,22 @@ impl BundlesDB {
         let row = res.unwrap();
         let row = self.textify_row(row).data;
 
+        // store in cache
+        let user = UserState {
+            username: row.get("username").unwrap().to_string(),
+            id_hashed: row.get("id_hashed").unwrap().to_string(),
+            role: row.get("role").unwrap().to_string(),
+            timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+        };
+
+        self.auth_cache
+            .store(row.get("id_hashed").unwrap().to_string(), user.clone());
+
         // return
         return DefaultReturn {
             success: true,
             message: String::from("User exists"),
-            payload: Option::Some(UserState {
-                username: row.get("username").unwrap().to_string(),
-                id_hashed: row.get("id_hashed").unwrap().to_string(),
-                role: row.get("role").unwrap().to_string(),
-                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
-            }),
+            payload: Option::Some(user),
         };
     }
 
