@@ -132,18 +132,21 @@ pub struct Log {
 #[cfg(feature = "postgres")]
 pub struct BundlesDB {
     pub db: Database<sqlx::PgPool>,
+    pub options: DatabaseOpts,
 }
 
 #[derive(Clone)]
 #[cfg(feature = "mysql")]
 pub struct BundlesDB {
     pub db: Database<sqlx::MySqlPool>,
+    pub options: DatabaseOpts,
 }
 
 #[derive(Clone)]
 #[cfg(feature = "sqlite")]
 pub struct BundlesDB {
     pub db: Database<sqlx::SqlitePool>,
+    pub options: DatabaseOpts,
 }
 
 static PASTE_CACHE: Lazy<Mutex<CacheStore<Paste<String>>>> =
@@ -153,7 +156,8 @@ static AUTH_CACHE: Lazy<Mutex<CacheStore<UserState>>> = Lazy::new(|| Mutex::new(
 impl BundlesDB {
     pub async fn new(options: DatabaseOpts) -> BundlesDB {
         return BundlesDB {
-            db: sql::create_db(options).await,
+            db: sql::create_db(options.clone()).await,
+            options,
         };
     }
 
@@ -288,27 +292,31 @@ impl BundlesDB {
     /// * `hashed` - `String` of the user's hashed ID
     pub async fn get_user_by_hashed(&self, hashed: String) -> DefaultReturn<Option<UserState>> {
         // ...
-        let paste_cache = PASTE_CACHE.lock().unwrap();
-        let mut auth_cache = AUTH_CACHE.lock().unwrap();
+        if (&self.options.cache_enabled.is_none())
+            | (&self.options.cache_enabled.as_ref().unwrap() != &"false")
+        {
+            let paste_cache = PASTE_CACHE.lock().unwrap();
+            let auth_cache = AUTH_CACHE.lock().unwrap();
 
-        let exists_in_cache = paste_cache.load(&hashed).is_some();
+            let exists_in_cache = paste_cache.load(&hashed).is_some();
 
-        if exists_in_cache == true {
-            // get views
-            // if allow_cache is true, `selector` should ALWAYS be the custom_url since the cache stores by that, not ID
-            let user = auth_cache.load(&hashed).unwrap();
+            if exists_in_cache == true {
+                // get views
+                // if allow_cache is true, `selector` should ALWAYS be the custom_url since the cache stores by that, not ID
+                let user = auth_cache.load(&hashed).unwrap();
 
-            // return
-            return DefaultReturn {
-                success: true,
-                message: String::from("User exists"),
-                payload: Option::Some(UserState {
-                    username: user.username.to_string(),
-                    id_hashed: user.id_hashed.to_string(),
-                    role: user.role.to_string(),
-                    timestamp: user.timestamp,
-                }),
-            };
+                // return
+                return DefaultReturn {
+                    success: true,
+                    message: String::from("User exists"),
+                    payload: Option::Some(UserState {
+                        username: user.username.to_string(),
+                        id_hashed: user.id_hashed.to_string(),
+                        role: user.role.to_string(),
+                        timestamp: user.timestamp,
+                    }),
+                };
+            }
         }
 
         // fetch from database
@@ -344,7 +352,12 @@ impl BundlesDB {
             timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
         };
 
-        auth_cache.store(row.get("id_hashed").unwrap().to_string(), user.clone());
+        if (&self.options.cache_enabled.is_none())
+            | (&self.options.cache_enabled.as_ref().unwrap() != &"false")
+        {
+            let mut auth_cache = AUTH_CACHE.lock().unwrap();
+            auth_cache.store(row.get("id_hashed").unwrap().to_string(), user.clone());
+        }
 
         // return
         return DefaultReturn {
@@ -676,32 +689,36 @@ impl BundlesDB {
         allow_cache: bool,
     ) -> DefaultReturn<Option<Paste<String>>> {
         // ...
-        let mut paste_cache = PASTE_CACHE.lock().unwrap();
-        let exists_in_cache = paste_cache.load(selector).is_some();
+        if (&self.options.cache_enabled.is_none())
+            | (&self.options.cache_enabled.as_ref().unwrap() != &"false")
+        {
+            let paste_cache = PASTE_CACHE.lock().unwrap();
+            let exists_in_cache = paste_cache.load(selector).is_some();
 
-        if (exists_in_cache == true) && allow_cache {
-            // get views
-            // if allow_cache is true, `selector` should ALWAYS be the custom_url since the cache stores by that, not ID
-            let views = &self.count_paste_views(selector.to_owned()).await;
-            let paste = paste_cache.load(selector).unwrap();
+            if (exists_in_cache == true) && allow_cache {
+                // get views
+                // if allow_cache is true, `selector` should ALWAYS be the custom_url since the cache stores by that, not ID
+                let views = &self.count_paste_views(selector.to_owned()).await;
+                let paste = paste_cache.load(selector).unwrap();
 
-            // return
-            return DefaultReturn {
-                success: true,
-                message: String::from("Paste exists (cache)"),
-                payload: Option::Some(Paste {
-                    custom_url: paste.custom_url.to_string(),
-                    id: paste.id.to_string(),
-                    group_name: paste.group_name.to_string(),
-                    edit_password: paste.edit_password.to_string(),
-                    pub_date: paste.pub_date,
-                    edit_date: paste.edit_date,
-                    content: paste.content.to_string(),
-                    content_html: paste.content_html.to_string(),
-                    metadata: paste.metadata.to_string(),
-                    views: views.to_owned(),
-                }),
-            };
+                // return
+                return DefaultReturn {
+                    success: true,
+                    message: String::from("Paste exists (cache)"),
+                    payload: Option::Some(Paste {
+                        custom_url: paste.custom_url.to_string(),
+                        id: paste.id.to_string(),
+                        group_name: paste.group_name.to_string(),
+                        edit_password: paste.edit_password.to_string(),
+                        pub_date: paste.pub_date,
+                        edit_date: paste.edit_date,
+                        content: paste.content.to_string(),
+                        content_html: paste.content_html.to_string(),
+                        metadata: paste.metadata.to_string(),
+                        views: views.to_owned(),
+                    }),
+                };
+            }
         }
 
         // fetch from db
@@ -742,7 +759,11 @@ impl BundlesDB {
             views: views.to_owned(),
         };
 
-        if allow_cache {
+        if allow_cache
+            && (&self.options.cache_enabled.is_none())
+                | (&self.options.cache_enabled.as_ref().unwrap() != &"false")
+        {
+            let mut paste_cache = PASTE_CACHE.lock().unwrap();
             paste_cache.store(row.get("custom_url").unwrap().to_string(), paste.clone());
         }
 
@@ -1154,8 +1175,12 @@ impl BundlesDB {
 
         // we're not even going to update the cache, just purge the paste from the cache
         // this also means we don't have to handle any decisions on if the paste custom_url changed or not
-        let mut paste_cache = PASTE_CACHE.lock().unwrap();
-        paste_cache.clear(&custom_url);
+        if (&self.options.cache_enabled.is_none())
+            | (&self.options.cache_enabled.as_ref().unwrap() != &"false")
+        {
+            let mut paste_cache = PASTE_CACHE.lock().unwrap();
+            paste_cache.clear(&custom_url);
+        }
 
         // return
         return DefaultReturn {
@@ -1242,8 +1267,12 @@ impl BundlesDB {
 
         // we're not even going to update the cache, just purge the paste from the cache
         // this also means we don't have to handle any decisions on if the paste custom_url changed or not
-        let mut paste_cache = PASTE_CACHE.lock().unwrap();
-        paste_cache.clear(&url);
+        if (&self.options.cache_enabled.is_none())
+            | (&self.options.cache_enabled.as_ref().unwrap() != &"false")
+        {
+            let mut paste_cache = PASTE_CACHE.lock().unwrap();
+            paste_cache.clear(&url);
+        }
 
         // return
         return DefaultReturn {
@@ -1412,8 +1441,12 @@ impl BundlesDB {
         }
 
         // remove from cache
-        let mut paste_cache = PASTE_CACHE.lock().unwrap();
-        paste_cache.clear(&url);
+        if (&self.options.cache_enabled.is_none())
+            | (&self.options.cache_enabled.as_ref().unwrap() != &"false")
+        {
+            let mut paste_cache = PASTE_CACHE.lock().unwrap();
+            paste_cache.clear(&url);
+        }
 
         // return
         return DefaultReturn {

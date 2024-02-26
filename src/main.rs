@@ -54,7 +54,7 @@ async fn main() -> std::io::Result<()> {
     }
 
     sqlx::any::install_default_drivers(); // install database drivers
-    let mut db: BundlesDB = BundlesDB::new(DatabaseOpts {
+    let db: BundlesDB = BundlesDB::new(DatabaseOpts {
         _type: db_type,
         host: db_host,
         user: if db_is_other {
@@ -72,6 +72,7 @@ async fn main() -> std::io::Result<()> {
         } else {
             String::new()
         },
+        cache_enabled: config::get_var("CACHE_ENABLED"),
     })
     .await;
 

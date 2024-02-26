@@ -5,6 +5,7 @@ pub struct DatabaseOpts {
     pub user: String,
     pub pass: String,
     pub name: String,
+    pub cache_enabled: Option<String>,
 }
 
 // ...
@@ -21,8 +22,8 @@ pub async fn create_db(options: DatabaseOpts) -> Database<sqlx::MySqlPool> {
     // mysql
     let opts = sqlx::mysql::MySqlPoolOptions::new()
         .max_connections(25)
-        .acquire_timeout(std::time::Duration::from_millis(1000))
-        .idle_timeout(Some(std::time::Duration::from_secs(60)));
+        .acquire_timeout(std::time::Duration::from_millis(2000))
+        .idle_timeout(Some(std::time::Duration::from_secs(60 * 5)));
     // .max_lifetime(Some(std::time::Duration::from_secs(120)));
 
     let client = opts
@@ -55,8 +56,8 @@ pub async fn create_db(options: DatabaseOpts) -> Database<sqlx::PgPool> {
     // postgres
     let opts = sqlx::postgres::PgPoolOptions::new()
         .max_connections(25)
-        .acquire_timeout(std::time::Duration::from_millis(1000))
-        .idle_timeout(Some(std::time::Duration::from_secs(60)));
+        .acquire_timeout(std::time::Duration::from_millis(2000))
+        .idle_timeout(Some(std::time::Duration::from_secs(60 * 5)));
     // .max_lifetime(Some(std::time::Duration::from_secs(120)));
 
     let client = opts

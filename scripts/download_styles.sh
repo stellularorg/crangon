@@ -5,7 +5,7 @@ cd static
 tar -xzf fusion.tgz
 
 mv package/src/css ./css
-sed -i -e 's/\/utility.css/\/static\/css\/utility.css/' ./css/fusion.css
+sed -i -e 's/\"\/utility.css\"/\"\/static\/css\/utility.css\"/' ./css/fusion.css
 
 rm -r package
 rm ./fusion.tgz
