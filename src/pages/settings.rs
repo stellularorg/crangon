@@ -94,15 +94,19 @@ pub async fn user_settings_request(
     req: HttpRequest,
     data: web::Data<Mutex<AppData>>,
 ) -> impl Responder {
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
     // verify auth status
     let token_cookie = req.cookie("__Secure-Token");
     let mut set_cookie: &str = "";
 
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.lock()
-                .unwrap()
-                .db
+            lock.db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )

@@ -27,14 +27,15 @@ pub async fn register(
             .body("This server requires has registration disabled");
     }
 
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
     // ...
     let username = &body.username.trim();
-    let res = data
-        .lock()
-        .unwrap()
-        .db
-        .create_user(username.to_string())
-        .await;
+    let res = lock.db.create_user(username.to_string()).await;
 
     let c = res.clone();
     let set_cookie = if res.success && res.payload.is_some() {
@@ -55,9 +56,13 @@ pub async fn login(body: web::Json<LoginInfo>, data: web::Data<Mutex<AppData>>) 
     let id = body.uid.trim();
     let id_hashed = utility::hash(id.to_string());
 
-    let res = data
-        .lock()
-        .unwrap()
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
+    let res = lock
         .db
         .get_user_by_hashed(id_hashed) // if the user is returned, that means the ID is valid
         .await;
@@ -84,9 +89,13 @@ pub async fn logout(req: HttpRequest, data: web::Data<Mutex<AppData>>) -> impl R
         return HttpResponse::NotAcceptable().body("Missing token");
     }
 
-    let res = data
-        .lock()
-        .unwrap()
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
+    let res = lock
         .db
         .get_user_by_hashed(cookie.unwrap().value().to_string()) // if the user is returned, that means the ID is valid
         .await;

@@ -120,13 +120,17 @@ pub async fn create_request(
         ""
     };
 
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
     // get owner
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.lock()
-                .unwrap()
-                .db
+            lock.db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -150,9 +154,7 @@ pub async fn create_request(
     }
 
     // create paste
-    let res = data
-        .lock()
-        .unwrap()
+    let res = lock
         .db
         .create_paste(
             &mut bundlesdb::Paste {
@@ -194,13 +196,17 @@ pub async fn edit_request(
     let new_url: Option<String> = body.new_custom_url.to_owned();
     let new_edit_password: Option<String> = body.new_edit_password.to_owned();
 
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
     // get owner
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.lock()
-                .unwrap()
-                .db
+            lock.db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -216,9 +222,7 @@ pub async fn edit_request(
     }
 
     // ...
-    let res = data
-        .lock()
-        .unwrap()
+    let res = lock
         .db
         .edit_paste_by_url(
             custom_url,
@@ -253,13 +257,17 @@ pub async fn edit_atomic_request(
     let path: String = body.path.trim().to_string();
     let content: String = body.content.trim().to_string();
 
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
     // get owner
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.lock()
-                .unwrap()
-                .db
+            lock.db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -275,12 +283,8 @@ pub async fn edit_atomic_request(
     }
 
     // get paste
-    let paste: bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>> = data
-        .lock()
-        .unwrap()
-        .db
-        .get_paste_by_url(custom_url.clone())
-        .await;
+    let paste: bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>> =
+        lock.db.get_paste_by_url(custom_url.clone()).await;
 
     if paste.success == false {
         return HttpResponse::Ok()
@@ -320,9 +324,7 @@ pub async fn edit_atomic_request(
     });
 
     // ...
-    let res = data
-        .lock()
-        .unwrap()
+    let res = lock
         .db
         .edit_paste_by_url(
             custom_url,
@@ -354,13 +356,17 @@ pub async fn delete_request(
     let custom_url: String = body.custom_url.trim().to_string();
     let edit_password: String = body.edit_password.to_owned();
 
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
     // get owner
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.lock()
-                .unwrap()
-                .db
+            lock.db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -376,9 +382,7 @@ pub async fn delete_request(
     }
 
     // delete
-    let res = data
-        .lock()
-        .unwrap()
+    let res = lock
         .db
         .delete_paste_by_url(
             custom_url,
@@ -410,13 +414,17 @@ pub async fn metadata_request(
     let m = body.metadata.to_owned();
     let metadata: bundlesdb::PasteMetadata = m;
 
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
     // get owner
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.lock()
-                .unwrap()
-                .db
+            lock.db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -432,9 +440,7 @@ pub async fn metadata_request(
     }
 
     // ...
-    let res = data
-        .lock()
-        .unwrap()
+    let res = lock
         .db
         .edit_paste_metadata_by_url(
             custom_url,

@@ -212,9 +212,7 @@ pub async fn profile_view_request(
 
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.lock()
-                .unwrap()
-                .db
+            lock.db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -230,12 +228,8 @@ pub async fn profile_view_request(
     }
 
     // ...
-    let pastes_res: bundlesdb::DefaultReturn<Option<Vec<bundlesdb::PasteIdentifier>>> = data
-        .lock()
-        .unwrap()
-        .db
-        .get_pastes_by_owner(username_c.clone())
-        .await;
+    let pastes_res: bundlesdb::DefaultReturn<Option<Vec<bundlesdb::PasteIdentifier>>> =
+        lock.db.get_pastes_by_owner(username_c.clone()).await;
 
     let renderer = build_renderer_with_props(Props {
         user: unwrap.clone(),
