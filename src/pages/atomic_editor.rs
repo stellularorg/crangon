@@ -346,8 +346,15 @@ You can create an account at: /d/auth/register",
 
     // get paste
     let id: String = req.match_info().get("id").unwrap().to_string();
+
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
     let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> =
-        data.lock().unwrap().db.get_paste_by_id(id).await;
+        lock.db.get_paste_by_id(id).await;
 
     if paste.success == false {
         let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();

@@ -185,8 +185,14 @@ pub async fn profile_view_request(
     let username: String = req.match_info().get("username").unwrap().to_string();
     let username_c = username.clone();
 
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
     let user: bundlesdb::DefaultReturn<Option<UserState>> =
-        data.lock().unwrap().db.get_user_by_username(username).await;
+        lock.db.get_user_by_username(username).await;
 
     if user.success == false {
         let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();

@@ -215,9 +215,7 @@ pub async fn paste_view_request(
 
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.lock()
-                .unwrap()
-                .db
+            lock.db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -234,9 +232,7 @@ pub async fn paste_view_request(
         // count view (this will check for an existing view!)
         let payload = &token_user.as_ref().unwrap().payload;
         if payload.as_ref().is_some() {
-            data.lock()
-                .unwrap()
-                .db
+            lock.db
                 .add_view_to_url(&url_c, &payload.as_ref().unwrap().username)
                 .await;
         }
@@ -319,8 +315,14 @@ pub async fn atomic_paste_view_request(
     let url: String = req.match_info().get("url").unwrap().to_string();
     let path: String = req.match_info().get("path").unwrap().to_string();
 
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
     let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> =
-        data.lock().unwrap().db.get_paste_by_url(url).await;
+        lock.db.get_paste_by_url(url).await;
 
     if paste.success == false {
         let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();

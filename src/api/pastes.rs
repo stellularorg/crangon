@@ -67,7 +67,14 @@ pub async fn render_paste_ssm_request(
     data: web::Data<Mutex<bundlesdb::AppData>>,
 ) -> impl Responder {
     let custom_url: String = req.match_info().get("url").unwrap().to_string();
-    let res = data.lock().unwrap().db.get_paste_by_url(custom_url).await;
+
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
+    let res = lock.db.get_paste_by_url(custom_url).await;
 
     if !res.success {
         return HttpResponse::NotFound()
@@ -454,7 +461,14 @@ pub async fn exists_request(
     data: web::Data<Mutex<bundlesdb::AppData>>,
 ) -> impl Responder {
     let custom_url: String = req.match_info().get("url").unwrap().to_string();
-    let res = data.lock().unwrap().db.get_paste_by_url(custom_url).await;
+
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
+    let res = lock.db.get_paste_by_url(custom_url).await;
 
     // return
     return HttpResponse::Ok()
@@ -469,8 +483,15 @@ pub async fn get_from_url_request(
     data: web::Data<Mutex<bundlesdb::AppData>>,
 ) -> impl Responder {
     let custom_url: String = req.match_info().get("url").unwrap().to_string();
+
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
     let res: bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>> =
-        data.lock().unwrap().db.get_paste_by_url(custom_url).await;
+        lock.db.get_paste_by_url(custom_url).await;
 
     // if res.metadata contains '"private_source":"on"', return NotFound
     if res.payload.is_some()
@@ -516,8 +537,15 @@ pub async fn get_from_id_request(
     data: web::Data<Mutex<bundlesdb::AppData>>,
 ) -> impl Responder {
     let id: String = req.match_info().get("id").unwrap().to_string();
+
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
     let res: bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>> =
-        data.lock().unwrap().db.get_paste_by_id(id).await;
+        lock.db.get_paste_by_id(id).await;
 
     // if res.metadata contains '"private_source":"on"', return NotFound
     if res.payload.is_some()
@@ -563,8 +591,15 @@ pub async fn get_from_owner_request(
     data: web::Data<Mutex<bundlesdb::AppData>>,
 ) -> impl Responder {
     let username: String = req.match_info().get("username").unwrap().to_string();
+
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
     let res: bundlesdb::DefaultReturn<Option<Vec<bundlesdb::PasteIdentifier>>> =
-        data.lock().unwrap().db.get_pastes_by_owner(username).await;
+        lock.db.get_pastes_by_owner(username).await;
 
     // return
     return HttpResponse::Ok()

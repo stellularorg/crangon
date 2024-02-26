@@ -690,7 +690,7 @@ impl BundlesDB {
             // return
             return DefaultReturn {
                 success: true,
-                message: String::from("Paste exists"),
+                message: String::from("Paste exists (cache)"),
                 payload: Option::Some(Paste {
                     custom_url: paste.custom_url.to_string(),
                     id: paste.id.to_string(),
@@ -752,7 +752,7 @@ impl BundlesDB {
         // return
         return DefaultReturn {
             success: true,
-            message: String::from("Paste exists"),
+            message: String::from("Paste exists (new)"),
             payload: Option::Some(paste),
         };
     }
