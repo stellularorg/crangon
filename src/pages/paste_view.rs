@@ -137,8 +137,15 @@ pub async fn paste_view_request(
     let url: String = req.match_info().get("url").unwrap().to_string();
     let url_c = url.clone();
 
+    let lock = data.lock();
+
+    if lock.is_err() {
+        return HttpResponse::InternalServerError()
+            .body(format!("Internal error, please report this at https://code.stellular.org/SentryTwo/bundlrs/issues\n\n{}", lock.err().unwrap()));
+    }
+
     let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> =
-        data.lock().unwrap().db.get_paste_by_url(url).await;
+        lock.unwrap().db.get_paste_by_url(url).await;
 
     if paste.success == false {
         let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();
