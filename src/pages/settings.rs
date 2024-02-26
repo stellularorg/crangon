@@ -148,8 +148,14 @@ pub async fn paste_settings_request(
     let url: String = req.match_info().get("url").unwrap().to_string();
     let url_c = url.clone();
 
+    let mut lock = match data.lock() {
+        Ok(lock) => lock,
+        // the poisoned guard tells us that something panicked while handling a locked guard
+        Err(poisoned) => poisoned.into_inner(),
+    };
+
     let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> =
-        data.lock().unwrap().db.get_paste_by_url(url).await;
+        lock.db.get_paste_by_url(url).await;
 
     if paste.success == false {
         return HttpResponse::NotFound().body(paste.message);
@@ -161,9 +167,7 @@ pub async fn paste_settings_request(
 
     let token_user = if token_cookie.is_some() {
         Option::Some(
-            data.lock()
-                .unwrap()
-                .db
+            lock.db
                 .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
@@ -201,7 +205,10 @@ pub async fn paste_settings_request(
     }
 
     // (check password)
-    if info.view.is_some() && info.view.as_ref().unwrap() != &metadata.view_password.unwrap() {
+    if info.view.is_some()
+        && metadata.view_password.is_some()
+        && info.view.as_ref().unwrap() != &metadata.view_password.unwrap()
+    {
         return HttpResponse::NotFound()
             .body("You do not have permission to view this paste's contents.");
     }
