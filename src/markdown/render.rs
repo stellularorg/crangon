@@ -3,14 +3,34 @@ use comrak::{markdown_to_html, Options};
 use pest::iterators::{Pair, Pairs};
 use regex::RegexBuilder;
 
-pub fn from_tree(tree: &Pairs<'_, Rule>, original_in: String) -> String {
+pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
     let mut options = Options::default();
 
     options.extension.table = true;
     options.extension.superscript = true;
     options.extension.strikethrough = true;
     options.extension.autolink = true;
+    options.render.unsafe_ = true;
 
+    // escape < and >
+    original_in = regex_replace(&original_in, "<", "&lt;");
+    original_in = regex_replace(&original_in, ">", "&gt;");
+
+    // unescape arrow alignment
+    original_in = regex_replace(&original_in, "-&gt;&gt;", "->>");
+    original_in = regex_replace(&original_in, "&lt;&lt;-", "<<-");
+
+    original_in = regex_replace(&original_in, "-&gt;", "->");
+    original_in = regex_replace(&original_in, "&lt;-", "<-");
+
+    // underline
+    original_in = regex_replace(
+        &original_in,
+        "(\\_{2})(.*?)(\\_{2})",
+        "<span style=\"text-decoration: underline;\" role=\"underline\">$2</span>",
+    );
+
+    // ...
     let mut out: String = markdown_to_html(&original_in, &options);
     out = regex_replace(&out, "(&!)(.*?);", "&$2;");
 
@@ -335,6 +355,15 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, original_in: String) -> String {
             1,
         );
     }
+
+    // bath time
+    out = regex_replace(&out, "^(on)(.*)\\=(.*)\"$", "");
+    out = regex_replace(&out, "(href)\\=\"(javascript\\:)(.*)\"", "");
+
+    out = regex_replace(&out, "(<script.*>)(.*?)(<\\/script>)", "");
+    out = regex_replace(&out, "(<script.*>)", "");
+    out = regex_replace(&out, "(<link.*>)", "");
+    out = regex_replace(&out, "(<meta.*>)", "");
 
     // return
     out
