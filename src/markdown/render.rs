@@ -10,11 +10,12 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
     options.extension.superscript = true;
     options.extension.strikethrough = true;
     options.extension.autolink = true;
-    options.render.unsafe_ = true;
+    // options.render.unsafe_ = true;
+    options.render.escape = true;
 
     // escape < and >
-    original_in = regex_replace(&original_in, "<", "&lt;");
-    original_in = regex_replace(&original_in, ">", "&gt;");
+    // original_in = regex_replace(&original_in, "<", "&lt;");
+    // original_in = regex_replace(&original_in, ">", "&gt;");
 
     // unescape arrow alignment
     original_in = regex_replace(&original_in, "-&gt;&gt;", "->>");
@@ -33,6 +34,7 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
     // ...
     let mut out: String = markdown_to_html(&original_in, &options);
     out = regex_replace(&out, "(&!)(.*?);", "&$2;");
+    out = regex_replace(&out, "&quot;", "\"");
 
     // ...
     for block in tree.clone().into_iter() {

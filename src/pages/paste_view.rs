@@ -53,21 +53,21 @@ fn PasteView(props: &Props) -> Html {
                 </div>
 
                 <div class="flex flex-column g-2 text-right" style="color: var(--text-color-faded); min-width: max-content;">
-                    <span class="flex justify-center g-4">
+                    <span class="flex justify-center g-4" id="paste-info-pub">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cake-slice"><circle cx="9" cy="7" r="2"/><path d="M7.2 7.9 3 11v9c0 .6.4 1 1 1h16c.6 0 1-.4 1-1v-9c0-2-3-6-7-8l-3.6 2.6"/><path d="M16 13H3"/><path d="M16 17H3"/></svg>
                         {"Pub: "}<span class="date-time-to-localize">{&props.paste.pub_date}</span>
                     </span>
 
-                    <span class="flex justify-center g-4">
+                    <span class="flex justify-center g-4" id="paste-info-edit">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                         {"Edit: "}<span class="date-time-to-localize">{&props.paste.edit_date}</span>
                     </span>
 
                     if &metadata.owner.is_empty() == &false {
-                        <span>{"Owner: "} <a href={format!("/~{}", &metadata.owner)}>{&metadata.owner}</a></span>
+                        <span id="paste-info-owner">{"Owner: "} <a href={format!("/~{}", &metadata.owner)}>{&metadata.owner}</a></span>
                     }
 
-                    <span>{"Views: "}{&props.paste.views}</span>
+                    <span id="paste-info-views">{"Views: "}{&props.paste.views}</span>
                 </div>
             </div>
 
