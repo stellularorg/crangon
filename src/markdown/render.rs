@@ -12,6 +12,7 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
     options.extension.autolink = true;
     // options.render.unsafe_ = true;
     options.render.escape = true;
+    options.parse.smart = false;
 
     // escape < and >
     // original_in = regex_replace(&original_in, "<", "&lt;");
@@ -31,10 +32,27 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
         "<span style=\"text-decoration: underline;\" role=\"underline\">$2</span>",
     );
 
+    // image with sizing
+    let image_sizing_regex = RegexBuilder::new("(!)\\[(.*?)\\]\\((.*?)\\)\\:\\{(.*?)x(.*?)\\}")
+        .multi_line(true)
+        .build()
+        .unwrap();
+
+    for capture in image_sizing_regex.captures_iter(&original_in.clone()) {
+        let title = capture.get(2).unwrap().as_str();
+        let src = capture.get(3).unwrap().as_str();
+
+        let width = capture.get(4).unwrap().as_str();
+        let height = capture.get(5).unwrap().as_str();
+
+        let result = &format!("<img alt=\"{title}\" title=\"{title}\" src=\"{src}\" style=\"width: {width}px; height: {height}px;\" />");
+        original_in = original_in.replace(capture.get(0).unwrap().as_str(), result);
+    }
+
     // ...
     let mut out: String = markdown_to_html(&original_in, &options);
     out = regex_replace(&out, "(&!)(.*?);", "&$2;");
-    out = regex_replace(&out, "&quot;", "\"");
+    out = out.replace("&quot;", "\"");
 
     // ...
     for block in tree.clone().into_iter() {
@@ -189,7 +207,7 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
 
     // allowed elements
     let allowed_elements: Vec<&str> = Vec::from([
-        "hue", "sat", "lit", "theme", "comment", "p", "span", "style",
+        "hue", "sat", "lit", "theme", "comment", "p", "span", "style", "img",
     ]);
 
     for element in allowed_elements {
@@ -197,6 +215,12 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
             &out,
             &format!("&lt;{}&gt;", element),
             &format!("<{}>", element),
+        );
+
+        out = regex_replace(
+            &out,
+            &format!("&lt;{}(.*?)&gt;", element),
+            &format!("<{}$1>", element),
         );
 
         out = regex_replace(

@@ -20,7 +20,7 @@ ANIMATION =  { "animation" ~ IDENTIFIER+ }
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" | "," }
 COMMENT    = _{ "//#" ~ (!NEWLINE ~ ANY)* }
 
-IDENTIFIER = @{ (ASCII_ALPHANUMERIC | "_" | "-" | ":" | "." | "\"" | "'" | "=" | "&" | ";" | "[" | "]" | "(" | ")" | "<" | ">")+ }
+IDENTIFIER = @{ (ASCII_ALPHANUMERIC | "_" | "-" | ":" | "." | "\u{0022}" | "'" | "=" | "&" | ";" | "[" | "]" | "(" | ")" | "<" | ">")+ }
 // DIGITS     = @{ (ASCII_DIGIT | ("_" ~ ASCII_DIGIT))+ }
 // INT        = @{ "0" | (ASCII_NONZERO_DIGIT ~ DIGITS?) }
 // NUM        = @{ ("+" | "-")? ~ INT ~ ("." ~ DIGITS ~ EXP? | EXP)? }
