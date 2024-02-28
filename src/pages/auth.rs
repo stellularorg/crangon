@@ -170,7 +170,7 @@ fn ProfileView(props: &Props) -> Html {
 }
 
 fn build_renderer_with_props(props: Props) -> ServerRenderer<ProfileView> {
-    return ServerRenderer::<ProfileView>::with_props(|| props);
+    ServerRenderer::<ProfileView>::with_props(|| props)
 }
 
 #[get("/~{username:.*}")]

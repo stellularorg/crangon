@@ -16,6 +16,7 @@ const output = await build({
         "./static/ts/pages/AuthPages.ts",
         "./static/ts/pages/Footer.ts",
         "./static/ts/pages/NewAtomic.ts",
+        "./static/ts/pages/NewBoard.ts",
     ],
     minify: {
         identifiers: true,

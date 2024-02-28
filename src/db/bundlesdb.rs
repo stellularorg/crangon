@@ -101,7 +101,7 @@ pub struct Group<M> {
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct GroupMetadata {
-    pub owner: String, // custom_url of owner paste
+    pub owner: String, // username of owner
 }
 
 #[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
@@ -125,6 +125,31 @@ pub struct Log {
     pub timestamp: u128,
     // ...
     pub content: String,
+}
+
+#[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
+pub struct Board<M> {
+    // selectors
+    pub name: String,
+    // dates
+    pub timestamp: u128,
+    // ...
+    pub metadata: M,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct BoardMetadata {
+    pub owner: String, // username of owner
+    pub is_private: bool,
+    pub is_hidden: bool,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct BoardPostLog {
+    pub author: String, // username of owner
+    pub content: String,
+    pub board: String, // name of board the post is located in
+    pub is_hidden: bool,
 }
 
 // ...
@@ -212,6 +237,16 @@ impl BundlesDB {
                 logtype VARCHAR(1000000),
                 timestamp  VARCHAR(1000000),
                 content VARCHAR(1000000)
+            )",
+        )
+        .execute(c)
+        .await;
+
+        let _ = sqlx::query(
+            "CREATE TABLE IF NOT EXISTS \"Boards\" (
+                name VARCHAR(1000000),
+                timestamp VARCHAR(1000000),
+                metadata VARCHAR(1000000)
             )",
         )
         .execute(c)
@@ -1547,6 +1582,198 @@ impl BundlesDB {
             success: true,
             message: String::from("Paste created"),
             payload: Option::Some(p.name.to_string()),
+        };
+    }
+
+    // boards
+
+    // GET
+    /// Get a [`Board`] by its name
+    ///
+    /// # Arguments:
+    /// * `url` - board name
+    pub async fn get_board_by_name(&self, url: String) -> DefaultReturn<Option<Board<String>>> {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Boards\" WHERE \"name\" = ?"
+        } else {
+            "SELECT * FROM \"Boards\" WHERE \"name\" = $1"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query).bind::<&String>(&url).fetch_one(c).await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Board does not exist"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let row = res.unwrap();
+        let row = self.textify_row(row).data;
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Board exists"),
+            payload: Option::Some(Board {
+                name: row.get("name").unwrap().to_string(),
+                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+                metadata: row.get("metadata").unwrap().to_string(),
+            }),
+        };
+    }
+
+    /// Get a [`Board`] by its name
+    ///
+    /// # Arguments:
+    /// * `url` - board name
+    pub async fn get_board_posts(&self, url: String) -> DefaultReturn<Option<Vec<Log>>> {
+        // make sure board exists
+        let existing: DefaultReturn<Option<Board<String>>> =
+            self.get_board_by_name(url.to_owned()).await;
+
+        if existing.success == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Board does not exist"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ?"
+        } else {
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&format!("\"board\":\"{}\"", url))
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to fetch posts"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let rows = res.unwrap();
+        let mut output: Vec<Log> = Vec::new();
+
+        for row in rows {
+            let row = self.textify_row(row).data;
+            output.push(Log {
+                id: row.get("id").unwrap().to_string(),
+                logtype: row.get("logtype").unwrap().to_string(),
+                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+                content: row.get("content").unwrap().to_string(),
+            });
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Successfully fetched posts"),
+            payload: Option::Some(output),
+        };
+    }
+
+    // SET
+    /// Create a new [`Board`] given various properties
+    ///
+    /// # Arguments:
+    /// * `props` - [`Board<String>`](Board)
+    /// * `as_user` - The ID of the user creating the board
+    pub async fn create_board(
+        &self,
+        props: &mut Board<String>,
+        as_user: Option<String>, // id of board owner
+    ) -> DefaultReturn<Option<Board<String>>> {
+        let p: &mut Board<String> = props; // borrowed props
+
+        // create default metadata
+        let metadata: BoardMetadata = BoardMetadata {
+            owner: as_user.clone().unwrap(),
+            is_hidden: false,
+            is_private: false,
+        };
+
+        // check values
+
+        // (check length)
+        if (p.name.len() < 2) | (p.name.len() > 250) {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Name is invalid"),
+                payload: Option::None,
+            };
+        }
+
+        // (characters used)
+        let regex = regex::RegexBuilder::new("^[\\w\\_\\-\\.\\!]+$")
+            .multi_line(true)
+            .build()
+            .unwrap();
+
+        if regex.captures(&p.name).iter().len() < 1 {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Name is invalid"),
+                payload: Option::None,
+            };
+        }
+
+        // make sure paste does not exist
+        let existing: DefaultReturn<Option<Board<String>>> =
+            self.get_board_by_name(p.name.to_owned()).await;
+
+        if existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Board already exists!"),
+                payload: Option::None,
+            };
+        }
+
+        // create paste
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "INSERT INTO \"Boards\" VALUES (?, ?, ?)"
+        } else {
+            "INSERT INTO \"Boards\" VALUES ($1, $2, $3)"
+        };
+
+        let c = &self.db.client;
+        let p: &mut Board<String> = &mut props.clone();
+        p.timestamp = utility::unix_epoch_timestamp();
+
+        let res = sqlx::query(query)
+            .bind::<&String>(&p.name)
+            .bind::<&String>(&p.timestamp.to_string())
+            .bind::<&String>(&serde_json::to_string(&metadata).unwrap())
+            .execute(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: res.err().unwrap().to_string(),
+                payload: Option::None,
+            };
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Created board"),
+            payload: Option::Some(p.to_owned()),
         };
     }
 }

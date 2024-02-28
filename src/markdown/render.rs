@@ -207,7 +207,7 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
 
     // allowed elements
     let allowed_elements: Vec<&str> = Vec::from([
-        "hue", "sat", "lit", "theme", "comment", "p", "span", "style", "img",
+        "hue", "sat", "lit", "theme", "comment", "p", "span", "style", "img", "div",
     ]);
 
     for element in allowed_elements {

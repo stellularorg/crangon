@@ -215,3 +215,76 @@ select:focus {
     --hidden-color: var(--background-surface);
     --active-color: var(--background-surface1a);
 }
+
+/* https://code.stellular.org/hkau/celestial/src/branch/master/assets/style.css - MIT licensed */
+/* toolbar */
+:root {
+    --toolbar-nav-height: 37.8px;
+}
+
+.toolbar {
+    width: 100%;
+    height: var(--toolbar-nav-height);
+    padding: 0;
+    border-bottom: solid 1px var(--background-surface2a);
+}
+
+.toolbar button,
+.toolbar .button,
+.toolbar span {
+    padding: var(--u-10);
+}
+
+.toolbar button,
+.toolbar .button {
+    height: var(--toolbar-nav-height) !important;
+    display: flex;
+    justify-content: center;
+    background: transparent;
+    border-left: solid 1px var(--background-surface2a);
+    border-right: solid 1px var(--background-surface2a);
+}
+
+.toolbar button:hover,
+.toolbar .button:hover {
+    background: var(--background-surface1a);
+}
+
+.toolbar button:hover *,
+.toolbar .button:hover * {
+    justify-content: center;
+    align-items: center;
+}
+
+.toolbar-layout-wrapper {
+    height: calc(100dvh - var(--toolbar-nav-height));
+}
+
+/* link header */
+#link-header {
+    padding: 0 calc(var(--u-10) * 4);
+}
+
+@media screen and (max-width: 900px) {
+    #link-header {
+        padding: 0 var(--u-10);
+    }
+}
+
+#link-header .link-header-middle {
+    padding: calc(var(--u-10) * 2) 0;
+}
+
+#link-header .link-header-bottom {
+    display: flex;
+}
+
+#link-header .link-header-bottom .button {
+    border-top-left-radius: var(--u-02);
+    border-top-right-radius: var(--u-02);
+}
+
+#link-header .link-header-bottom .button.active {
+    background: var(--background-surface);
+    box-shadow: none !important;
+}

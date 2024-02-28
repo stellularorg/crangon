@@ -73,7 +73,7 @@ fn Dashboard(props: &Props) -> Html {
 }
 
 fn build_dashboard_renderer_with_props(props: Props) -> ServerRenderer<Dashboard> {
-    return ServerRenderer::<Dashboard>::with_props(|| props);
+    ServerRenderer::<Dashboard>::with_props(|| props)
 }
 
 #[get("/d/atomic")]
@@ -154,6 +154,7 @@ fn CreateNew(props: &NewProps) -> Html {
                             class="full round"
                             minlength={4}
                             maxlength={32}
+                            required={true}
                         />
 
                         <hr />
@@ -166,7 +167,7 @@ fn CreateNew(props: &NewProps) -> Html {
                 </div>
 
                 <script type="module">
-                    {"import AuthPages from \"/static/js/NewAtomic.js\";"}
+                    {"import \"/static/js/NewAtomic.js\";"}
                 </script>
 
                 <Footer auth_state={props.auth_state} />
@@ -176,7 +177,7 @@ fn CreateNew(props: &NewProps) -> Html {
 }
 
 fn build_new_renderer_with_props(props: NewProps) -> ServerRenderer<CreateNew> {
-    return ServerRenderer::<CreateNew>::with_props(|| props);
+    ServerRenderer::<CreateNew>::with_props(|| props)
 }
 
 #[get("/d/atomic/new")]
@@ -267,7 +268,7 @@ fn EditPaste(props: &EditProps) -> Html {
 }
 
 fn build_edit_renderer_with_props(props: EditProps) -> ServerRenderer<EditPaste> {
-    return ServerRenderer::<EditPaste>::with_props(|| props);
+    ServerRenderer::<EditPaste>::with_props(|| props)
 }
 
 #[function_component]
@@ -295,7 +296,7 @@ fn PasteFiles(props: &FSProps) -> Html {
 }
 
 fn build_fs_renderer_with_props(props: FSProps) -> ServerRenderer<PasteFiles> {
-    return ServerRenderer::<PasteFiles>::with_props(|| props);
+    ServerRenderer::<PasteFiles>::with_props(|| props)
 }
 
 #[get("/d/atomic/{id:.*}")]

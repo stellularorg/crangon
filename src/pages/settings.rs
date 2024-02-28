@@ -79,11 +79,11 @@ fn UserSettings(props: &UserSettingsProps) -> Html {
 }
 
 fn build_paste_settings_with_props(props: Props) -> ServerRenderer<PasteSettings> {
-    return ServerRenderer::<PasteSettings>::with_props(|| props);
+    ServerRenderer::<PasteSettings>::with_props(|| props)
 }
 
 fn build_user_settings_with_props(props: UserSettingsProps) -> ServerRenderer<UserSettings> {
-    return ServerRenderer::<UserSettings>::with_props(|| props);
+    ServerRenderer::<UserSettings>::with_props(|| props)
 }
 
 #[get("/d/settings")]

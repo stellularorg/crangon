@@ -189,7 +189,7 @@ fn Home(props: &Props) -> Html {
 }
 
 fn build_renderer_with_props(props: Props) -> ServerRenderer<Home> {
-    return ServerRenderer::<Home>::with_props(|| props);
+    ServerRenderer::<Home>::with_props(|| props)
 }
 
 #[get("/")]

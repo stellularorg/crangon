@@ -81,7 +81,7 @@ fn PasteView(props: &Props) -> Html {
 }
 
 fn build_renderer_with_props(props: Props) -> ServerRenderer<PasteView> {
-    return ServerRenderer::<PasteView>::with_props(|| props);
+    ServerRenderer::<PasteView>::with_props(|| props)
 }
 
 #[function_component]
@@ -121,7 +121,7 @@ pub fn PastePasswordAsk(props: &Props) -> Html {
 }
 
 pub fn build_password_ask_renderer_with_props(props: Props) -> ServerRenderer<PastePasswordAsk> {
-    return ServerRenderer::<PastePasswordAsk>::with_props(|| props);
+    ServerRenderer::<PastePasswordAsk>::with_props(|| props)
 }
 
 #[get("/{url:.*}")]

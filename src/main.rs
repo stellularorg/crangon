@@ -133,6 +133,13 @@ async fn main() -> std::io::Result<()> {
             .service(crate::pages::atomic_editor::dashboard_request)
             .service(crate::pages::atomic_editor::new_request)
             .service(crate::pages::atomic_editor::edit_request)
+            // GET boards
+            .service(crate::pages::boards::new_request)
+            .service(crate::pages::boards::view_board_request)
+            // GET boards api
+            .service(crate::api::boards::get_posts_request)
+            // POST boards api
+            .service(crate::api::boards::create_request)
             // GET root
             .service(crate::pages::home::home_request)
             .service(crate::pages::home::robotstxt)
