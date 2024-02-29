@@ -116,7 +116,7 @@ pub struct UserState {
     pub timestamp: u128,
 }
 
-#[derive(PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
+#[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
 pub struct Log {
     // selectors
     pub id: String,
@@ -1627,7 +1627,7 @@ impl BundlesDB {
         };
     }
 
-    /// Get a [`Board`] by its name
+    /// Get all posts in a [`Board`] by its name
     ///
     /// # Arguments:
     /// * `url` - board name
@@ -1646,9 +1646,10 @@ impl BundlesDB {
 
         // ...
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ?"
+            // TODO: flexible LIMIT (pagination)
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? ORDER BY \"timestamp\" DESC LIMIT 50"
         } else {
-            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1"
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 ORDER BY \"timestamp\" DESC LIMIT 50"
         };
 
         let c = &self.db.client;

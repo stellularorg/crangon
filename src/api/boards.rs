@@ -1,6 +1,6 @@
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
 
-use crate::db::bundlesdb::{AppData, Board, BoardPostLog};
+use crate::db::bundlesdb::{AppData, Board, BoardMetadata, BoardPostLog, DefaultReturn};
 
 #[derive(serde::Deserialize)]
 struct CreateInfo {
@@ -65,6 +65,45 @@ pub async fn create_request(
 #[get("/api/board/{name:.*}/posts")]
 pub async fn get_posts_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
     let name: String = req.match_info().get("name").unwrap().to_string();
+
+    let board: DefaultReturn<Option<Board<String>>> = data.db.get_board_by_name(name.clone()).await;
+
+    // get
+    let token_cookie = req.cookie("__Secure-Token");
+
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    // check if board is private
+    // if it is, only the owner and users with the "staff" role can view it
+    if board.payload.is_some() {
+        let metadata =
+            serde_json::from_str::<BoardMetadata>(&board.payload.as_ref().unwrap().metadata)
+                .unwrap();
+
+        if metadata.is_private == true {
+            // anonymous
+            if token_user.is_none() {
+                return HttpResponse::NotFound()
+                    .body("You do not have permission to view this board's contents.");
+            }
+
+            // not owner
+            let user = token_user.unwrap().payload.unwrap();
+
+            if (user.username != metadata.owner) && (user.role != String::from("staff")) {
+                return HttpResponse::NotFound()
+                    .body("You do not have permission to view this board's contents.");
+            }
+        }
+    }
 
     // ...
     let res = data.db.get_board_posts(name).await;

@@ -342,8 +342,15 @@ pub async fn atomic_paste_view_request(
                 .body("Paste is missing a file at the requested path");
         }
 
+        let content_type = match path.split(".").collect::<Vec<&str>>().pop().unwrap() {
+            "html" => "text/html",
+            "css" => "text/css",
+            "js" => "application/javascript",
+            _ => "text/plain",
+        };
+
         return HttpResponse::Ok()
-            .append_header(("Content-Type", "text/html"))
+            .append_header(("Content-Type", content_type))
             .body(html_file.unwrap().content.clone());
     } else {
         return HttpResponse::NotAcceptable().body("Paste is not atomic (cannot select HTML file)");

@@ -257,7 +257,8 @@ select:focus {
 }
 
 .toolbar-layout-wrapper {
-    height: calc(100dvh - var(--toolbar-nav-height));
+    max-height: calc(100dvh - var(--toolbar-nav-height));
+    overflow-y: auto;
 }
 
 /* link header */

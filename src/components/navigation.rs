@@ -18,7 +18,7 @@ pub fn Footer(props: &FooterProps) -> Html {
 
     // ...
     return html! {
-        <div class="flex justify-center align-center flex-column">
+        <div class="flex justify-center align-center flex-column full">
             <hr class="small" style="width:425px; max-width:100%; margin-top:1rem;" />
 
             <ul class="__footernav" style="padding: 0; margin: 0;">
