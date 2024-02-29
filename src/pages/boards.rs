@@ -29,6 +29,12 @@ struct ViewPostProps {
     pub user: Option<UserState>,
 }
 
+#[derive(Default, Properties, PartialEq, serde::Deserialize)]
+struct SettingsProps {
+    pub board: Board<String>,
+    pub auth_state: Option<bool>,
+}
+
 #[function_component]
 fn CreateNew(props: &NewProps) -> Html {
     return html! {
@@ -171,7 +177,7 @@ fn ViewBoard(props: &Props) -> Html {
                                 id="content"
                                 placeholder="Content"
                                 class="full round"
-                                minlength={4}
+                                minlength={2}
                                 maxlength={1_000}
                                 required={true}
                             ></textarea>
@@ -275,7 +281,7 @@ pub async fn view_board_request(
         serde_json::from_str::<bundlesdb::BoardMetadata>(&board.payload.as_ref().unwrap().metadata)
             .unwrap();
 
-    if metadata.is_private == true {
+    if metadata.is_private == String::from("yes") {
         // anonymous
         if token_user.is_none() {
             return HttpResponse::NotFound()
@@ -327,6 +333,7 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
     // must be authenticated AND board owner OR staff OR post author
     let can_delete: bool = props.auth_state.is_some()
         && props.user.is_some()
+        && props.user.as_ref().unwrap().username != String::from("Anonymous")
         && ((props.user.as_ref().unwrap().username == board.owner)
             | (props.user.as_ref().unwrap().role == String::from("staff"))
             | (props.user.as_ref().unwrap().username == post.author));
@@ -351,6 +358,9 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
 
             <div class="toolbar-layout-wrapper">
                 <main class="small flex flex-column g-4">
+                    <div id="error" class="mdnote note-error full" style="display: none;" />
+                    <div id="success" class="mdnote note-note full" style="display: none;" />
+
                     <div class="card secondary round full flex flex-column g-4">
                         <span class="chip mention round" style="width: max-content;">
                             {if post.author != "Anonymous" {
@@ -365,7 +375,7 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
 
                     {if can_delete {
                         html! {
-                            <button class="bundles-primary round">{"Delete"}</button>
+                            <button class="bundles-primary round" id="delete-post" data-endpoint={format!("/api/board/{}/posts/{}", &post.board, &p.id)}>{"Delete"}</button>
                         }
                     } else {
                         html! {}
@@ -374,6 +384,10 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                     <Footer auth_state={props.auth_state} />
                 </main>
             </div>
+
+            <script type="module">
+                {"import \"/static/js/ManageBoardPost.js\";"}
+            </script>
         </div>
     };
 }
@@ -464,5 +478,145 @@ pub async fn view_board_post_request(
         .body(format_html(
             render.await,
             &format!("<title>{}</title>", &name),
+        ));
+}
+
+#[function_component]
+fn BoardSettings(props: &SettingsProps) -> Html {
+    let metadata = serde_json::from_str::<bundlesdb::BoardMetadata>(&props.board.metadata).unwrap();
+
+    return html! {
+        <div>
+            <div class="toolbar flex justify-space-between">
+                // left
+                <div class="flex">
+                    <a class="button" href="/" style="border-left: 0">
+                        <b>{"::SITE_NAME::"}</b>
+                    </a>
+
+                    <a class="button" href={format!("/b/{}", props.board.name)} style="border-left: 0">
+                        {props.board.name.clone()}
+                    </a>
+                </div>
+
+                // right
+                <div class="flex">
+                    <a class="button" href={format!("/b/{}", props.board.name)}>{"Feed"}</a>
+                </div>
+            </div>
+
+            <div class="toolbar-layout-wrapper">
+                <main class="flex flex-column g-4 small">
+                    <h2 class="full text-center">{"Board Settings"}</h2>
+
+                    <div class="card round secondary flex flex-column g-4">
+                        <div class="flex full justify-space-between">
+                            <div class="flex g-4">
+                                <form action="/api/metadata" id="update-form">
+                                    <button class="green round secondary">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                        {"Save"}
+                                    </button>
+                                </form>
+
+                                <button class="secondary round" id="add_field">{"Add Field"}</button>
+                            </div>
+
+                            <a href={format!("/b/{}", props.board.name)} class="button round secondary">{"Cancel"}</a>
+                        </div>
+
+                        <div id="options-field" class="flex flex-wrap mobile:flex-column g-4 full justify-space-between" />
+                    </div>
+
+                    <script type="module">
+                        {format!("import {{ paste_settings }} from \"/static/js/SettingsEditor.js\";
+                        paste_settings({}, \"{}\", document.getElementById(\"options-field\"), \"board\");", serde_json::to_string(&metadata).unwrap(), &props.board.name)}
+                    </script>
+
+                    <Footer auth_state={props.auth_state} />
+                </main>
+            </div>
+        </div>
+    };
+}
+
+fn build_settings_with_props(props: SettingsProps) -> ServerRenderer<BoardSettings> {
+    ServerRenderer::<BoardSettings>::with_props(|| props)
+}
+
+#[get("/b/{name:.*}/manage")]
+/// Available at "/b/{name}/manage"
+pub async fn board_settings_request(
+    req: HttpRequest,
+    data: web::Data<bundlesdb::AppData>,
+) -> impl Responder {
+    // get board
+    let name: String = req.match_info().get("name").unwrap().to_string();
+    let name_c = name.clone();
+
+    let board: bundlesdb::DefaultReturn<Option<Board<String>>> =
+        data.db.get_board_by_name(name).await;
+
+    if board.success == false {
+        return HttpResponse::NotFound().body(board.message);
+    }
+
+    // verify auth status
+    let token_cookie = req.cookie("__Secure-Token");
+    let mut set_cookie: &str = "";
+
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists, refresh token if not
+        if token_user.as_ref().unwrap().success == false {
+            set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+        }
+    } else {
+        return HttpResponse::NotAcceptable().body("An account is required to do this");
+    }
+
+    // ...
+    let metadata =
+        serde_json::from_str::<bundlesdb::BoardMetadata>(&board.payload.as_ref().unwrap().metadata)
+            .unwrap();
+
+    let user = token_user.unwrap().payload.unwrap();
+    let can_view: bool = (user.username == metadata.owner) | (user.role == String::from("staff"));
+
+    if can_view == false {
+        return HttpResponse::NotFound()
+            .body("You do not have permission to manage this board's contents.");
+    }
+
+    // ...
+    let renderer = build_settings_with_props(SettingsProps {
+        board: board.payload.clone().unwrap(),
+        auth_state: if req.cookie("__Secure-Token").is_some() {
+            Option::Some(req.cookie("__Secure-Token").is_some())
+        } else {
+            Option::Some(false)
+        },
+    });
+
+    let render = renderer.render();
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
+        .body(format_html(
+            render.await,
+            &format!(
+                "<title>{}</title>
+                <meta property=\"og:title\" content=\"{} (board settings) - ::SITE_NAME::\" />",
+                &name_c, &name_c
+            ),
         ));
 }

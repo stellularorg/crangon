@@ -257,7 +257,7 @@ fn EditPaste(props: &EditProps) -> Html {
             <script type="module">
                 {format!("import {{ create_editor }} from \"/static/js/AtomicEditor.js\";
                 create_editor(document.getElementById('_doc'), '{}', '{}');
-                globalThis.AtomicEditor.Update(`{}`)", &props.custom_url, &props.file.path, &props.file.content.replace("`", "\\`"))}
+                globalThis.AtomicEditor.Update(`{}`)", &props.custom_url, &props.file.path, &props.file.content.replace("`", "\\`").replace("$", "\\$"))}
             </script>
 
             <style>

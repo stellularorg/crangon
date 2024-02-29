@@ -140,8 +140,8 @@ pub struct Board<M> {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct BoardMetadata {
     pub owner: String, // username of owner
-    pub is_private: bool,
-    pub is_hidden: bool,
+    pub is_private: String,
+    // pub is_hidden: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -674,7 +674,7 @@ impl BundlesDB {
         };
 
         let c = &self.db.client;
-        let res = sqlx::query(query).bind::<&String>(&id).fetch_one(c).await;
+        let res = sqlx::query(query).bind::<&String>(&id).execute(c).await;
 
         if res.is_err() {
             return DefaultReturn {
@@ -1704,8 +1704,7 @@ impl BundlesDB {
         // create default metadata
         let metadata: BoardMetadata = BoardMetadata {
             owner: as_user.clone().unwrap(),
-            is_hidden: false,
-            is_private: false,
+            is_private: String::from("no"),
         };
 
         // check values
@@ -1833,5 +1832,90 @@ impl BundlesDB {
             serde_json::to_string::<BoardPostLog>(&post).unwrap(),
         )
         .await
+    }
+
+    /// Update a [`Paste`]'s metadata by its `custom_url`
+    pub async fn edit_board_metadata_by_name(
+        &self,
+        name: String,
+        metadata: BoardMetadata,
+        edit_as: Option<String>, // username of account that is editing this board
+    ) -> DefaultReturn<Option<String>> {
+        // make sure board exists
+        let existing = &self.get_board_by_name(name.clone()).await;
+        if !existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Board does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // (parse metadata from existing)
+        let existing_metadata =
+            serde_json::from_str::<BoardMetadata>(&existing.payload.as_ref().unwrap().metadata);
+
+        // get edit_as user account
+        let ua = if edit_as.is_some() {
+            Option::Some(
+                self.get_user_by_username(edit_as.clone().unwrap())
+                    .await
+                    .payload,
+            )
+        } else {
+            Option::None
+        };
+
+        if ua.is_none() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("An account is required to do this"),
+                payload: Option::None,
+            };
+        }
+
+        // make sure we can do this
+        let user = ua.unwrap().unwrap();
+        let can_edit: bool =
+            (user.username == metadata.owner) | (user.role == String::from("staff"));
+
+        if can_edit == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from(
+                    "You do not have permission to manage this board's contents.",
+                ),
+                payload: Option::None,
+            };
+        }
+
+        // update paste
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "UPDATE \"Boards\" SET \"metadata\" = ? WHERE \"name\" = ?"
+        } else {
+            "UPDATE \"Boards\" SET (\"metadata\") = ($1) WHERE \"name\" = $2"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&serde_json::to_string(&metadata).unwrap())
+            .bind::<&String>(&name)
+            .execute(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Board updated!"),
+            payload: Option::Some(name),
+        };
     }
 }

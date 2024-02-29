@@ -49,6 +49,24 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
         original_in = original_in.replace(capture.get(0).unwrap().as_str(), result);
     }
 
+    // admonitions
+    original_in = regex_replace(
+        // title and content
+        &original_in,
+        "^(\\!{3})\\s(?<TYPE>.*?)\\s(?<TITLE>.+)\\n(?<CONTENT>.+)$",
+        "<div class=\"mdnote note-$2\">
+            <b class=\"mdnote-title\">$3</b>
+            <p>$4</p>
+        </div>\n",
+    );
+
+    original_in = regex_replace(
+        // title only
+        &original_in,
+        "^(\\!{3})\\s(?<TYPE>.*?)\\s(?<TITLE>.*?)$",
+        "<div class=\"mdnote note-$2\"><b class=\"mdnote-title\">$3</b></div>\n",
+    );
+
     // ...
     let mut out: String = markdown_to_html(&original_in, &options);
     out = regex_replace(&out, "(&!)(.*?);", "&$2;");
@@ -207,7 +225,8 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
 
     // allowed elements
     let allowed_elements: Vec<&str> = Vec::from([
-        "hue", "sat", "lit", "theme", "comment", "p", "span", "style", "img", "div", "a",
+        "hue", "sat", "lit", "theme", "comment", "p", "span", "style", "img", "div", "a", "b", "i",
+        "strong", "em",
     ]);
 
     for element in allowed_elements {
@@ -290,24 +309,6 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
         &out,
         "(\\!\\&gt;)\\s*(?<CONTENT>.*?)($|\\s\\s)",
         "<span role=\"spoiler\">$2</span>",
-    );
-
-    // admonitions
-    out = regex_replace(
-        // title and content
-        &out,
-        "^(\\!{3})\\s(?<TYPE>.*?)\\s(?<TITLE>.+)\\n(?<CONTENT>.+)$",
-        "<div class=\"mdnote note-$2\">
-                <b class=\"mdnote-title\">$3</b>
-                <p>$4</p>
-            </div>\n",
-    );
-
-    out = regex_replace(
-        // title only
-        &out,
-        "^(\\!{3})\\s(?<TYPE>.*?)\\s(?<TITLE>.*?)$",
-        "<div class=\"mdnote note-$2\"><b class=\"mdnote-title\">$3</b></div>\n",
     );
 
     // highlight
