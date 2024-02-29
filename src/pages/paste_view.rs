@@ -105,7 +105,7 @@ pub fn PastePasswordAsk(props: &Props) -> Html {
                             placeholder="Paste View Password"
                             class="full round"
                             minlength={4}
-                            maxlength={32}
+                            maxlength={256}
                         />
 
                         <hr />
@@ -174,6 +174,7 @@ pub async fn paste_view_request(
     // (check password)
     if info.view.is_some()
         && metadata.view_password.is_some()
+        && metadata.view_password.as_ref().unwrap() != "off"
         && info.view.as_ref().unwrap() != &metadata.view_password.unwrap()
     {
         return HttpResponse::NotFound()

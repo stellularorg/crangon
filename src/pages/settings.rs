@@ -194,6 +194,7 @@ pub async fn paste_settings_request(
     // (check password)
     if info.view.is_some()
         && metadata.view_password.is_some()
+        && metadata.view_password.as_ref().unwrap() != "off"
         && info.view.as_ref().unwrap() != &metadata.view_password.unwrap()
     {
         return HttpResponse::NotFound()

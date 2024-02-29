@@ -121,6 +121,8 @@ You can create an account at: /d/auth/register",
 fn ViewBoard(props: &Props) -> Html {
     return html! {
         <div class="flex flex-column g-4" style="height: 100dvh;">
+            <div style="display: none;" id="board-name">{&props.board.name}</div>
+
             <div class="toolbar flex justify-space-between">
                 // left
                 <div class="flex">
@@ -135,14 +137,40 @@ fn ViewBoard(props: &Props) -> Html {
 
                 // right
                 <div class="flex">
-
+                    <a class="button" href={format!("/b/{}/manage", props.board.name)}>{"Manage"}</a>
                 </div>
             </div>
 
             <div class="toolbar-layout-wrapper">
                 <main class="small flex flex-column g-4 align-center">
+                    <div class="card round secondary flex flex-column g-4" id="post">
+                        <div id="error" class="mdnote note-error full" style="display: none;" />
+
+                        <form id="create-post" class="flex flex-column g-4">
+                            <div class="full flex justify-space-between align-center g-4">
+                                <b>{"Create Post"}</b>
+
+                                <button class="bundles-primary round">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                    {"Send"}
+                                </button>
+                            </div>
+
+                            <textarea
+                                type="text"
+                                name="content"
+                                id="content"
+                                placeholder="Content"
+                                class="full round"
+                                minlength={4}
+                                maxlength={1_000}
+                                required={true}
+                            ></textarea>
+                        </form>
+                    </div>
+
                     <script type="module">
-                        {"import \"/static/js/NewBoard.js\";"}
+                        {"import \"/static/js/BoardView.js\";"}
                     </script>
 
                     <Footer auth_state={props.auth_state} />

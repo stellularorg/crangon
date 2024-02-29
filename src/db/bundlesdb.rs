@@ -148,6 +148,7 @@ pub struct BoardMetadata {
 pub struct BoardPostLog {
     pub author: String, // username of owner
     pub content: String,
+    pub content_html: String,
     pub board: String, // name of board the post is located in
     pub is_hidden: bool,
 }
@@ -585,7 +586,7 @@ impl BundlesDB {
             .bind::<String>(logtype)
             .bind::<String>(utility::unix_epoch_timestamp().to_string())
             .bind::<String>(content)
-            .fetch_one(c)
+            .execute(c)
             .await;
 
         if res.is_err() {
@@ -1652,7 +1653,7 @@ impl BundlesDB {
 
         let c = &self.db.client;
         let res = sqlx::query(query)
-            .bind::<&String>(&format!("\"board\":\"{}\"", url))
+            .bind::<&String>(&format!("%\"board\":\"{}\"%", url))
             .fetch_all(c)
             .await;
 
@@ -1731,7 +1732,7 @@ impl BundlesDB {
             };
         }
 
-        // make sure paste does not exist
+        // make sure board does not exist
         let existing: DefaultReturn<Option<Board<String>>> =
             self.get_board_by_name(p.name.to_owned()).await;
 
@@ -1743,7 +1744,7 @@ impl BundlesDB {
             };
         }
 
-        // create paste
+        // create board
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "INSERT INTO \"Boards\" VALUES (?, ?, ?)"
         } else {
@@ -1775,5 +1776,61 @@ impl BundlesDB {
             message: String::from("Created board"),
             payload: Option::Some(p.to_owned()),
         };
+    }
+
+    /// Create a new post in a given [`Board`]
+    ///
+    /// # Arguments:
+    /// * `props` - [`BoardPostLog`]
+    /// * `as_user` - The ID of the user creating the post
+    pub async fn create_board_post(
+        &self,
+        props: &mut BoardPostLog,
+        as_user: Option<String>, // id of board owner
+    ) -> DefaultReturn<Option<String>> {
+        let p: &mut BoardPostLog = props; // borrowed props
+
+        // check values
+
+        // (check length)
+        if (p.content.len() < 2) | (p.content.len() > 200_000) {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Content is invalid"),
+                payload: Option::None,
+            };
+        }
+
+        // make sure this board exists
+        let existing: DefaultReturn<Option<Board<String>>> =
+            self.get_board_by_name(p.board.to_owned()).await;
+
+        if !existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Board does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // create post
+        let post = BoardPostLog {
+            author: if as_user.is_some() {
+                as_user.unwrap()
+            } else {
+                String::from("Anonymous")
+            },
+            content: p.content.clone(),
+            content_html: crate::markdown::render::parse_markdown(&p.content),
+            board: p.board.clone(),
+            is_hidden: false,
+        };
+
+        // return
+        self.create_log(
+            String::from("board_post"),
+            serde_json::to_string::<BoardPostLog>(&post).unwrap(),
+        )
+        .await
     }
 }
