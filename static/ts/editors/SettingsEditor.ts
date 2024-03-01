@@ -27,7 +27,8 @@ export function paste_settings(
             // ...
             let meta_value = metadata[current_property];
             if (typeof meta_value === "string" || meta_value === null) {
-                option_render = `<input 
+                const use = current_property === "about" ? "textarea" : "input";
+                option_render = `<${use} 
                     type="text" 
                     name="${current_property}" 
                     placeholder="${current_property}" 
@@ -36,7 +37,7 @@ export function paste_settings(
                     oninput="window.paste_settings_field_input(event);" 
                     class="round mobile:max"
                     style="width: 60%;"
-                />`;
+                ${use === "textarea" ? `>${meta_value || ""}</textarea>` : "/>"}`;
 
                 (window as any).paste_settings_field_input = (e: any) => {
                     metadata[current_property] = e.target.value;

@@ -133,6 +133,11 @@ You can create an account at: /d/auth/register",
 
 #[function_component]
 fn ViewBoard(props: &Props) -> Html {
+    let board_m = serde_json::from_str::<BoardMetadata>(&props.board.metadata).unwrap();
+
+    let can_post_from_anonymous =
+        board_m.allow_anonymous.is_none() || board_m.allow_anonymous.unwrap() != String::from("no");
+
     // ...
     return html! {
         <div class="flex flex-column g-4" style="height: 100dvh;">
@@ -152,37 +157,61 @@ fn ViewBoard(props: &Props) -> Html {
 
                 // right
                 <div class="flex">
-                    <a class="button" href={format!("/b/{}/manage", props.board.name)}>{"Manage"}</a>
+                    <a class="button" href={format!("/b/{}/manage", props.board.name)} title="Manage Board">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-cog"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v2"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><circle cx="6" cy="14" r="3"/><path d="M6 10v1"/><path d="M6 17v1"/><path d="M10 14H9"/><path d="M3 14H2"/><path d="m9 11-.88.88"/><path d="M3.88 16.12 3 17"/><path d="m9 17-.88-.88"/><path d="M3.88 11.88 3 11"/></svg>
+                    </a>
                 </div>
             </div>
 
             <div class="toolbar-layout-wrapper">
                 <main class="small flex flex-column g-4 align-center">
-                    <div class="card round secondary flex flex-column g-4" id="post">
-                        <div id="error" class="mdnote note-error full" style="display: none;" />
+                    <div class="full" id="about">
+                        {if board_m.about.is_some() {
+                            let content = Html::from_html_unchecked(AttrValue::from(
+                                crate::markdown::render::parse_markdown(&board_m.about.unwrap())
+                            ));
 
-                        <form id="create-post" class="flex flex-column g-4">
-                            <div class="full flex justify-space-between align-center g-4">
-                                <b>{"Create Post"}</b>
-
-                                <button class="bundles-primary round">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                                    {"Send"}
-                                </button>
-                            </div>
-
-                            <textarea
-                                type="text"
-                                name="content"
-                                id="content"
-                                placeholder="Content"
-                                class="full round"
-                                minlength={2}
-                                maxlength={1_000}
-                                required={true}
-                            ></textarea>
-                        </form>
+                            html! {{content}}
+                        } else {
+                            html! {}
+                        }}
                     </div>
+
+                    {if (props.auth_state.is_some() && props.auth_state.unwrap() == true) || (can_post_from_anonymous == true) {
+                        // ^ signed in OR can_post_from_anonymous is true
+                        html! {
+                            <div class="full">
+                                <div class="card round secondary flex flex-column g-4" id="post">
+                                    <div id="error" class="mdnote note-error full" style="display: none;" />
+
+                                    <form id="create-post" class="flex flex-column g-4">
+                                        <div class="full flex justify-space-between align-center g-4">
+                                            <b>{"Create Post"}</b>
+
+                                            <button class="bundles-primary round">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                                {"Send"}
+                                            </button>
+                                        </div>
+
+                                        <textarea
+                                            type="text"
+                                            name="content"
+                                            id="content"
+                                            placeholder="Content"
+                                            class="full round"
+                                            minlength={2}
+                                            maxlength={1_000}
+                                            required={true}
+                                        ></textarea>
+                                    </form>
+                                </div>
+
+                                <hr style="var(--u-08) 0 var(--u-04) 0" />
+                            </div>
+                    }} else {
+                        html! {}
+                    }}
 
                     {for props.posts.iter().map(|p| {
                         let post = serde_json::from_str::<BoardPostLog>(&p.content).unwrap();
@@ -190,8 +219,8 @@ fn ViewBoard(props: &Props) -> Html {
 
                         html! {
                             <div class="card secondary round full flex flex-column g-4">
-                                    <div class="flex justify-space-between align-center g-4">
-                                        <span class="chip mention round" style="width: max-content;">
+                                <div class="flex justify-space-between align-center g-4">
+                                    <span class="chip mention round" style="width: max-content;">
                                         {if post.author != "Anonymous" {
                                             html! {<a href={format!("/~{}", &post.author)} style="color: inherit;">{&post.author}</a>}
                                         } else {
@@ -199,7 +228,7 @@ fn ViewBoard(props: &Props) -> Html {
                                         }}
                                     </span>
 
-                                    <div class="flex g-4 flex-wrap" style="opacity: 75%; color: var(--text-color)">
+                                    <div class="flex g-4 flex-wrap">
                                         <a
                                             class="button round"
                                             href={format!("/b/{}/posts/{}", post.board, p.id)}
@@ -342,6 +371,7 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
     return html! {
         <div class="flex flex-column g-4" style="height: 100dvh;">
             <div style="display: none;" id="board-name">{&props.board.name}</div>
+            <div style="display: none;" id="post-id">{&props.post.id}</div>
 
             <div class="toolbar flex justify-space-between">
                 // left

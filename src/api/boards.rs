@@ -10,6 +10,7 @@ struct CreateInfo {
 #[derive(serde::Deserialize)]
 struct CreatePostInfo {
     content: String,
+    reply: Option<String>,
 }
 
 #[post("/api/board/new")]
@@ -151,6 +152,11 @@ pub async fn create_post_request(
                 content_html: String::new(),
                 board: name,
                 is_hidden: false,
+                reply: if body.reply.is_some() {
+                    Option::Some(body.reply.as_ref().unwrap().to_string())
+                } else {
+                    Option::None
+                },
             },
             if token_user.is_some() {
                 Option::Some(token_user.unwrap().payload.unwrap().username)

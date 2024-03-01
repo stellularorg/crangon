@@ -141,7 +141,8 @@ pub struct Board<M> {
 pub struct BoardMetadata {
     pub owner: String, // username of owner
     pub is_private: String,
-    // pub is_hidden: String,
+    pub allow_anonymous: Option<String>,
+    pub about: Option<String>,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -151,6 +152,7 @@ pub struct BoardPostLog {
     pub content_html: String,
     pub board: String, // name of board the post is located in
     pub is_hidden: bool,
+    pub reply: Option<String>, // the ID of the post we're replying to
 }
 
 // ...
@@ -1705,6 +1707,8 @@ impl BundlesDB {
         let metadata: BoardMetadata = BoardMetadata {
             owner: as_user.clone().unwrap(),
             is_private: String::from("no"),
+            allow_anonymous: Option::Some(String::from("yes")),
+            about: Option::None,
         };
 
         // check values
@@ -1813,6 +1817,18 @@ impl BundlesDB {
             };
         }
 
+        let board =
+            serde_json::from_str::<BoardMetadata>(&existing.payload.unwrap().metadata).unwrap();
+
+        // check board "allow_anonymous" setting
+        if board.allow_anonymous.is_some() && board.allow_anonymous.unwrap() == String::from("no") {
+            return DefaultReturn {
+                success: false,
+                message: String::from("An account is required to do this"),
+                payload: Option::None,
+            };
+        }
+
         // create post
         let post = BoardPostLog {
             author: if as_user.is_some() {
@@ -1824,6 +1840,7 @@ impl BundlesDB {
             content_html: crate::markdown::render::parse_markdown(&p.content),
             board: p.board.clone(),
             is_hidden: false,
+            reply: p.reply.clone(),
         };
 
         // return

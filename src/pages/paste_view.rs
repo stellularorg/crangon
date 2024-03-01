@@ -154,7 +154,10 @@ pub async fn paste_view_request(
     let metadata = serde_json::from_str::<bundlesdb::PasteMetadata>(&unwrap.metadata).unwrap();
 
     // handle view password
-    if metadata.view_password.is_some() && info.view.is_none() {
+    if metadata.view_password.is_some()
+        && info.view.is_none()
+        && metadata.view_password.as_ref().unwrap() != "off"
+    {
         let renderer = build_password_ask_renderer_with_props(Props {
             paste: unwrap.clone(),
             auth_state: if req.cookie("__Secure-Token").is_some() {
