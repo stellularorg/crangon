@@ -702,9 +702,9 @@ impl BundlesDB {
 
         // count views
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE ?"
+            "SELECT \"ID\" FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE ?"
         } else {
-            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE $1"
+            "SELECT \"ID\" FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE $1"
         };
 
         let views_res = sqlx::query(query)
@@ -1649,6 +1649,66 @@ impl BundlesDB {
         // ...
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             // TODO: flexible LIMIT (pagination)
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? AND \"content\" NOT LIKE '%\"reply\":\"%' ORDER BY \"timestamp\" DESC LIMIT 50"
+        } else {
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 AND \"content\" NOT LIKE '%\"reply\":\"%' ORDER BY \"timestamp\" DESC LIMIT 50"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&format!("%\"board\":\"{}\"%", url))
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to fetch posts"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let rows = res.unwrap();
+        let mut output: Vec<Log> = Vec::new();
+
+        for row in rows {
+            let row = self.textify_row(row).data;
+            output.push(Log {
+                id: row.get("id").unwrap().to_string(),
+                logtype: row.get("logtype").unwrap().to_string(),
+                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+                content: row.get("content").unwrap().to_string(),
+            });
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Successfully fetched posts"),
+            payload: Option::Some(output),
+        };
+    }
+
+    /// Get all posts in a [`Board`] by its name that are replying to another [`BoardPostLog`]
+    ///
+    /// # Arguments:
+    /// * `id` - post id
+    pub async fn get_board_replies(&self, id: String) -> DefaultReturn<Option<Vec<Log>>> {
+        // make sure message exists
+        let existing: DefaultReturn<Option<Log>> = self.get_log_by_id(id.to_owned()).await;
+
+        if existing.success == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Post does not exist"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            // TODO: flexible LIMIT (pagination)
             "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? ORDER BY \"timestamp\" DESC LIMIT 50"
         } else {
             "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 ORDER BY \"timestamp\" DESC LIMIT 50"
@@ -1656,7 +1716,7 @@ impl BundlesDB {
 
         let c = &self.db.client;
         let res = sqlx::query(query)
-            .bind::<&String>(&format!("%\"board\":\"{}\"%", url))
+            .bind::<&String>(&format!("%\"reply\":\"{}\"%", id))
             .fetch_all(c)
             .await;
 
@@ -1867,10 +1927,6 @@ impl BundlesDB {
                 payload: Option::None,
             };
         }
-
-        // (parse metadata from existing)
-        let existing_metadata =
-            serde_json::from_str::<BoardMetadata>(&existing.payload.as_ref().unwrap().metadata);
 
         // get edit_as user account
         let ua = if edit_as.is_some() {

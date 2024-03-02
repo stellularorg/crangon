@@ -25,6 +25,7 @@ struct Props {
 struct ViewPostProps {
     pub board: Board<String>,
     pub post: Log,
+    pub replies: Vec<Log>,
     pub auth_state: Option<bool>,
     pub user: Option<UserState>,
 }
@@ -368,6 +369,10 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
             | (props.user.as_ref().unwrap().username == post.author));
 
     // ...
+    let can_post_from_anonymous =
+        board.allow_anonymous.is_none() || board.allow_anonymous.unwrap() != String::from("no");
+
+    // ...
     return html! {
         <div class="flex flex-column g-4" style="height: 100dvh;">
             <div style="display: none;" id="board-name">{&props.board.name}</div>
@@ -410,6 +415,77 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                     } else {
                         html! {}
                     }}
+
+                    {if (props.auth_state.is_some() && props.auth_state.unwrap() == true) || (can_post_from_anonymous == true) {
+                        // ^ signed in OR can_post_from_anonymous is true
+                        html! {
+                            <div class="full">
+                                <hr style="var(--u-04) 0 var(--u-08) 0" />
+
+                                <div class="card round secondary flex flex-column g-4" id="post">
+                                    <div id="error" class="mdnote note-error full" style="display: none;" />
+
+                                    <form id="create-post" class="flex flex-column g-4">
+                                        <div class="full flex justify-space-between align-center g-4">
+                                            <b>{"Create Post"}</b>
+
+                                            <button class="bundles-primary round">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                                {"Send"}
+                                            </button>
+                                        </div>
+
+                                        <textarea
+                                            type="text"
+                                            name="content"
+                                            id="content"
+                                            placeholder="Content"
+                                            class="full round"
+                                            minlength={2}
+                                            maxlength={1_000}
+                                            required={true}
+                                        ></textarea>
+                                    </form>
+                                </div>
+
+                                <hr style="var(--u-08) 0 var(--u-04) 0" />
+                            </div>
+                    }} else {
+                        html! {}
+                    }}
+
+                    {for props.replies.iter().map(|p| {
+                        let post = serde_json::from_str::<BoardPostLog>(&p.content).unwrap();
+                        let content = Html::from_html_unchecked(AttrValue::from(post.content_html.clone()));
+
+                        html! {
+                            <div class="card secondary round full flex flex-column g-4">
+                                <div class="flex justify-space-between align-center g-4">
+                                    <span class="chip mention round" style="width: max-content;">
+                                        {if post.author != "Anonymous" {
+                                            html! {<a href={format!("/~{}", &post.author)} style="color: inherit;">{&post.author}</a>}
+                                        } else {
+                                            html! {<span>{"Anonymous"}</span>}
+                                        }}
+                                    </span>
+
+                                    <div class="flex g-4 flex-wrap">
+                                        <a
+                                            class="button round"
+                                            href={format!("/b/{}/posts/{}", post.board, p.id)}
+                                            style="color: var(--text-color);"
+                                            target="_blank"
+                                            title="open/manage"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-right-from-square"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="m21 3-9 9"/><path d="M15 3h6v6"/></svg>
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <div>{content}</div>
+                            </div>
+                        }
+                    })}
 
                     <Footer auth_state={props.auth_state} />
                 </main>
@@ -485,10 +561,15 @@ pub async fn view_board_post_request(
             ));
     }
 
+    // get replies
+    let replies: bundlesdb::DefaultReturn<Option<Vec<Log>>> =
+        data.db.get_board_replies(id.clone()).await;
+
     // ...
     let renderer = build_view_post_renderer_with_props(ViewPostProps {
         board: board.payload.unwrap(),
         post: post.payload.unwrap(),
+        replies: replies.payload.unwrap(),
         auth_state: if req.cookie("__Secure-Token").is_some() {
             Option::Some(true)
         } else {
