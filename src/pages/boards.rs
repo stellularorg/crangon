@@ -36,6 +36,12 @@ struct SettingsProps {
     pub auth_state: Option<bool>,
 }
 
+#[derive(Default, Properties, PartialEq, serde::Deserialize)]
+struct DashboardProps {
+    pub boards: Vec<bundlesdb::BoardIdentifier>,
+    pub auth_state: Option<bool>,
+}
+
 #[function_component]
 fn CreateNew(props: &NewProps) -> Html {
     return html! {
@@ -219,7 +225,7 @@ fn ViewBoard(props: &Props) -> Html {
                         let content = Html::from_html_unchecked(AttrValue::from(post.content_html.clone()));
 
                         html! {
-                            <div class="card secondary round full flex flex-column g-4">
+                            <div class="message round full flex flex-column g-4">
                                 <div class="flex justify-space-between align-center g-4">
                                     <span class="chip mention round" style="width: max-content;">
                                         {if post.author != "Anonymous" {
@@ -231,7 +237,7 @@ fn ViewBoard(props: &Props) -> Html {
 
                                     <div class="flex g-4 flex-wrap">
                                         <a
-                                            class="button round"
+                                            class="button border round"
                                             href={format!("/b/{}/posts/{}", post.board, p.id)}
                                             style="color: var(--text-color);"
                                             target="_blank"
@@ -348,7 +354,12 @@ pub async fn view_board_request(
         .append_header(("Content-Type", "text/html"))
         .body(format_html(
             render.await,
-            &format!("<title>{}</title>", &name),
+            &format!(
+                "<title>{}</title>
+                <meta property=\"og:title\" content=\"{}\" />
+                <meta property=\"og:description\" content=\"{}\" />",
+                &name, &name, "View board posts on ::SITE_NAME::"
+            ),
         ));
 }
 
@@ -396,7 +407,7 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                     <div id="error" class="mdnote note-error full" style="display: none;" />
                     <div id="success" class="mdnote note-note full" style="display: none;" />
 
-                    <div class="card secondary round full flex flex-column g-4">
+                    <div class="message round full flex flex-column g-4">
                         <span class="chip mention round" style="width: max-content;">
                             {if post.author != "Anonymous" {
                                 html! {<a href={format!("/~{}", &post.author)} style="color: inherit;">{&post.author}</a>}
@@ -427,7 +438,7 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
 
                                     <form id="create-post" class="flex flex-column g-4">
                                         <div class="full flex justify-space-between align-center g-4">
-                                            <b>{"Create Post"}</b>
+                                            <b>{"Reply"}</b>
 
                                             <button class="bundles-primary round">
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
@@ -459,7 +470,7 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                         let content = Html::from_html_unchecked(AttrValue::from(post.content_html.clone()));
 
                         html! {
-                            <div class="card secondary round full flex flex-column g-4">
+                            <div class="message reply round full flex flex-column g-4">
                                 <div class="flex justify-space-between align-center g-4">
                                     <span class="chip mention round" style="width: max-content;">
                                         {if post.author != "Anonymous" {
@@ -471,7 +482,7 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
 
                                     <div class="flex g-4 flex-wrap">
                                         <a
-                                            class="button round"
+                                            class="button border round"
                                             href={format!("/b/{}/posts/{}", post.board, p.id)}
                                             style="color: var(--text-color);"
                                             target="_blank"
@@ -568,7 +579,7 @@ pub async fn view_board_post_request(
     // ...
     let renderer = build_view_post_renderer_with_props(ViewPostProps {
         board: board.payload.unwrap(),
-        post: post.payload.unwrap(),
+        post: post.payload.clone().unwrap(),
         replies: replies.payload.unwrap(),
         auth_state: if req.cookie("__Secure-Token").is_some() {
             Option::Some(true)
@@ -588,7 +599,14 @@ pub async fn view_board_post_request(
         .append_header(("Content-Type", "text/html"))
         .body(format_html(
             render.await,
-            &format!("<title>{}</title>", &name),
+            &format!(
+                "<title>{}</title>
+                <meta property=\"og:title\" content=\"{}\" />
+                <meta property=\"og:description\" content=\"{}\" />",
+                &name,
+                "View board post",
+                format!("View post in board {}", name)
+            ),
         ));
 }
 
@@ -729,5 +747,127 @@ pub async fn board_settings_request(
                 <meta property=\"og:title\" content=\"{} (board settings) - ::SITE_NAME::\" />",
                 &name_c, &name_c
             ),
+        ));
+}
+
+#[function_component]
+fn Dashboard(props: &DashboardProps) -> Html {
+    return html! {
+        <div class="flex flex-column" style="height: 100dvh;">
+            <div class="toolbar flex justify-space-between">
+                // left
+                <div class="flex">
+                    <a class="button" href="/" style="border-left: 0">
+                        <b>{"::SITE_NAME::"}</b>
+                    </a>
+
+                    <a class="button" href="/d" style="border-left: 0">
+                        {"Dashboard"}
+                    </a>
+                </div>
+            </div>
+
+            <div class="toolbar-layout-wrapper">
+                <div id="link-header" style="display: flex;" class="flex-column bg-1">
+                    <div class="link-header-top"></div>
+
+                    <div class="link-header-middle">
+                        <h1 class="no-margin">{"Dashboard"}</h1>
+                    </div>
+
+                    <div class="link-header-bottom">
+                        <a href="/d" class="button">{"Home"}</a>
+                        <a href="/d/atomic" class="button">{"Atomic"}</a>
+                        <a href="/d/boards" class="button active">{"Boards"}</a>
+                    </div>
+                </div>
+
+                <main class="small flex flex-column g-4">
+                    <div class="flex justify-space-between align-center">
+                        <b>{"My Boards"}</b>
+
+                        <a class="button bundles-primary round" href="/b/new">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-square"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                            {"New"}
+                        </a>
+                    </div>
+
+                    <div class="card round secondary flex g-4 flex-column justify-center" id="boards_list">
+                        {for props.boards.iter().map(|b| html! {
+                            <a class="button secondary round full justify-start" href={format!("/b/{}", &b.name)}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-messages-square"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2v5Z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg>
+                                {&b.name}
+                            </a>
+                        })}
+                    </div>
+
+                    <Footer auth_state={props.auth_state} />
+                </main>
+            </div>
+        </div>
+    };
+}
+
+fn build_dashboard_renderer_with_props(props: DashboardProps) -> ServerRenderer<Dashboard> {
+    ServerRenderer::<Dashboard>::with_props(|| props)
+}
+
+#[get("/d/boards")]
+/// Available at "/d/boards"
+pub async fn dashboard_request(
+    req: HttpRequest,
+    data: web::Data<db::bundlesdb::AppData>,
+) -> impl Responder {
+    // verify auth status
+    let token_cookie = req.cookie("__Secure-Token");
+    let mut set_cookie: &str = "";
+
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists, refresh token if not
+        if token_user.as_ref().unwrap().success == false {
+            set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+        }
+    } else {
+        // you must have an account to use atomic pastes
+        // we'll likely track bandwidth used by atomic pastes and limit it in the future
+        return HttpResponse::NotFound().body(
+            "You must have an account to use atomic pastes.
+You can login at: /d/auth/login
+You can create an account at: /d/auth/register",
+        );
+    }
+
+    // fetch boards
+    let boards = data
+        .db
+        .get_boards_by_owner(token_user.clone().unwrap().payload.unwrap().username)
+        .await;
+
+    // ...
+    let renderer = build_dashboard_renderer_with_props(DashboardProps {
+        boards: boards.payload.unwrap(),
+        auth_state: if req.cookie("__Secure-Token").is_some() {
+            Option::Some(true)
+        } else {
+            Option::Some(false)
+        },
+    });
+
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
+        .body(format_html(
+            renderer.render().await,
+            "<title>My Boards - ::SITE_NAME::</title>",
         ));
 }

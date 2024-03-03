@@ -710,7 +710,7 @@ if (submit_form.getAttribute("data-edit") === "false") {
                 custom_url: submit_form.getAttribute("data-edit"),
                 edit_password: submit_form.edit_password.value,
                 content: (window as any).EditorContent,
-                new_url: submit_form.new_custom_url.value || undefined,
+                new_custom_url: submit_form.new_custom_url.value || undefined,
                 new_edit_password:
                     submit_form.new_edit_password.value || undefined,
             }),

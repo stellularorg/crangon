@@ -125,6 +125,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::pastes::exists_request)
             .service(crate::api::auth::logout)
             // GET dashboard
+            .service(crate::pages::home::dashboard_request)
             .service(crate::pages::auth::register_request)
             .service(crate::pages::auth::login_request)
             .service(crate::pages::settings::user_settings_request)
@@ -134,6 +135,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::pages::atomic_editor::new_request)
             .service(crate::pages::atomic_editor::edit_request)
             // GET boards
+            .service(crate::pages::boards::dashboard_request)
             .service(crate::pages::boards::new_request)
             .service(crate::pages::boards::view_board_post_request)
             .service(crate::pages::boards::board_settings_request)

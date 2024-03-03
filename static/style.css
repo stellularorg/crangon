@@ -264,6 +264,7 @@ select:focus {
 /* link header */
 #link-header {
     padding: 0 calc(var(--u-10) * 4);
+    margin: 0 0 2rem 0;
 }
 
 @media screen and (max-width: 900px) {
@@ -288,4 +289,33 @@ select:focus {
 #link-header .link-header-bottom .button.active {
     background: var(--background-surface);
     box-shadow: none !important;
+}
+
+/* messages */
+.message {
+    border-left: solid 5px transparent;
+    border-right: solid 5px transparent;
+    padding: var(--u-08);
+    background: var(--background-surface0-5);
+    transition:
+        background 0.15s,
+        border-left-color 0.1s;
+}
+
+.message p {
+    margin-bottom: 0 !important;
+}
+
+.message:hover {
+    background: var(--background-surface1);
+    border-left-color: var(--green3);
+}
+
+.message.reply:hover {
+    border-left-color: var(--blue2);
+}
+
+.message .chip.mention {
+    /* author tag */
+    user-select: none;
 }

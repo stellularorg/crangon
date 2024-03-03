@@ -155,6 +155,11 @@ pub struct BoardPostLog {
     pub reply: Option<String>, // the ID of the post we're replying to
 }
 
+#[derive(Debug, Default, sqlx::FromRow, Clone, Serialize, Deserialize, PartialEq)]
+pub struct BoardIdentifier {
+    pub name: String,
+}
+
 // ...
 #[derive(Clone)]
 #[cfg(feature = "postgres")]
@@ -1747,6 +1752,52 @@ impl BundlesDB {
             success: true,
             message: String::from("Successfully fetched posts"),
             payload: Option::Some(output),
+        };
+    }
+
+    /// Get all [boards](Board) owned by a specific user
+    ///
+    /// # Arguments:
+    /// * `owner` - `String` of the owner's `username`
+    pub async fn get_boards_by_owner(
+        &self,
+        owner: String,
+    ) -> DefaultReturn<Option<Vec<BoardIdentifier>>> {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Boards\" WHERE \"metadata\" LIKE ?"
+        } else {
+            "SELECT * FROM \"Boards\" WHERE \"metadata\" LIKE $1"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&format!("%\"owner\":\"{}\"%", &owner))
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // build res
+        let mut full_res: Vec<BoardIdentifier> = Vec::new();
+
+        for row in res.unwrap() {
+            let row = self.textify_row(row).data;
+            full_res.push(BoardIdentifier {
+                name: row.get("name").unwrap().to_string(),
+            });
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: owner,
+            payload: Option::Some(full_res),
         };
     }
 

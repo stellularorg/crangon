@@ -16,6 +16,12 @@ struct Props {
     pub auth_state: Option<bool>,
 }
 
+#[derive(Default, Properties, PartialEq, serde::Deserialize)]
+struct DashboardProps {
+    pub user: bundlesdb::UserState,
+    pub auth_state: Option<bool>,
+}
+
 #[function_component]
 fn Home(props: &Props) -> Html {
     return html! {
@@ -301,6 +307,131 @@ Allow: /
 Disallow: /api
 Disallow: /admin
 Disallow: /paste
+Disallow: /d/atomic
 Disallow: /*?",
     );
+}
+
+#[function_component]
+fn Dashboard(props: &DashboardProps) -> Html {
+    return html! {
+        <div class="flex flex-column" style="height: 100dvh;">
+            <div class="toolbar flex justify-space-between">
+                // left
+                <div class="flex">
+                    <a class="button" href="/" style="border-left: 0">
+                        <b>{"::SITE_NAME::"}</b>
+                    </a>
+
+                    <a class="button" href="/d" style="border-left: 0">
+                        {"Dashboard"}
+                    </a>
+                </div>
+            </div>
+
+            <div class="toolbar-layout-wrapper">
+                <div id="link-header" style="display: flex;" class="flex-column bg-1">
+                    <div class="link-header-top"></div>
+
+                    <div class="link-header-middle">
+                        <h1 class="no-margin">{"Dashboard"}</h1>
+                    </div>
+
+                    <div class="link-header-bottom">
+                        <a href="/d" class="button active">{"Home"}</a>
+                        <a href="/d/atomic" class="button">{"Atomic"}</a>
+                        <a href="/d/boards" class="button">{"Boards"}</a>
+                    </div>
+                </div>
+
+                <main class="small flex flex-column g-4">
+                    <div class="card secondary round flex justify-space-between align-center g-4">
+                        <b>{"Atomic Pastes"}</b>
+
+                        <a class="button bundles-primary round" href="/d/atomic">
+                            {"Go"}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        </a>
+                    </div>
+
+                    <div class="card secondary round flex justify-space-between align-center g-4">
+                        <b>{"My Boards"}</b>
+
+                        <a class="button bundles-primary round" href="/d/boards">
+                            {"Go"}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        </a>
+                    </div>
+
+                    <div class="card secondary round flex justify-space-between align-center g-4">
+                        <b>{"My Profile"}</b>
+
+                        <a class="button bundles-primary round" href={format!("/~{}", props.user.username)}>
+                            {"Go"}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        </a>
+                    </div>
+
+                    <Footer auth_state={props.auth_state} />
+                </main>
+            </div>
+        </div>
+    };
+}
+
+fn build_dashboard_renderer_with_props(props: DashboardProps) -> ServerRenderer<Dashboard> {
+    ServerRenderer::<Dashboard>::with_props(|| props)
+}
+
+#[get("/d")]
+/// Available at "/d"
+pub async fn dashboard_request(
+    req: HttpRequest,
+    data: web::Data<db::bundlesdb::AppData>,
+) -> impl Responder {
+    // verify auth status
+    let token_cookie = req.cookie("__Secure-Token");
+    let mut set_cookie: &str = "";
+
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists, refresh token if not
+        if token_user.as_ref().unwrap().success == false {
+            set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+        }
+    } else {
+        // you must have an account to use the user dashboard
+        return HttpResponse::NotFound().body(
+            "You must have an account to use the user dashboard.
+You can login at: /d/auth/login
+You can create an account at: /d/auth/register",
+        );
+    }
+
+    // ...
+    let renderer = build_dashboard_renderer_with_props(DashboardProps {
+        user: token_user.unwrap().payload.unwrap(),
+        auth_state: if req.cookie("__Secure-Token").is_some() {
+            Option::Some(true)
+        } else {
+            Option::Some(false)
+        },
+    });
+
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
+        .body(format_html(
+            renderer.render().await,
+            "<title>User Dashboard - ::SITE_NAME::</title>",
+        ));
 }

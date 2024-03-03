@@ -41,33 +41,57 @@ struct Props {
 #[function_component]
 fn Dashboard(props: &Props) -> Html {
     return html! {
-        <div class="flex flex-column g-4" style="height: 100dvh;">
-            <main class="small">
-                <div class="card round secondary flex g-4 flex-wrap mobile:flex-column justify-center align-center" id="pastes_list">
-                    {for props.pastes.iter().map(|p| html! {
-                        <a class="button secondary round mobile:max" href={format!("/d/atomic/{}?path=/index.html", &p.id)}>{&p.custom_url}</a>
-                    })}
+        <div class="flex flex-column" style="height: 100dvh;">
+            <div class="toolbar flex justify-space-between">
+                // left
+                <div class="flex">
+                    <a class="button" href="/" style="border-left: 0">
+                        <b>{"::SITE_NAME::"}</b>
+                    </a>
 
-                    <a class="button border round mobile:max" href="/d/atomic/new">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-square"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
-                        {"New"}
+                    <a class="button" href="/d" style="border-left: 0">
+                        {"Dashboard"}
                     </a>
                 </div>
+            </div>
 
-                <style>
-                    {"#pastes_list .button {
-                        display: flex;
-                        width: 10rem !important;
-                        height: 10rem !important;
-                        flex-direction: column;
-                        gap: var(--u-08);
-                        align-items: center;
-                        justify-content: center;
-                    }"}
-                </style>
+            <div class="toolbar-layout-wrapper">
+                <div id="link-header" style="display: flex;" class="flex-column bg-1">
+                    <div class="link-header-top"></div>
 
-                <Footer auth_state={props.auth_state} />
-            </main>
+                    <div class="link-header-middle">
+                        <h1 class="no-margin">{"Dashboard"}</h1>
+                    </div>
+
+                    <div class="link-header-bottom">
+                        <a href="/d" class="button">{"Home"}</a>
+                        <a href="/d/atomic" class="button active">{"Atomic"}</a>
+                        <a href="/d/boards" class="button">{"Boards"}</a>
+                    </div>
+                </div>
+
+                <main class="small flex flex-column g-4">
+                    <div class="flex justify-space-between align-center">
+                        <b>{"Atomic Pastes"}</b>
+
+                        <a class="button bundles-primary round" href="/d/atomic/new">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-square"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                            {"New"}
+                        </a>
+                    </div>
+
+                    <div class="card round secondary flex g-4 flex-column justify-center" id="pastes_list">
+                        {for props.pastes.iter().map(|p| html! {
+                            <a class="button secondary round full justify-start" href={format!("/d/atomic/{}?path=/index.html", &p.id)}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder-archive"><circle cx="15" cy="19" r="2"/><path d="M20.9 19.8A2 2 0 0 0 22 18V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h5.1"/><path d="M15 11v-1"/><path d="M15 17v-2"/></svg>
+                                {&p.custom_url}
+                            </a>
+                        })}
+                    </div>
+
+                    <Footer auth_state={props.auth_state} />
+                </main>
+            </div>
         </div>
     };
 }
