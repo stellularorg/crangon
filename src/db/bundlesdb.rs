@@ -139,9 +139,10 @@ pub struct Board<M> {
 
 #[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BoardMetadata {
-    pub owner: String,                   // username of owner
+    pub owner: String,                      // username of owner
     pub is_private: String, // if the homepage of the board is shown to other users (not owner)
     pub allow_anonymous: Option<String>, // if anonymous users can post
+    pub allow_open_posting: Option<String>, // if all users can post on the board (not just owner)
     pub about: Option<String>, // welcome message
 }
 
@@ -1825,6 +1826,7 @@ impl BundlesDB {
             owner: as_user.clone().unwrap(),
             is_private: String::from("no"),
             allow_anonymous: Option::Some(String::from("yes")),
+            allow_open_posting: Option::Some(String::from("yes")),
             about: Option::None,
         };
 
@@ -1907,7 +1909,8 @@ impl BundlesDB {
     pub async fn create_board_post(
         &self,
         props: &mut BoardPostLog,
-        as_user: Option<String>, // id of board owner
+        as_user: Option<String>, // username of user posting
+        as_role: Option<String>, // role of user posting
     ) -> DefaultReturn<Option<String>> {
         let p: &mut BoardPostLog = props; // borrowed props
 
@@ -1944,6 +1947,22 @@ impl BundlesDB {
                 message: String::from("An account is required to do this"),
                 payload: Option::None,
             };
+        }
+
+        // check board "allow_open_posting" setting
+        if board.allow_open_posting.is_some()
+            && board.allow_open_posting.unwrap() == String::from("no")
+        {
+            let can_post = as_user.is_some()
+                && ((as_user.as_ref().unwrap() == &board.owner) | (as_role.unwrap() == "staff"));
+
+            if can_post == false {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("You do not have permission to do this"),
+                    payload: Option::None,
+                };
+            }
         }
 
         // create post

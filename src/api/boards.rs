@@ -150,6 +150,12 @@ pub async fn create_post_request(
     }
 
     // ...
+    let token_user = if token_user.is_some() {
+        Option::Some(token_user.unwrap().payload.unwrap())
+    } else {
+        Option::None
+    };
+
     let res = data
         .db
         .create_board_post(
@@ -166,7 +172,12 @@ pub async fn create_post_request(
                 },
             },
             if token_user.is_some() {
-                Option::Some(token_user.unwrap().payload.unwrap().username)
+                Option::Some(token_user.clone().unwrap().username)
+            } else {
+                Option::None
+            },
+            if token_user.is_some() {
+                Option::Some(token_user.clone().unwrap().role)
             } else {
                 Option::None
             },
