@@ -1,5 +1,7 @@
 use yew::prelude::*;
 
+use crate::db::bundlesdb;
+
 #[derive(Properties, Default, serde::Serialize, serde::Deserialize, PartialEq)]
 pub struct FooterProps {
     pub auth_state: Option<bool>,
@@ -93,6 +95,33 @@ pub fn Footer(props: &FooterProps) -> Html {
                         </div>
                     </a>
                 </div>
+            </div>
+        </div>
+    };
+}
+
+#[derive(Properties, Default, serde::Serialize, serde::Deserialize, PartialEq)]
+pub struct BoardSidebarProps {
+    pub board: bundlesdb::BoardMetadata,
+}
+
+#[function_component]
+pub fn BoardSidebar(props: &BoardSidebarProps) -> Html {
+    // ...
+    return html! {
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-content">
+                {if props.board.about.is_some() {
+                    props.board.about.as_ref().unwrap()
+                } else {
+                    ""
+                }}
+
+                <hr />
+
+                <ul>
+                    <li>{format!("Owned by: {}", props.board.owner)}</li>
+                </ul>
             </div>
         </div>
     };

@@ -1,6 +1,9 @@
 use actix_web::{delete, get, post, web, HttpRequest, HttpResponse, Responder};
 
-use crate::db::bundlesdb::{AppData, Board, BoardMetadata, BoardPostLog, DefaultReturn};
+use crate::{
+    db::bundlesdb::{AppData, Board, BoardMetadata, BoardPostLog, DefaultReturn},
+    pages::boards,
+};
 
 #[derive(serde::Deserialize)]
 struct CreateInfo {
@@ -64,7 +67,11 @@ pub async fn create_request(
 }
 
 #[get("/api/board/{name:.*}/posts")]
-pub async fn get_posts_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
+pub async fn get_posts_request(
+    req: HttpRequest,
+    data: web::Data<AppData>,
+    info: web::Query<boards::ViewBoardQueryProps>,
+) -> impl Responder {
     let name: String = req.match_info().get("name").unwrap().to_string();
 
     let board: DefaultReturn<Option<Board<String>>> = data.db.get_board_by_name(name.clone()).await;
@@ -107,7 +114,7 @@ pub async fn get_posts_request(req: HttpRequest, data: web::Data<AppData>) -> im
     }
 
     // ...
-    let res = data.db.get_board_posts(name).await;
+    let res = data.db.get_board_posts(name, info.offset).await;
 
     // return
     return HttpResponse::Ok()
@@ -305,6 +312,46 @@ pub async fn metadata_request(
             },
         )
         .await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string(&res).unwrap());
+}
+
+#[delete("/api/board/{name:.*}")]
+pub async fn delete_board_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
+    let name: String = req.match_info().get("name").unwrap().to_string();
+
+    let board: DefaultReturn<Option<Board<String>>> = data.db.get_board_by_name(name.clone()).await;
+    let board = serde_json::from_str::<BoardMetadata>(&board.payload.unwrap().metadata).unwrap();
+
+    // get
+    let token_cookie = req.cookie("__Secure-Token");
+
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    // check if we can delete this board
+    // must be authenticated AND board owner OR staff
+    let user = token_user.unwrap().payload.unwrap();
+
+    let can_delete: bool = (user.username != String::from("Anonymous"))
+        && ((user.username == board.owner) | (user.role == String::from("staff")));
+
+    if can_delete == false {
+        return HttpResponse::NotFound().body("You do not have permission to manage this board.");
+    }
+
+    // ...
+    let res = data.db.delete_board(name).await;
 
     // return
     return HttpResponse::Ok()

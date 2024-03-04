@@ -110,6 +110,36 @@ export function paste_settings(
         options = build_options(metadata, current_property);
         render_paste_settings_fields(field, options, option_render);
     });
+
+    // handle delete
+    if (_type == "board") {
+        const delete_button = document.getElementById("delete-board");
+
+        delete_button!.addEventListener("click", async () => {
+            const _confirm = confirm(
+                "Are you sure you would like to delete this board? This cannot be undone."
+            );
+
+            if (_confirm === false) return;
+
+            // board
+            const res = await fetch(`/api/board/${paste}`, {
+                method: "DELETE",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            const json = await res.json();
+
+            if (json.success === false) {
+                return alert(json.message);
+            } else {
+                alert("Board deleted");
+                window.location.href = "/";
+            }
+        });
+    }
 }
 
 function build_options(

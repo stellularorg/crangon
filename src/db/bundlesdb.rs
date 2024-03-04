@@ -137,15 +137,15 @@ pub struct Board<M> {
     pub metadata: M,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BoardMetadata {
-    pub owner: String, // username of owner
-    pub is_private: String,
-    pub allow_anonymous: Option<String>,
-    pub about: Option<String>,
+    pub owner: String,                   // username of owner
+    pub is_private: String, // if the homepage of the board is shown to other users (not owner)
+    pub allow_anonymous: Option<String>, // if anonymous users can post
+    pub about: Option<String>, // welcome message
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BoardPostLog {
     pub author: String, // username of owner
     pub content: String,
@@ -1638,7 +1638,12 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `url` - board name
-    pub async fn get_board_posts(&self, url: String) -> DefaultReturn<Option<Vec<Log>>> {
+    /// * `offset` - optional value representing the SQL fetch offset
+    pub async fn get_board_posts(
+        &self,
+        url: String,
+        offset: Option<i32>,
+    ) -> DefaultReturn<Option<Vec<Log>>> {
         // make sure board exists
         let existing: DefaultReturn<Option<Board<String>>> =
             self.get_board_by_name(url.to_owned()).await;
@@ -1654,14 +1659,15 @@ impl BundlesDB {
         // ...
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             // TODO: flexible LIMIT (pagination)
-            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? AND \"content\" NOT LIKE '%\"reply\":\"%' ORDER BY \"timestamp\" DESC LIMIT 50"
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? AND \"content\" NOT LIKE '%\"reply\":\"%' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
         } else {
-            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 AND \"content\" NOT LIKE '%\"reply\":\"%' ORDER BY \"timestamp\" DESC LIMIT 50"
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 AND \"content\" NOT LIKE '%\"reply\":\"%' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $2"
         };
 
         let c = &self.db.client;
         let res = sqlx::query(query)
             .bind::<&String>(&format!("%\"board\":\"{}\"%", url))
+            .bind(if offset.is_some() { offset.unwrap() } else { 0 })
             .fetch_all(c)
             .await;
 
@@ -2039,6 +2045,68 @@ impl BundlesDB {
         return DefaultReturn {
             success: true,
             message: String::from("Board updated!"),
+            payload: Option::Some(name),
+        };
+    }
+
+    /// Delete a board given its name
+    ///
+    /// # Arguments:
+    /// * `name` - `String` of the board's `name`
+    pub async fn delete_board(&self, name: String) -> DefaultReturn<Option<String>> {
+        // make sure log exists
+        let existing = &self.get_board_by_name(name.clone()).await;
+        if !existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Board does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // delete board
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "DELETE FROM \"Boards\" WHERE \"name\" = ?"
+        } else {
+            "DELETE FROM \"Boards\" WHERE \"name\" = $1"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query).bind::<&String>(&name).execute(c).await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // delete board messages
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "DELETE FROM \"Logs\" WHERE \"content\" LIKE ?"
+        } else {
+            "DELETE FROM \"Logs\" WHERE \"content\" LIKE $1"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&format!("%\"board\":\"{}\"%", name))
+            .execute(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Board deleted!"),
             payload: Option::Some(name),
         };
     }

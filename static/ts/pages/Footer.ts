@@ -86,5 +86,14 @@ setTimeout(() => {
         ).toLocaleString();
 }, 50);
 
+// disable "a"
+setTimeout(() => {
+    for (const element of Array.from(
+        document.querySelectorAll("a[disabled]")
+    )) {
+        element.removeAttribute("href");
+    }
+}, 50);
+
 // default export
 export default {};

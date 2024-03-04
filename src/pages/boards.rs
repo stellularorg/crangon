@@ -4,6 +4,7 @@ use actix_web::{get, web, HttpResponse, Responder};
 use yew::prelude::*;
 use yew::ServerRenderer;
 
+use crate::components::message::Message;
 use crate::components::navigation::Footer;
 use crate::db::bundlesdb::{Board, BoardMetadata, BoardPostLog, Log, UserState};
 use crate::db::{self, bundlesdb};
@@ -18,7 +19,13 @@ struct NewProps {
 struct Props {
     pub board: Board<String>,
     pub posts: Vec<Log>,
+    pub offset: i32,
     pub auth_state: Option<bool>,
+}
+
+#[derive(Default, Properties, PartialEq, serde::Deserialize)]
+pub struct ViewBoardQueryProps {
+    pub offset: Option<i32>,
 }
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
@@ -147,7 +154,7 @@ fn ViewBoard(props: &Props) -> Html {
 
     // ...
     return html! {
-        <div class="flex flex-column g-4" style="height: 100dvh;">
+        <div class="flex flex-column" style="height: 100dvh;">
             <div style="display: none;" id="board-name">{&props.board.name}</div>
 
             <div class="toolbar flex justify-space-between">
@@ -220,37 +227,20 @@ fn ViewBoard(props: &Props) -> Html {
                         html! {}
                     }}
 
+                    <div class="full flex justify-space-between" id="pages">
+                        <a class="button round" href={format!("?offset={}", props.offset - 50)} disabled={props.offset <= 0}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                            {"Back"}
+                        </a>
+
+                        <a class="button round" href={format!("?offset={}", props.offset + 50)} disabled={props.posts.len() == 0}>
+                            {"Next"}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        </a>
+                    </div>
+
                     {for props.posts.iter().map(|p| {
-                        let post = serde_json::from_str::<BoardPostLog>(&p.content).unwrap();
-                        let content = Html::from_html_unchecked(AttrValue::from(post.content_html.clone()));
-
-                        html! {
-                            <div class="message round full flex flex-column g-4">
-                                <div class="flex justify-space-between align-center g-4">
-                                    <span class="chip mention round" style="width: max-content;">
-                                        {if post.author != "Anonymous" {
-                                            html! {<a href={format!("/~{}", &post.author)} style="color: inherit;">{&post.author}</a>}
-                                        } else {
-                                            html! {<span>{"Anonymous"}</span>}
-                                        }}
-                                    </span>
-
-                                    <div class="flex g-4 flex-wrap">
-                                        <a
-                                            class="button border round"
-                                            href={format!("/b/{}/posts/{}", post.board, p.id)}
-                                            style="color: var(--text-color);"
-                                            target="_blank"
-                                            title="open/manage"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-right-from-square"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="m21 3-9 9"/><path d="M15 3h6v6"/></svg>
-                                        </a>
-                                    </div>
-                                </div>
-
-                                <div>{content}</div>
-                            </div>
-                        }
+                        html! { <Message post={p.clone()} show_open={true} /> }
                     })}
 
                     <script type="module">
@@ -273,6 +263,7 @@ fn build_view_renderer_with_props(props: Props) -> ServerRenderer<ViewBoard> {
 pub async fn view_board_request(
     req: HttpRequest,
     data: web::Data<db::bundlesdb::AppData>,
+    info: web::Query<ViewBoardQueryProps>,
 ) -> impl Responder {
     // verify auth status
     let token_cookie = req.cookie("__Secure-Token");
@@ -335,12 +326,17 @@ pub async fn view_board_request(
 
     // ...
     let posts: bundlesdb::DefaultReturn<Option<Vec<Log>>> =
-        data.db.get_board_posts(name.clone()).await;
+        data.db.get_board_posts(name.clone(), info.offset).await;
 
     // ...
     let renderer = build_view_renderer_with_props(Props {
         board: board.payload.unwrap(),
         posts: posts.payload.unwrap(),
+        offset: if info.offset.is_some() {
+            info.offset.unwrap()
+        } else {
+            0
+        },
         auth_state: if req.cookie("__Secure-Token").is_some() {
             Option::Some(true)
         } else {
@@ -368,7 +364,6 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
     let p = &props.post;
     let post = serde_json::from_str::<BoardPostLog>(&p.content).unwrap();
     let board = serde_json::from_str::<BoardMetadata>(&props.board.metadata).unwrap();
-    let content = Html::from_html_unchecked(AttrValue::from(post.content_html.clone()));
 
     // check if we can delete this post
     // must be authenticated AND board owner OR staff OR post author
@@ -385,7 +380,7 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
 
     // ...
     return html! {
-        <div class="flex flex-column g-4" style="height: 100dvh;">
+        <div class="flex flex-column" style="height: 100dvh;">
             <div style="display: none;" id="board-name">{&props.board.name}</div>
             <div style="display: none;" id="post-id">{&props.post.id}</div>
 
@@ -407,17 +402,7 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                     <div id="error" class="mdnote note-error full" style="display: none;" />
                     <div id="success" class="mdnote note-note full" style="display: none;" />
 
-                    <div class="message round full flex flex-column g-4">
-                        <span class="chip mention round" style="width: max-content;">
-                            {if post.author != "Anonymous" {
-                                html! {<a href={format!("/~{}", &post.author)} style="color: inherit;">{&post.author}</a>}
-                            } else {
-                                html! {<span>{"Anonymous"}</span>}
-                            }}
-                        </span>
-
-                        <div>{content}</div>
-                    </div>
+                    <Message post={p.clone()} show_open={false} />
 
                     {if can_delete {
                         html! {
@@ -430,72 +415,61 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                     {if (props.auth_state.is_some() && props.auth_state.unwrap() == true) || (can_post_from_anonymous == true) {
                         // ^ signed in OR can_post_from_anonymous is true
                         html! {
-                            <div class="full">
+                            <>
                                 <hr style="var(--u-04) 0 var(--u-08) 0" />
 
-                                <div class="card round secondary flex flex-column g-4" id="post">
-                                    <div id="error" class="mdnote note-error full" style="display: none;" />
+                                <div class="full flex flex-column g-4">
+                                    <details class="full round secondary">
+                                        <summary>{"About this board"}</summary>
 
-                                    <form id="create-post" class="flex flex-column g-4">
-                                        <div class="full flex justify-space-between align-center g-4">
-                                            <b>{"Reply"}</b>
+                                        <div class="card full" id="about">
+                                            {if board.about.is_some() {
+                                                let content = Html::from_html_unchecked(AttrValue::from(
+                                                    crate::markdown::render::parse_markdown(&board.about.unwrap())
+                                                ));
 
-                                            <button class="bundles-primary round">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                                                {"Send"}
-                                            </button>
+                                                html! {{content}}
+                                            } else {
+                                                html! {}
+                                            }}
                                         </div>
+                                    </details>
 
-                                        <textarea
-                                            type="text"
-                                            name="content"
-                                            id="content"
-                                            placeholder="Content"
-                                            class="full round"
-                                            minlength={2}
-                                            maxlength={1_000}
-                                            required={true}
-                                        ></textarea>
-                                    </form>
+                                    <div class="card round secondary flex flex-column g-4" id="post">
+                                        <div id="error" class="mdnote note-error full" style="display: none;" />
+
+                                        <form id="create-post" class="flex flex-column g-4">
+                                            <div class="full flex justify-space-between align-center g-4">
+                                                <b>{"Reply"}</b>
+
+                                                <button class="bundles-primary round">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                                    {"Send"}
+                                                </button>
+                                            </div>
+
+                                            <textarea
+                                                type="text"
+                                                name="content"
+                                                id="content"
+                                                placeholder="Content"
+                                                class="full round"
+                                                minlength={2}
+                                                maxlength={1_000}
+                                                required={true}
+                                            ></textarea>
+                                        </form>
+                                    </div>
+
+                                    <hr style="var(--u-08) 0 var(--u-04) 0" />
                                 </div>
-
-                                <hr style="var(--u-08) 0 var(--u-04) 0" />
-                            </div>
+                            </>
                     }} else {
                         html! {}
                     }}
 
                     {for props.replies.iter().map(|p| {
-                        let post = serde_json::from_str::<BoardPostLog>(&p.content).unwrap();
-                        let content = Html::from_html_unchecked(AttrValue::from(post.content_html.clone()));
-
-                        html! {
-                            <div class="message reply round full flex flex-column g-4">
-                                <div class="flex justify-space-between align-center g-4">
-                                    <span class="chip mention round" style="width: max-content;">
-                                        {if post.author != "Anonymous" {
-                                            html! {<a href={format!("/~{}", &post.author)} style="color: inherit;">{&post.author}</a>}
-                                        } else {
-                                            html! {<span>{"Anonymous"}</span>}
-                                        }}
-                                    </span>
-
-                                    <div class="flex g-4 flex-wrap">
-                                        <a
-                                            class="button border round"
-                                            href={format!("/b/{}/posts/{}", post.board, p.id)}
-                                            style="color: var(--text-color);"
-                                            target="_blank"
-                                            title="open/manage"
-                                        >
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-up-right-from-square"><path d="M21 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h6"/><path d="m21 3-9 9"/><path d="M15 3h6v6"/></svg>
-                                        </a>
-                                    </div>
-                                </div>
-
-                                <div>{content}</div>
-                            </div>
-                        }
+                        html! { <Message post={p.clone()} show_open={true} /> }
                     })}
 
                     <Footer auth_state={props.auth_state} />
@@ -639,7 +613,7 @@ fn BoardSettings(props: &SettingsProps) -> Html {
                     <h2 class="full text-center">{"Board Settings"}</h2>
 
                     <div class="card round secondary flex flex-column g-4">
-                        <div class="flex full justify-space-between">
+                        <div class="flex full justify-space-between flex-wrap mobile:justify-center g-4">
                             <div class="flex g-4">
                                 <form action="/api/metadata" id="update-form">
                                     <button class="green round secondary">
@@ -651,7 +625,10 @@ fn BoardSettings(props: &SettingsProps) -> Html {
                                 <button class="secondary round" id="add_field">{"Add Field"}</button>
                             </div>
 
-                            <a href={format!("/b/{}", props.board.name)} class="button round secondary">{"Cancel"}</a>
+                            <div class="flex g-4">
+                                <button class="secondary round red" id="delete-board">{"Delete"}</button>
+                                <a href={format!("/b/{}", props.board.name)} class="button round secondary">{"Cancel"}</a>
+                            </div>
                         </div>
 
                         <div id="options-field" class="flex flex-wrap mobile:flex-column g-4 full justify-space-between" />

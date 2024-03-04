@@ -104,7 +104,7 @@ button.bundles-secondary:hover,
 /* details */
 details summary {
     background: transparent;
-    border: solid 1px var(--background-surface2a);
+    border: none;
     border-radius: var(--u-02) !important;
 }
 
@@ -217,6 +217,25 @@ select:focus {
 }
 
 /* https://code.stellular.org/hkau/celestial/src/branch/master/assets/style.css - MIT licensed */
+/* sidebar */
+.sidebar {
+    width: 325px;
+    background: var(--background-surface);
+    border-right: solid 1px var(--background-surface2a);
+    bottom: 0;
+    top: unset;
+}
+
+.sidebar.open {
+    left: 0;
+}
+
+@media screen and (max-width: 900px) {
+    .sidebar {
+        width: 100%;
+    }
+}
+
 /* toolbar */
 :root {
     --toolbar-nav-height: 37.8px;
