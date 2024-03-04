@@ -6,11 +6,35 @@ const delete_button: HTMLButtonElement | null = document.getElementById(
 ) as HTMLButtonElement | null;
 
 if (delete_button) {
-    // create board
+    // delete post
     delete_button.addEventListener("click", async (e) => {
         e.preventDefault();
         const res = await fetch(delete_button.getAttribute("data-endpoint")!, {
             method: "DELETE",
+        });
+
+        const json = await res.json();
+
+        if (json.success === false) {
+            error.style.display = "block";
+            error.innerHTML = `<div class="mdnote-title">${json.message}</div>`;
+        } else {
+            success.style.display = "block";
+            success.innerHTML = `<div class="mdnote-title">${json.message}</div>`;
+        }
+    });
+}
+
+const pin_button: HTMLButtonElement | null = document.getElementById(
+    "pin-post"
+) as HTMLButtonElement | null;
+
+if (pin_button) {
+    // pin post
+    pin_button.addEventListener("click", async (e) => {
+        e.preventDefault();
+        const res = await fetch(pin_button.getAttribute("data-endpoint")!, {
+            method: "POST",
         });
 
         const json = await res.json();

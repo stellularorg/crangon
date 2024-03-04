@@ -170,6 +170,7 @@ pub async fn create_post_request(
                 } else {
                     Option::None
                 },
+                pinned: Option::Some(false),
             },
             if token_user.is_some() {
                 Option::Some(token_user.clone().unwrap().username)
@@ -182,6 +183,87 @@ pub async fn create_post_request(
                 Option::None
             },
         )
+        .await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string(&res).unwrap());
+}
+
+#[post("/api/board/{name:.*}/posts/{id:.*}/pin")]
+pub async fn pin_post_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
+    let name: String = req.match_info().get("name").unwrap().to_string();
+    let id: String = req.match_info().get("id").unwrap().to_string();
+
+    // get owner
+    let token_cookie = req.cookie("__Secure-Token");
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists
+        if token_user.as_ref().unwrap().success == false {
+            return HttpResponse::NotFound().body("Invalid token");
+        }
+    } else {
+        return HttpResponse::NotAcceptable().body("An account is required to do this");
+    }
+
+    // check if we can pin this post
+    let board: DefaultReturn<Option<Board<String>>> =
+        data.db.get_board_by_name(name.to_owned()).await;
+
+    if !board.success {
+        return HttpResponse::NotFound()
+            .append_header(("Content-Type", "application/json"))
+            .body(
+                serde_json::to_string::<DefaultReturn<Option<String>>>(&DefaultReturn {
+                    success: false,
+                    message: String::from("Board does not exist!"),
+                    payload: Option::None,
+                })
+                .unwrap(),
+            );
+    }
+
+    let board = serde_json::from_str::<BoardMetadata>(&board.payload.unwrap().metadata).unwrap();
+
+    // get post
+    let p = data.db.get_log_by_id(id.to_owned()).await;
+    let mut post = serde_json::from_str::<BoardPostLog>(&p.payload.unwrap().content).unwrap();
+
+    // check if we can pin this post
+    // must be authenticated AND board owner OR staff
+    let user = token_user.unwrap().payload.unwrap();
+
+    let can_delete: bool = (user.username != String::from("Anonymous"))
+        && ((user.username == board.owner) | (user.role == String::from("staff")));
+
+    if can_delete == false {
+        return HttpResponse::NotFound()
+            .body("You do not have permission to manage this board's contents.");
+    }
+
+    // toggle pinned
+    if post.pinned.is_some() {
+        post.pinned = Option::Some(!post.pinned.unwrap())
+    } else {
+        // update to "true" by default
+        post.pinned = Option::Some(true);
+    }
+
+    // ...
+    let res = data
+        .db
+        .edit_log(id, serde_json::to_string::<BoardPostLog>(&post).unwrap())
         .await;
 
     // return

@@ -154,6 +154,7 @@ pub struct BoardPostLog {
     pub board: String, // name of board the post is located in
     pub is_hidden: bool,
     pub reply: Option<String>, // the ID of the post we're replying to
+    pub pinned: Option<bool>,  // pin the post to the top of the board feed
 }
 
 #[derive(Debug, Default, sqlx::FromRow, Clone, Serialize, Deserialize, PartialEq)]
@@ -640,7 +641,7 @@ impl BundlesDB {
         let res = sqlx::query(query)
             .bind::<&String>(&content)
             .bind::<&String>(&id)
-            .fetch_one(c)
+            .execute(c)
             .await;
 
         if res.is_err() {
@@ -1659,7 +1660,6 @@ impl BundlesDB {
 
         // ...
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            // TODO: flexible LIMIT (pagination)
             "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? AND \"content\" NOT LIKE '%\"reply\":\"%' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
         } else {
             "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 AND \"content\" NOT LIKE '%\"reply\":\"%' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $2"
@@ -1702,11 +1702,71 @@ impl BundlesDB {
         };
     }
 
+    /// Get all pinned posts in a [`Board`] by its name
+    ///
+    /// # Arguments:
+    /// * `url` - board name
+    pub async fn get_pinned_board_posts(&self, url: String) -> DefaultReturn<Option<Vec<Log>>> {
+        // make sure board exists
+        let existing: DefaultReturn<Option<Board<String>>> =
+            self.get_board_by_name(url.to_owned()).await;
+
+        if existing.success == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Board does not exist"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? AND \"content\" NOT LIKE '%\"reply\":\"%' AND \"content\" LIKE '%\"pinned\":true%' ORDER BY \"timestamp\" DESC LIMIT 50"
+        } else {
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 AND \"content\" NOT LIKE '%\"reply\":\"%' AND \"content\" LIKE '%\"pinned\":true%' ORDER BY \"timestamp\" DESC LIMIT 50"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&format!("%\"board\":\"{}\"%", url))
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to fetch posts"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let rows = res.unwrap();
+        let mut output: Vec<Log> = Vec::new();
+
+        for row in rows {
+            let row = self.textify_row(row).data;
+            output.push(Log {
+                id: row.get("id").unwrap().to_string(),
+                logtype: row.get("logtype").unwrap().to_string(),
+                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+                content: row.get("content").unwrap().to_string(),
+            });
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Successfully fetched posts (pinned)"),
+            payload: Option::Some(output),
+        };
+    }
+
     /// Get all posts in a [`Board`] by its name that are replying to another [`BoardPostLog`]
     ///
     /// # Arguments:
     /// * `id` - post id
-    pub async fn get_board_replies(&self, id: String) -> DefaultReturn<Option<Vec<Log>>> {
+    pub async fn get_post_replies(&self, id: String) -> DefaultReturn<Option<Vec<Log>>> {
         // make sure message exists
         let existing: DefaultReturn<Option<Log>> = self.get_log_by_id(id.to_owned()).await;
 
@@ -1720,7 +1780,6 @@ impl BundlesDB {
 
         // ...
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            // TODO: flexible LIMIT (pagination)
             "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? ORDER BY \"timestamp\" DESC LIMIT 50"
         } else {
             "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 ORDER BY \"timestamp\" DESC LIMIT 50"
@@ -1757,7 +1816,7 @@ impl BundlesDB {
         // return
         return DefaultReturn {
             success: true,
-            message: String::from("Successfully fetched posts"),
+            message: String::from("Successfully fetched posts (replies)"),
             payload: Option::Some(output),
         };
     }
@@ -2032,6 +2091,7 @@ impl BundlesDB {
             board: p.board.clone(),
             is_hidden: false,
             reply: p.reply.clone(),
+            pinned: Option::Some(false),
         };
 
         // return

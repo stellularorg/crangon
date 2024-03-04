@@ -334,6 +334,10 @@ select:focus {
     border-left-color: var(--blue2);
 }
 
+.message.pinned:hover {
+    border-left-color: var(--primary);
+}
+
 .message .chip.mention {
     /* author tag */
     user-select: none;

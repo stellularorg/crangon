@@ -19,6 +19,7 @@ struct NewProps {
 struct Props {
     pub board: Board<String>,
     pub posts: Vec<Log>,
+    pub pinned: Vec<Log>,
     pub offset: i32,
     pub auth_state: Option<bool>,
 }
@@ -227,6 +228,20 @@ fn ViewBoard(props: &Props) -> Html {
                         html! {}
                     }}
 
+                    {if props.pinned.len() > 0 {
+                        html! {
+                            <>
+                                {for props.pinned.iter().map(|p| {
+                                    html! { <Message post={p.clone()} show_open={true} pinned={true} /> }
+                                })}
+
+                                <hr class="full" style="var(--u-08) 0 var(--u-04) 0" />
+                            </>
+                        }
+                    } else {
+                        html! {}
+                    }}
+
                     <div class="full flex justify-space-between" id="pages">
                         <a class="button round" href={format!("?offset={}", props.offset - 50)} disabled={props.offset <= 0}>
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
@@ -240,7 +255,7 @@ fn ViewBoard(props: &Props) -> Html {
                     </div>
 
                     {for props.posts.iter().map(|p| {
-                        html! { <Message post={p.clone()} show_open={true} /> }
+                        html! { <Message post={p.clone()} show_open={true} pinned={false} /> }
                     })}
 
                     <script type="module">
@@ -328,10 +343,14 @@ pub async fn view_board_request(
     let posts: bundlesdb::DefaultReturn<Option<Vec<Log>>> =
         data.db.get_board_posts(name.clone(), info.offset).await;
 
+    let pinned: bundlesdb::DefaultReturn<Option<Vec<Log>>> =
+        data.db.get_pinned_board_posts(name.clone()).await;
+
     // ...
     let renderer = build_view_renderer_with_props(Props {
         board: board.payload.unwrap(),
         posts: posts.payload.unwrap(),
+        pinned: pinned.payload.unwrap(),
         offset: if info.offset.is_some() {
             info.offset.unwrap()
         } else {
@@ -365,9 +384,9 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
     let post = serde_json::from_str::<BoardPostLog>(&p.content).unwrap();
     let board = serde_json::from_str::<BoardMetadata>(&props.board.metadata).unwrap();
 
-    // check if we can delete this post
+    // check if we can manage this post
     // must be authenticated AND board owner OR staff OR post author
-    let can_delete: bool = props.auth_state.is_some()
+    let can_manage: bool = props.auth_state.is_some()
         && props.user.is_some()
         && props.user.as_ref().unwrap().username != String::from("Anonymous")
         && ((props.user.as_ref().unwrap().username == board.owner)
@@ -402,11 +421,14 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                     <div id="error" class="mdnote note-error full" style="display: none;" />
                     <div id="success" class="mdnote note-note full" style="display: none;" />
 
-                    <Message post={p.clone()} show_open={false} />
+                    <Message post={p.clone()} show_open={false} pinned={false} />
 
-                    {if can_delete {
+                    {if can_manage {
                         html! {
-                            <button class="bundles-primary round" id="delete-post" data-endpoint={format!("/api/board/{}/posts/{}", &post.board, &p.id)}>{"Delete"}</button>
+                            <div class="flex flex-wrap g-4">
+                                <button class="bundles-primary round" id="delete-post" data-endpoint={format!("/api/board/{}/posts/{}", &post.board, &p.id)}>{"Delete"}</button>
+                                <button class="border round" id="pin-post" data-endpoint={format!("/api/board/{}/posts/{}/pin", &post.board, &p.id)}>{"Pin"}</button>
+                            </div>
                         }
                     } else {
                         html! {}
@@ -469,7 +491,7 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                     }}
 
                     {for props.replies.iter().map(|p| {
-                        html! { <Message post={p.clone()} show_open={true} /> }
+                        html! { <Message post={p.clone()} show_open={true} pinned={false} /> }
                     })}
 
                     <Footer auth_state={props.auth_state} />
@@ -548,7 +570,7 @@ pub async fn view_board_post_request(
 
     // get replies
     let replies: bundlesdb::DefaultReturn<Option<Vec<Log>>> =
-        data.db.get_board_replies(id.clone()).await;
+        data.db.get_post_replies(id.clone()).await;
 
     // ...
     let renderer = build_view_post_renderer_with_props(ViewPostProps {
