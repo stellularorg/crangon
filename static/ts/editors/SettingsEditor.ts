@@ -32,7 +32,7 @@ export function paste_settings(
                     type="text" 
                     name="${current_property}" 
                     placeholder="${current_property}" 
-                    value="${meta_value || ""}" 
+                    value="${(meta_value || "").replaceAll('"', '\\"')}" 
                     required 
                     oninput="window.paste_settings_field_input(event);" 
                     class="round mobile:max"

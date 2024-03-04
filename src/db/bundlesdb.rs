@@ -1808,6 +1808,58 @@ impl BundlesDB {
         };
     }
 
+    /// Get most recent posts from all [`Boards`](Board)
+    ///
+    /// # Arguments:
+    /// * `offset` - optional value representing the SQL fetch offset
+    pub async fn fetch_most_recent_posts(
+        &self,
+        offset: Option<i32>,
+    ) -> DefaultReturn<Option<Vec<Log>>> {
+        // ...
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            // TODO: flexible LIMIT (pagination)
+            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'board_post' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
+        } else {
+            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'board_post' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $1"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind(if offset.is_some() { offset.unwrap() } else { 0 })
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to fetch posts"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let rows = res.unwrap();
+        let mut output: Vec<Log> = Vec::new();
+
+        for row in rows {
+            let row = self.textify_row(row).data;
+            output.push(Log {
+                id: row.get("id").unwrap().to_string(),
+                logtype: row.get("logtype").unwrap().to_string(),
+                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+                content: row.get("content").unwrap().to_string(),
+            });
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Successfully fetched posts"),
+            payload: Option::Some(output),
+        };
+    }
+
     // SET
     /// Create a new [`Board`] given various properties
     ///
@@ -1941,7 +1993,10 @@ impl BundlesDB {
             serde_json::from_str::<BoardMetadata>(&existing.payload.unwrap().metadata).unwrap();
 
         // check board "allow_anonymous" setting
-        if board.allow_anonymous.is_some() && board.allow_anonymous.unwrap() == String::from("no") {
+        if board.allow_anonymous.is_some()
+            && board.allow_anonymous.unwrap() == String::from("no")
+            && as_user.is_none()
+        {
             return DefaultReturn {
                 success: false,
                 message: String::from("An account is required to do this"),
