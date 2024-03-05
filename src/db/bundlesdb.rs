@@ -1907,7 +1907,7 @@ impl BundlesDB {
         for row in rows {
             let row = self.textify_row(row).data;
             output.push(LogIdentifier {
-                id: row.get("id").unwrap().to_string(),
+                id: row.get("id").unwrap_or(&String::new()).to_string(),
             });
         }
 
