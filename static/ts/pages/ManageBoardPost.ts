@@ -49,6 +49,35 @@ if (pin_button) {
     });
 }
 
+const edit_form: HTMLFormElement | null = document.getElementById(
+    "edit-post"
+) as HTMLFormElement | null;
+
+if (edit_form) {
+    // update post
+    edit_form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const res = await fetch(edit_form.getAttribute("data-endpoint")!, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                content: edit_form.content.value,
+            }),
+        });
+
+        const json = await res.json();
+
+        if (json.success === false) {
+            error.style.display = "block";
+            error.innerHTML = `<div class="mdnote-title">${json.message}</div>`;
+        } else {
+            window.location.href = "?";
+        }
+    });
+}
+
 // create reply
 const create_form: HTMLFormElement | null = document.getElementById(
     "create-post"

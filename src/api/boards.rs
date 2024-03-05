@@ -16,6 +16,11 @@ struct CreatePostInfo {
     reply: Option<String>,
 }
 
+#[derive(serde::Deserialize)]
+struct UpdatePostInfo {
+    content: String,
+}
+
 #[post("/api/board/new")]
 pub async fn create_request(
     req: HttpRequest,
@@ -122,6 +127,59 @@ pub async fn get_posts_request(
         .body(serde_json::to_string(&res).unwrap());
 }
 
+#[get("/api/board/{name:.*}/posts/{id:.*}")]
+pub async fn get_post_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
+    let name: String = req.match_info().get("name").unwrap().to_string();
+    let id: String = req.match_info().get("id").unwrap().to_string();
+
+    let board: DefaultReturn<Option<Board<String>>> = data.db.get_board_by_name(name.clone()).await;
+
+    // get
+    let token_cookie = req.cookie("__Secure-Token");
+
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    // check if board is private
+    // if it is, only the owner and users with the "staff" role can view it
+    if board.payload.is_some() {
+        let metadata =
+            serde_json::from_str::<BoardMetadata>(&board.payload.as_ref().unwrap().metadata)
+                .unwrap();
+
+        if metadata.is_private == String::from("yes") {
+            // anonymous
+            if token_user.is_none() {
+                return HttpResponse::NotFound()
+                    .body("You do not have permission to view this board's contents.");
+            }
+
+            // not owner
+            let user = token_user.unwrap().payload.unwrap();
+
+            if (user.username != metadata.owner) && (user.role != String::from("staff")) {
+                return HttpResponse::NotFound()
+                    .body("You do not have permission to view this board's contents.");
+            }
+        }
+    }
+
+    // ...
+    let res = data.db.get_log_by_id(id).await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string(&res).unwrap());
+}
+
 #[post("/api/board/{name:.*}/posts")]
 pub async fn create_post_request(
     req: HttpRequest,
@@ -218,7 +276,7 @@ pub async fn pin_post_request(req: HttpRequest, data: web::Data<AppData>) -> imp
         return HttpResponse::NotAcceptable().body("An account is required to do this");
     }
 
-    // check if we can pin this post
+    // make sure board exists
     let board: DefaultReturn<Option<Board<String>>> =
         data.db.get_board_by_name(name.to_owned()).await;
 
@@ -245,10 +303,10 @@ pub async fn pin_post_request(req: HttpRequest, data: web::Data<AppData>) -> imp
     // must be authenticated AND board owner OR staff
     let user = token_user.unwrap().payload.unwrap();
 
-    let can_delete: bool = (user.username != String::from("Anonymous"))
+    let can_pin: bool = (user.username != String::from("Anonymous"))
         && ((user.username == board.owner) | (user.role == String::from("staff")));
 
-    if can_delete == false {
+    if can_pin == false {
         return HttpResponse::NotFound()
             .body("You do not have permission to manage this board's contents.");
     }
@@ -260,6 +318,90 @@ pub async fn pin_post_request(req: HttpRequest, data: web::Data<AppData>) -> imp
         // update to "true" by default
         post.pinned = Option::Some(true);
     }
+
+    // ...
+    let res = data
+        .db
+        .edit_log(id, serde_json::to_string::<BoardPostLog>(&post).unwrap())
+        .await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string(&res).unwrap());
+}
+
+#[post("/api/board/{name:.*}/posts/{id:.*}/update")]
+pub async fn update_post_request(
+    req: HttpRequest,
+    body: web::Json<UpdatePostInfo>,
+    data: web::Data<AppData>,
+) -> impl Responder {
+    let name: String = req.match_info().get("name").unwrap().to_string();
+    let id: String = req.match_info().get("id").unwrap().to_string();
+
+    // get owner
+    let token_cookie = req.cookie("__Secure-Token");
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists
+        if token_user.as_ref().unwrap().success == false {
+            return HttpResponse::NotFound().body("Invalid token");
+        }
+    } else {
+        return HttpResponse::NotAcceptable().body("An account is required to do this");
+    }
+
+    // make sure board exists
+    let board: DefaultReturn<Option<Board<String>>> =
+        data.db.get_board_by_name(name.to_owned()).await;
+
+    if !board.success {
+        return HttpResponse::NotFound()
+            .append_header(("Content-Type", "application/json"))
+            .body(
+                serde_json::to_string::<DefaultReturn<Option<String>>>(&DefaultReturn {
+                    success: false,
+                    message: String::from("Board does not exist!"),
+                    payload: Option::None,
+                })
+                .unwrap(),
+            );
+    }
+
+    // get post
+    let p = data.db.get_log_by_id(id.to_owned()).await;
+    let mut post = serde_json::from_str::<BoardPostLog>(&p.payload.unwrap().content).unwrap();
+
+    // check if we can update this post
+    // must be authenticated AND post author OR staff
+    let user = token_user.unwrap().payload.unwrap();
+
+    let can_update: bool = (user.username != String::from("Anonymous"))
+        && ((user.username == post.author) | (user.role == String::from("staff")));
+
+    if can_update == false {
+        return HttpResponse::NotFound()
+            .body("You do not have permission to manage this post's contents.");
+    }
+
+    // update content
+    post.content = body.content.clone();
+    post.content_html = format!(
+        // we'll add the "(edited)" tag to this post in its rendered content so it doesn't impact the markdown content
+        "{}<hr /><p style=\"opacity: 75%;\">&lpar;edited <span class=\"date-time-to-localize\">{}</span>&rpar;</p>",
+        crate::markdown::render::parse_markdown(&body.content),
+        crate::utility::unix_epoch_timestamp()
+    );
 
     // ...
     let res = data
@@ -299,7 +441,7 @@ pub async fn delete_post_request(req: HttpRequest, data: web::Data<AppData>) -> 
         return HttpResponse::NotAcceptable().body("An account is required to do this");
     }
 
-    // check if we can delete this post
+    // make sure board exists
     let board: DefaultReturn<Option<Board<String>>> =
         data.db.get_board_by_name(name.to_owned()).await;
 

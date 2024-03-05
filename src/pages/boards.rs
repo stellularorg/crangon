@@ -36,6 +36,12 @@ struct ViewPostProps {
     pub replies: Vec<Log>,
     pub auth_state: Option<bool>,
     pub user: Option<UserState>,
+    pub edit: bool,
+}
+
+#[derive(Default, Properties, PartialEq, serde::Deserialize)]
+pub struct ViewBoardPostQueryProps {
+    pub edit: Option<bool>,
 }
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
@@ -384,13 +390,29 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
     let post = serde_json::from_str::<BoardPostLog>(&p.content).unwrap();
     let board = serde_json::from_str::<BoardMetadata>(&props.board.metadata).unwrap();
 
-    // check if we can manage this post
+    // check if we can manage this post (delete post)
     // must be authenticated AND board owner OR staff OR post author
     let can_manage: bool = props.auth_state.is_some()
         && props.user.is_some()
         && props.user.as_ref().unwrap().username != String::from("Anonymous")
         && ((props.user.as_ref().unwrap().username == board.owner)
             | (props.user.as_ref().unwrap().role == String::from("staff"))
+            | (props.user.as_ref().unwrap().username == post.author));
+
+    // check if we can manage this board (pin post)
+    // must be authenticated AND board owner OR staff
+    let can_manage_board: bool = props.auth_state.is_some()
+        && props.user.is_some()
+        && props.user.as_ref().unwrap().username != String::from("Anonymous")
+        && ((props.user.as_ref().unwrap().username == board.owner)
+            | (props.user.as_ref().unwrap().role == String::from("staff")));
+
+    // check if we can edit this post (edit post)
+    // must be authenticated AND post author OR staff
+    let can_edit: bool = props.auth_state.is_some()
+        && props.user.is_some()
+        && props.user.as_ref().unwrap().username != String::from("Anonymous")
+        && ((props.user.as_ref().unwrap().role == String::from("staff"))
             | (props.user.as_ref().unwrap().username == post.author));
 
     // ...
@@ -421,18 +443,60 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                     <div id="error" class="mdnote note-error full" style="display: none;" />
                     <div id="success" class="mdnote note-note full" style="display: none;" />
 
-                    <Message post={p.clone()} show_open={false} pinned={false} />
-
-                    {if can_manage {
-                        html! {
-                            <div class="flex flex-wrap g-4">
-                                <button class="bundles-primary round" id="delete-post" data-endpoint={format!("/api/board/{}/posts/{}", &post.board, &p.id)}>{"Delete"}</button>
-                                <button class="border round" id="pin-post" data-endpoint={format!("/api/board/{}/posts/{}/pin", &post.board, &p.id)}>{"Pin"}</button>
-                            </div>
-                        }
+                    {if (props.edit == false) | (can_edit == false) {
+                        html! { <Message post={p.clone()} show_open={false} pinned={false} /> }
                     } else {
-                        html! {}
+                        html! { <div class="card round secondary" id="post">
+                            <form id="edit-post" class="flex flex-column g-4" data-endpoint={format!("/api/board/{}/posts/{}/update", &post.board, &p.id)}>
+                                <div class="full flex justify-space-between align-center g-4">
+                                    <b>{"Edit Post"}</b>
+
+                                    <button class="bundles-primary round">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                        {"Save"}
+                                    </button>
+                                </div>
+
+                                <textarea
+                                    type="text"
+                                    name="content"
+                                    id="content"
+                                    placeholder="Content"
+                                    class="full round"
+                                    value={post.content}
+                                    minlength={2}
+                                    maxlength={1_000}
+                                    required={true}
+                                ></textarea>
+                            </form>
+                        </div> }
                     }}
+
+                    <div class="flex flex-wrap g-4">
+                        {if can_manage {
+                            html! {
+                                <button class="bundles-primary round" id="delete-post" data-endpoint={format!("/api/board/{}/posts/{}", &post.board, &p.id)}>{"Delete"}</button>
+                            }
+                        } else {
+                            html! {}
+                        }}
+
+                        {if can_manage_board {
+                            html! {
+                                <button class="border round" id="pin-post" data-endpoint={format!("/api/board/{}/posts/{}/pin", &post.board, &p.id)}>{"Pin"}</button>
+                            }
+                        } else {
+                            html! {}
+                        }}
+
+                        {if can_edit {
+                            html! {
+                                <a class="button border round" href="?edit=true">{"Edit"}</a>
+                            }
+                        } else {
+                            html! {}
+                        }}
+                    </div>
 
                     {if (props.auth_state.is_some() && props.auth_state.unwrap() == true) || (can_post_from_anonymous == true) {
                         // ^ signed in OR can_post_from_anonymous is true
@@ -457,9 +521,7 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                                         </div>
                                     </details>
 
-                                    <div class="card round secondary flex flex-column g-4" id="post">
-                                        <div id="error" class="mdnote note-error full" style="display: none;" />
-
+                                    <div class="card round secondary" id="post">
                                         <form id="create-post" class="flex flex-column g-4">
                                             <div class="full flex justify-space-between align-center g-4">
                                                 <b>{"Reply"}</b>
@@ -514,6 +576,7 @@ fn build_view_post_renderer_with_props(props: ViewPostProps) -> ServerRenderer<V
 pub async fn view_board_post_request(
     req: HttpRequest,
     data: web::Data<db::bundlesdb::AppData>,
+    info: web::Query<ViewBoardPostQueryProps>,
 ) -> impl Responder {
     // you're able to do this even if the board is private ON PURPOSE
 
@@ -586,6 +649,11 @@ pub async fn view_board_post_request(
             Option::Some(token_user.unwrap().payload.unwrap())
         } else {
             Option::None
+        },
+        edit: if info.edit.is_some() {
+            info.edit.unwrap()
+        } else {
+            false
         },
     });
 
