@@ -102,10 +102,26 @@ button.bundles-secondary:hover,
 }
 
 /* details */
+details {
+    border-radius: var(--u-02);
+}
+
+details[open] {
+    border-radius: var(--u-02) var(--u-02) 0 0 !important;
+}
+
 details summary {
     background: transparent;
     border: none;
     border-radius: var(--u-02) !important;
+}
+
+details.border {
+    border: solid 1px var(--background-surface2a);
+}
+
+details[open].border summary {
+    border-bottom: solid 1px var(--background-surface2a);
 }
 
 details summary svg {

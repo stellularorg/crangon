@@ -14,6 +14,7 @@ use crate::components::navigation::Footer;
 struct Props {
     pub user: UserState,
     pub paste_count: usize,
+    pub board_count: usize,
     pub auth_state: Option<bool>,
 }
 
@@ -149,12 +150,13 @@ fn ProfileView(props: &Props) -> Html {
                     <li>{"Role: "}<span class="chip badge">{&props.user.role}</span></li>
                     <li>{"Joined: "}<span class="date-time-to-localize">{&props.user.timestamp}</span></li>
                     <li>{"Paste count: "}{&props.paste_count}</li>
+                    <li>{"Board count: "}{&props.board_count}</li>
                 </ul>
 
                 <hr />
 
-                <details class="full round">
-                    <summary>{"Developer Options"}</summary>
+                <details class="border full">
+                    <summary class="round">{"Developer Options"}</summary>
 
                     <div class="card">
                         <ul>
@@ -220,10 +222,18 @@ pub async fn profile_view_request(req: HttpRequest, data: web::Data<AppData>) ->
     let pastes_res: bundlesdb::DefaultReturn<Option<Vec<bundlesdb::PasteIdentifier>>> =
         data.db.get_pastes_by_owner(username_c.clone()).await;
 
+    let boards_res: bundlesdb::DefaultReturn<Option<Vec<bundlesdb::BoardIdentifier>>> =
+        data.db.get_boards_by_owner(username_c.clone()).await;
+
     let renderer = build_renderer_with_props(Props {
         user: unwrap.clone(),
         paste_count: if pastes_res.success {
             pastes_res.payload.unwrap().len()
+        } else {
+            0
+        },
+        board_count: if boards_res.success {
+            boards_res.payload.unwrap().len()
         } else {
             0
         },

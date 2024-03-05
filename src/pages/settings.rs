@@ -64,6 +64,15 @@ fn UserSettings(props: &UserSettingsProps) -> Html {
         <main class="flex flex-column g-4 small">
             <h2 class="full text-center">{"User Settings"}</h2>
 
+            <div class="mdnote note-info dismissable" id="dismissable:user_settings">
+                <div class="flex justify-space-between align-center flex-wrap g-4">
+                    <b class="mdnote-title">{"These settings do not sync with your account!"}</b>
+                    <button class="dismiss round secondary">{"Ok"}</button>
+                </div>
+
+                <p>{"You can customize these per browser session."}</p>
+            </div>
+
             <div class="card round secondary flex flex-column g-4">
                 <div id="options-field" class="flex flex-wrap flex-column g-4 full justify-center" />
             </div>

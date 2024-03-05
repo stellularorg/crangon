@@ -95,5 +95,31 @@ setTimeout(() => {
     }
 }, 50);
 
+// dismissable manager
+const dismissables = document.querySelectorAll(".dismissable");
+
+for (const dismissable of Array.from(dismissables) as HTMLElement[]) {
+    const is_dismissed = window.sessionStorage.getItem(
+        `dismissed:${dismissable.id}`
+    );
+
+    if (is_dismissed === "true") {
+        dismissable.remove();
+    } else {
+        const dismiss_button = dismissable.querySelector(".dismiss");
+
+        if (dismiss_button) {
+            dismiss_button.addEventListener("click", () => {
+                window.sessionStorage.setItem(
+                    `dismissed:${dismissable.id}`,
+                    "true"
+                );
+
+                dismissable.remove();
+            });
+        }
+    }
+}
+
 // default export
 export default {};

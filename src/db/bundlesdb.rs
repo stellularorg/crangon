@@ -1846,11 +1846,31 @@ impl BundlesDB {
             });
         }
 
+        let mut true_output: Vec<Log> = Vec::new();
+        for mut post in output {
+            let mut parsed = serde_json::from_str::<BoardPostLog>(&post.content).unwrap();
+
+            // get replies
+            let replies = &self.get_post_replies_limited(post.clone().id, false).await;
+
+            if replies.payload.is_some() {
+                parsed.replies = Option::Some(replies.payload.as_ref().unwrap().len());
+
+                // update
+                post.content = serde_json::to_string::<BoardPostLog>(&parsed).unwrap();
+                true_output.push(post);
+
+                continue;
+            }
+
+            continue;
+        }
+
         // return
         return DefaultReturn {
             success: true,
             message: String::from("Successfully fetched posts (replies)"),
-            payload: Option::Some(output),
+            payload: Option::Some(true_output),
         };
     }
 
@@ -1881,9 +1901,9 @@ impl BundlesDB {
 
         // ...
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            "SELECT \"ID\" FROM \"Logs\" WHERE \"content\" LIKE ? ORDER BY \"timestamp\" DESC LIMIT 50"
+            "SELECT \"ID\" FROM \"Logs\" WHERE \"content\" LIKE ?"
         } else {
-            "SELECT \"ID\" FROM \"Logs\" WHERE \"content\" LIKE $1 ORDER BY \"timestamp\" DESC LIMIT 50"
+            "SELECT \"ID\" FROM \"Logs\" WHERE \"content\" LIKE $1"
         };
 
         let c = &self.db.client;

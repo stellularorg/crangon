@@ -345,6 +345,15 @@ fn Dashboard(props: &DashboardProps) -> Html {
                 </div>
 
                 <main class="small flex flex-column g-4">
+                    <div class="mdnote note-info dismissable" id="dismissable:login_code">
+                        <div class="flex justify-space-between align-center flex-wrap g-4">
+                            <b class="mdnote-title">{"Everything here requires your account!"}</b>
+                            <button class="dismiss round secondary">{"Ok"}</button>
+                        </div>
+
+                        <p>{"Please verify that you have access to your account login code."}</p>
+                    </div>
+
                     <div class="card secondary round flex justify-space-between align-center g-4">
                         <b>{"Atomic Pastes"}</b>
 
