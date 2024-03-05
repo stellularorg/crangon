@@ -127,6 +127,11 @@ pub struct Log {
     pub content: String,
 }
 
+#[derive(Debug, Default, sqlx::FromRow, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LogIdentifier {
+    pub id: String,
+}
+
 #[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
 pub struct Board<M> {
     // selectors
@@ -153,8 +158,9 @@ pub struct BoardPostLog {
     pub content_html: String,
     pub board: String, // name of board the post is located in
     pub is_hidden: bool,
-    pub reply: Option<String>, // the ID of the post we're replying to
-    pub pinned: Option<bool>,  // pin the post to the top of the board feed
+    pub reply: Option<String>,  // the ID of the post we're replying to
+    pub pinned: Option<bool>,   // pin the post to the top of the board feed
+    pub replies: Option<usize>, // not really managed in the log, just used to show the number of replies this post has
 }
 
 #[derive(Debug, Default, sqlx::FromRow, Clone, Serialize, Deserialize, PartialEq)]
@@ -1694,11 +1700,31 @@ impl BundlesDB {
             });
         }
 
+        let mut true_output: Vec<Log> = Vec::new();
+        for mut post in output {
+            let mut parsed = serde_json::from_str::<BoardPostLog>(&post.content).unwrap();
+
+            // get replies
+            let replies = &self.get_post_replies_limited(post.clone().id, false).await;
+
+            if replies.payload.is_some() {
+                parsed.replies = Option::Some(replies.payload.as_ref().unwrap().len());
+
+                // update
+                post.content = serde_json::to_string::<BoardPostLog>(&parsed).unwrap();
+                true_output.push(post);
+
+                continue;
+            }
+
+            continue;
+        }
+
         // return
         return DefaultReturn {
             success: true,
             message: String::from("Successfully fetched posts"),
-            payload: Option::Some(output),
+            payload: Option::Some(true_output),
         };
     }
 
@@ -1766,16 +1792,23 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `id` - post id
-    pub async fn get_post_replies(&self, id: String) -> DefaultReturn<Option<Vec<Log>>> {
+    /// * `run_existing_check` - if we should check that the log exists first
+    pub async fn get_post_replies(
+        &self,
+        id: String,
+        run_existing_check: bool,
+    ) -> DefaultReturn<Option<Vec<Log>>> {
         // make sure message exists
-        let existing: DefaultReturn<Option<Log>> = self.get_log_by_id(id.to_owned()).await;
+        if run_existing_check != false {
+            let existing: DefaultReturn<Option<Log>> = self.get_log_by_id(id.to_owned()).await;
 
-        if existing.success == false {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Post does not exist"),
-                payload: Option::None,
-            };
+            if existing.success == false {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("Post does not exist"),
+                    payload: Option::None,
+                };
+            }
         }
 
         // ...
@@ -1817,6 +1850,71 @@ impl BundlesDB {
         return DefaultReturn {
             success: true,
             message: String::from("Successfully fetched posts (replies)"),
+            payload: Option::Some(output),
+        };
+    }
+
+    /// Get all posts in a [`Board`] by its name that are replying to another [`BoardPostLog`] (limited form)
+    ///
+    /// - only includes post id
+    ///
+    /// # Arguments:
+    /// * `id` - post id
+    /// * `run_existing_check` - if we should check that the log exists first
+    pub async fn get_post_replies_limited(
+        &self,
+        id: String,
+        run_existing_check: bool,
+    ) -> DefaultReturn<Option<Vec<LogIdentifier>>> {
+        // make sure message exists
+        if run_existing_check != false {
+            let existing: DefaultReturn<Option<Log>> = self.get_log_by_id(id.to_owned()).await;
+
+            if existing.success == false {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("Post does not exist"),
+                    payload: Option::None,
+                };
+            }
+        }
+
+        // ...
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT \"ID\" FROM \"Logs\" WHERE \"content\" LIKE ? ORDER BY \"timestamp\" DESC LIMIT 50"
+        } else {
+            "SELECT \"ID\" FROM \"Logs\" WHERE \"content\" LIKE $1 ORDER BY \"timestamp\" DESC LIMIT 50"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&format!("%\"reply\":\"{}\"%", id))
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to fetch posts"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let rows = res.unwrap();
+        let mut output: Vec<LogIdentifier> = Vec::new();
+
+        for row in rows {
+            let row = self.textify_row(row).data;
+            output.push(LogIdentifier {
+                id: row.get("id").unwrap().to_string(),
+            });
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Successfully fetched posts (limited)"),
             payload: Option::Some(output),
         };
     }
@@ -2092,6 +2190,7 @@ impl BundlesDB {
             is_hidden: false,
             reply: p.reply.clone(),
             pinned: Option::Some(false),
+            replies: Option::None,
         };
 
         // return

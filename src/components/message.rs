@@ -43,6 +43,15 @@ pub fn Message(props: &MessageProps) -> Html {
                 </div>
 
                 <div class="flex g-4 flex-wrap align-center">
+                    {if post.replies.is_some() && post.replies.unwrap() > 0 {
+                        html! { <>
+                            <span title="Reply Count">{&post.replies.unwrap()}</span>
+                            <span>{"·"}</span>
+                        </> }
+                    } else {
+                        html! {}
+                    }}
+
                     {if pinned == true {
                         html! {
                             <div class="flex align-center" style="color: var(--primary);" title="Pinned Post">

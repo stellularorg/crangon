@@ -570,7 +570,7 @@ pub async fn view_board_post_request(
 
     // get replies
     let replies: bundlesdb::DefaultReturn<Option<Vec<Log>>> =
-        data.db.get_post_replies(id.clone()).await;
+        data.db.get_post_replies(id.clone(), false).await;
 
     // ...
     let renderer = build_view_post_renderer_with_props(ViewPostProps {

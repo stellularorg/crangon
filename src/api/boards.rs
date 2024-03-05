@@ -171,6 +171,7 @@ pub async fn create_post_request(
                     Option::None
                 },
                 pinned: Option::Some(false),
+                replies: Option::None,
             },
             if token_user.is_some() {
                 Option::Some(token_user.clone().unwrap().username)
