@@ -106,7 +106,7 @@ pub struct GroupMetadata {
 
 #[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
 /// A user object
-pub struct UserState {
+pub struct UserState<M> {
     // selectors
     pub username: String,
     pub id_hashed: String, // users use their UNHASHED id to login, it is used as their session id too!
@@ -114,6 +114,13 @@ pub struct UserState {
     pub role: String,
     // dates
     pub timestamp: u128,
+    // ...
+    pub metadata: M,
+}
+
+#[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UserMetadata {
+    pub about: String,
 }
 
 #[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
@@ -192,7 +199,8 @@ pub struct BundlesDB {
 
 static PASTE_CACHE: Lazy<Mutex<CacheStore<Paste<String>>>> =
     Lazy::new(|| Mutex::new(CacheStore::new()));
-static AUTH_CACHE: Lazy<Mutex<CacheStore<UserState>>> = Lazy::new(|| Mutex::new(CacheStore::new()));
+static AUTH_CACHE: Lazy<Mutex<CacheStore<UserState<String>>>> =
+    Lazy::new(|| Mutex::new(CacheStore::new()));
 
 impl BundlesDB {
     pub async fn new(options: DatabaseOpts) -> BundlesDB {
@@ -241,7 +249,8 @@ impl BundlesDB {
                 username VARCHAR(1000000),
                 id_hashed VARCHAR(1000000),
                 role VARCHAR(1000000),
-                timestamp VARCHAR(1000000)
+                timestamp VARCHAR(1000000),
+                metadata VARCHAR(1000000)
             )",
         )
         .execute(c)
@@ -341,7 +350,10 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `hashed` - `String` of the user's hashed ID
-    pub async fn get_user_by_hashed(&self, hashed: String) -> DefaultReturn<Option<UserState>> {
+    pub async fn get_user_by_hashed(
+        &self,
+        hashed: String,
+    ) -> DefaultReturn<Option<UserState<String>>> {
         // ...
         if (&self.options.cache_enabled.is_none())
             | (&self.options.cache_enabled.as_ref().unwrap() != &"false")
@@ -365,6 +377,7 @@ impl BundlesDB {
                         id_hashed: user.id_hashed.to_string(),
                         role: user.role.to_string(),
                         timestamp: user.timestamp,
+                        metadata: user.metadata.to_string(),
                     }),
                 };
             }
@@ -396,11 +409,17 @@ impl BundlesDB {
         let row = self.textify_row(row).data;
 
         // store in cache
+        let meta = row.get("metadata"); // for compatability - users did not have metadata until Bundlrs v0.10.6
         let user = UserState {
             username: row.get("username").unwrap().to_string(),
             id_hashed: row.get("id_hashed").unwrap().to_string(),
             role: row.get("role").unwrap().to_string(),
             timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+            metadata: if meta.is_some() {
+                meta.unwrap().to_string()
+            } else {
+                String::new()
+            },
         };
 
         if (&self.options.cache_enabled.is_none())
@@ -422,7 +441,10 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `username` - `String` of the user's username
-    pub async fn get_user_by_username(&self, username: String) -> DefaultReturn<Option<UserState>> {
+    pub async fn get_user_by_username(
+        &self,
+        username: String,
+    ) -> DefaultReturn<Option<UserState<String>>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Users\" WHERE \"username\" = ?"
         } else {
@@ -448,6 +470,7 @@ impl BundlesDB {
         let row = self.textify_row(row).data;
 
         // return
+        let meta = row.get("metadata");
         return DefaultReturn {
             success: true,
             message: String::from("User exists"),
@@ -456,6 +479,11 @@ impl BundlesDB {
                 id_hashed: row.get("id_hashed").unwrap().to_string(),
                 role: row.get("role").unwrap().to_string(),
                 timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+                metadata: if meta.is_some() {
+                    meta.unwrap().to_string()
+                } else {
+                    String::new()
+                },
             }),
         };
     }
@@ -500,9 +528,9 @@ impl BundlesDB {
 
         // ...
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            "INSERT INTO \"Users\" VALUES (?, ?, ?, ?)"
+            "INSERT INTO \"Users\" VALUES (?, ?, ?, ?, ?)"
         } else {
-            "INSERT INTO \"Users\" VALUES ($1, $2, $3, $4)"
+            "INSERT INTO \"Users\" VALUES ($1, $2, $3, $4, $5)"
         };
 
         let user_id_unhashed: String = utility::uuid();
@@ -515,6 +543,12 @@ impl BundlesDB {
             .bind::<&String>(&user_id_hashed)
             .bind::<&String>(&String::from("member")) // default role
             .bind::<&String>(&timestamp)
+            .bind::<&String>(
+                &serde_json::to_string::<UserMetadata>(&UserMetadata {
+                    about: String::new(),
+                })
+                .unwrap(),
+            )
             .execute(c)
             .await;
 
@@ -531,6 +565,52 @@ impl BundlesDB {
             success: true,
             message: user_id_unhashed,
             payload: Option::Some(user_id_hashed),
+        };
+    }
+
+    /// Update a [`UserState`]'s metadata by its `username`
+    pub async fn edit_user_metadata_by_name(
+        &self,
+        name: String,
+        metadata: UserMetadata,
+    ) -> DefaultReturn<Option<String>> {
+        // make sure user exists
+        let existing = &self.get_user_by_username(name.clone()).await;
+        if !existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("User does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // update user
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "UPDATE \"Users\" SET \"metadata\" = ? WHERE \"username\" = ?"
+        } else {
+            "UPDATE \"Users\" SET (\"metadata\") = ($1) WHERE \"username\" = $2"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&serde_json::to_string(&metadata).unwrap())
+            .bind::<&String>(&name)
+            .execute(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("User updated!"),
+            payload: Option::Some(name),
         };
     }
 
@@ -1995,7 +2075,6 @@ impl BundlesDB {
     ) -> DefaultReturn<Option<Vec<Log>>> {
         // ...
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            // TODO: flexible LIMIT (pagination)
             "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'board_post' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
         } else {
             "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'board_post' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $1"
@@ -2221,7 +2300,7 @@ impl BundlesDB {
         .await
     }
 
-    /// Update a [`Paste`]'s metadata by its `custom_url`
+    /// Update a [`Board`]'s metadata by its `custom_url`
     pub async fn edit_board_metadata_by_name(
         &self,
         name: String,
@@ -2260,6 +2339,7 @@ impl BundlesDB {
         // make sure we can do this
         let user = ua.unwrap().unwrap();
         let can_edit: bool =
+            // using "metadata" here likely prohibits us from changing board owner
             (user.username == metadata.owner) | (user.role == String::from("staff"));
 
         if can_edit == false {
@@ -2272,7 +2352,7 @@ impl BundlesDB {
             };
         }
 
-        // update paste
+        // update board
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "UPDATE \"Boards\" SET \"metadata\" = ? WHERE \"name\" = ?"
         } else {

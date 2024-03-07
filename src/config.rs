@@ -1,9 +1,11 @@
 use std::{env, ops::Index};
 
+#[allow(dead_code)]
 pub fn collect_arguments() -> Vec<String> {
     return env::args().collect::<Vec<String>>();
 }
 
+#[allow(dead_code)]
 pub fn get_named_argument(args: &Vec<String>, name: &str) -> Option<String> {
     for (i, v) in args.iter().enumerate() {
         // if name does not match, continue

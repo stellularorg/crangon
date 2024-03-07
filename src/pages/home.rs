@@ -18,7 +18,7 @@ struct Props {
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 struct DashboardProps {
-    pub user: bundlesdb::UserState,
+    pub user: bundlesdb::UserState<String>,
     pub auth_state: Option<bool>,
 }
 

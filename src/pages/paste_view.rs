@@ -104,7 +104,6 @@ pub fn PastePasswordAsk(props: &Props) -> Html {
                             id="view"
                             placeholder="Paste View Password"
                             class="full round"
-                            minlength={4}
                             maxlength={256}
                         />
 

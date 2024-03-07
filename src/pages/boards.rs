@@ -35,7 +35,7 @@ struct ViewPostProps {
     pub post: Log,
     pub replies: Vec<Log>,
     pub auth_state: Option<bool>,
-    pub user: Option<UserState>,
+    pub user: Option<UserState<String>>,
     pub edit: bool,
 }
 

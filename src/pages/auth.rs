@@ -4,7 +4,7 @@ use actix_web::{get, web, HttpRequest, Responder};
 use yew::prelude::*;
 use yew::ServerRenderer;
 
-use crate::db::bundlesdb::{self, AppData, UserState};
+use crate::db::bundlesdb::{self, AppData, UserMetadata, UserState};
 use crate::utility;
 use crate::utility::format_html;
 
@@ -12,10 +12,17 @@ use crate::components::navigation::Footer;
 
 #[derive(Default, Properties, PartialEq)]
 struct Props {
-    pub user: UserState,
+    pub user: UserState<String>,
     pub paste_count: usize,
     pub board_count: usize,
     pub auth_state: Option<bool>,
+    pub active_user: Option<UserState<String>>,
+    pub edit_mode: bool,
+}
+
+#[derive(Default, Properties, PartialEq, serde::Deserialize)]
+pub struct QueryProps {
+    pub edit: Option<bool>, // Props.edit_mode
 }
 
 #[function_component]
@@ -139,35 +146,108 @@ pub async fn login_request(req: HttpRequest) -> impl Responder {
 
 #[function_component]
 fn ProfileView(props: &Props) -> Html {
+    let meta = serde_json::from_str::<UserMetadata>(&props.user.metadata).unwrap();
+
+    let can_edit = props.active_user.is_some()
+        && props.active_user.as_ref().unwrap().username == props.user.username;
+
     return html! {
-        <main class="small flex flex-column g-4">
-            <div class="flex justify-space-between align-center">
-                <h1 class="no-margin">{"~"}{&props.user.username}</h1>
+        <div class="flex flex-column" style="height: 100dvh;">
+            <div class="toolbar flex justify-space-between">
+                // left
+                <div class="flex">
+                    <a class="button" href="/" style="border-left: 0">
+                        <b>{"::SITE_NAME::"}</b>
+                    </a>
+
+                    <a class="button" href={format!("/~{}", props.user.username)} style="border-left: 0">
+                        {&props.user.username}
+                    </a>
+                </div>
+
+                // right
+                <div class="flex"></div>
             </div>
 
-            <div class="card secondary round">
-                <ul>
-                    <li>{"Role: "}<span class="chip badge">{&props.user.role}</span></li>
-                    <li>{"Joined: "}<span class="date-time-to-localize">{&props.user.timestamp}</span></li>
-                    <li>{"Paste count: "}{&props.paste_count}</li>
-                    <li>{"Board count: "}{&props.board_count}</li>
-                </ul>
+            <div class="toolbar-layout-wrapper">
+                <main class="small flex flex-column g-4">
+                    <div class="flex justify-space-between align-center">
+                        <h1 class="no-margin">{&props.user.username}</h1>
 
-                <hr />
-
-                <details class="border full">
-                    <summary class="round">{"Developer Options"}</summary>
-
-                    <div class="card">
-                        <ul>
-                            <li>{"Pastes API: "}<code>{"/api/owner/"}{&props.user.username}</code></li>
-                        </ul>
+                        // must not be receiver and must still be authenticated
+                        {if (can_edit == false) && (props.auth_state.is_some()) {
+                            html! {
+                                // direct messages will likely just be all within the same board with "is_private" enabled
+                                <button class="round bundles-primary" disabled={true}>{"Message"}</button>
+                            }
+                        } else {
+                            html! {}
+                        }}
                     </div>
-                </details>
-            </div>
 
-            <Footer auth_state={props.auth_state} />
-        </main>
+                    <div class="card secondary round">
+                        <ul>
+                            <li>{"Role: "}<span class="chip badge">{&props.user.role}</span></li>
+                            <li>{"Joined: "}<span class="date-time-to-localize">{&props.user.timestamp}</span></li>
+                            <li>{"Paste count: "}{&props.paste_count}</li>
+                            <li>{"Board count: "}{&props.board_count}</li>
+                        </ul>
+
+                        <hr />
+
+                        <div class="flex flex-column g-4">
+                            <div class="card round" id="description">
+                                {if props.edit_mode == false {
+                                    // view mode
+                                    // TODO: maybe store meta.about in meta.about_html and update it when profile about updates...
+                                    let content = Html::from_html_unchecked(AttrValue::from(
+                                        crate::markdown::render::parse_markdown(&meta.about)
+                                    ));
+
+                                    html! { {content} }
+                                } else {
+                                    // edit mode
+                                    html! { <form id="edit-about" class="flex flex-column g-4" data-endpoint={format!("/api/auth/users/{}/about", &props.user.username)}>
+                                        <div class="full flex justify-space-between align-center g-4">
+                                            <b>{"Edit About"}</b>
+
+                                            <button class="bundles-primary round">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                                {"Save"}
+                                            </button>
+                                        </div>
+
+                                        <textarea
+                                            type="text"
+                                            name="about"
+                                            id="about"
+                                            placeholder="About"
+                                            class="full round"
+                                            value={meta.about}
+                                            minlength={2}
+                                            maxlength={1_000}
+                                            required={true}
+                                        ></textarea>
+                                    </form> }
+                                }}
+
+                                {if (can_edit == true) && (props.edit_mode == false) {
+                                    html! { <a class="button round bundles-primary" href="?edit=true">{"Edit About"}</a> }
+                                } else {
+                                    html! {}
+                                }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <script type="module">
+                        {"import \"/static/js/ProfileView.js\";"}
+                    </script>
+
+                    <Footer auth_state={props.auth_state} />
+                </main>
+            </div>
+        </div>
     };
 }
 
@@ -177,12 +257,16 @@ fn build_renderer_with_props(props: Props) -> ServerRenderer<ProfileView> {
 
 #[get("/~{username:.*}")]
 /// Available at "/~{username}"
-pub async fn profile_view_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
+pub async fn profile_view_request(
+    req: HttpRequest,
+    data: web::Data<AppData>,
+    info: web::Query<QueryProps>,
+) -> impl Responder {
     // get paste
     let username: String = req.match_info().get("username").unwrap().to_string();
     let username_c = username.clone();
 
-    let user: bundlesdb::DefaultReturn<Option<UserState>> =
+    let user: bundlesdb::DefaultReturn<Option<UserState<String>>> =
         data.db.get_user_by_username(username).await;
 
     if user.success == false {
@@ -241,6 +325,16 @@ pub async fn profile_view_request(req: HttpRequest, data: web::Data<AppData>) ->
             Option::Some(req.cookie("__Secure-Token").is_some())
         } else {
             Option::Some(false)
+        },
+        active_user: if token_user.is_some() {
+            Option::Some(token_user.unwrap().payload.unwrap())
+        } else {
+            Option::None
+        },
+        edit_mode: if info.edit.is_some() {
+            info.edit.unwrap()
+        } else {
+            false
         },
     });
 

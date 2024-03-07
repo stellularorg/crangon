@@ -462,6 +462,13 @@ pub async fn delete_post_request(req: HttpRequest, data: web::Data<AppData>) -> 
 
     // get post
     let p = data.db.get_log_by_id(id.to_owned()).await;
+
+    if p.success == false {
+        return HttpResponse::Ok()
+            .append_header(("Content-Type", "application/json"))
+            .body(serde_json::to_string(&p).unwrap());
+    }
+
     let post = serde_json::from_str::<BoardPostLog>(&p.payload.unwrap().content).unwrap();
 
     // check if we can delete this post
