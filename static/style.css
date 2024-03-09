@@ -358,3 +358,24 @@ select:focus {
     /* author tag */
     user-select: none;
 }
+
+/* footer */
+.__footernav {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.__footernav .item {
+    position: relative;
+    margin-left: 0.5rem;
+}
+
+.__footernav .item::before {
+    content: "·";
+    position: absolute;
+    left: -0.75rem;
+}
+
+.__footernav .item:first-child:before {
+    display: none;
+}

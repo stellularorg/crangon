@@ -23,59 +23,61 @@ pub fn Footer(props: &FooterProps) -> Html {
         <div class="flex justify-center align-center flex-column full">
             <hr class="small" style="width:425px; max-width:100%; margin-top:1rem;" />
 
-            <ul class="__footernav" style="padding: 0; margin: 0;">
-                <li><a href="/">{"new"}</a></li>
-                <li><a href="/d/settings">{"settings"}</a></li>
-                <li><a href={info}>{"info"}</a></li>
+            <div class="__footernav" style="padding: 0; margin: 0;">
+                <div class="item">
+                    <a href={info} class="flex align-center g-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-info"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                        {"info"}
+                    </a>
+                </div>
 
-                if props.auth_state.is_some() {
-                    if props.auth_state.unwrap() == false {
-                        <li><a href="/d/auth/register">{"register"}</a></li>
-                        <li><a href="/d/auth/login">{"login"}</a></li>
-                    } else {
-                        <li><a href="/d">{"dashboard"}</a></li>
-                        <li><a href="/api/auth/logout">{"logout"}</a></li>
-                    }
+                {if props.auth_state.is_none() | (props.auth_state.is_some() && props.auth_state.unwrap() == false) {
+                    html!{ <>
+                        <div class="item">
+                            <a href="/" class="flex align-center g-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-plus"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                                {"new"}
+                            </a>
+                        </div>
+
+                        <div class="item">
+                            <a href="/d/auth/register" class="flex align-center g-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-at-sign"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg>
+                                {"register"}
+                            </a>
+                        </div>
+
+                        <div class="item">
+                            <a href="/d/auth/login" class="flex align-center g-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-log-in"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg>
+                                {"login"}
+                            </a>
+                        </div>
+                    </> }
+                } else {
+                    html!{ <>
+                        <div class="item">
+                            <a href="/d" class="flex align-center g-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-dashboard"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+                                {"dashboard"}
+                            </a>
+                        </div>
+
+                        <div class="item">
+                            <a href="/api/auth/logout" class="flex align-center g-4">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-log-out"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>
+                                {"logout"}
+                            </a>
+                        </div>
+                    </> }
                 }
-            </ul>
+                }
+            </div>
 
             <p style="font-size: 12px; margin: 0.4rem 0 0 0;">
-                <a href="https://code.stellular.org/SentryTwo/bundlrs">{"::SITE_NAME::"}</a>
-                {" - Markdown Delivery Service"}
+                <a href="https://code.stellular.org/stellular/bundlrs">{"::SITE_NAME::"}</a>
+                {" - Markdown Social"}
             </p>
-
-            <style>
-                {
-                    ".__footernav {
-                        display: flex;
-                        gap: 0.25rem;
-                    }
-                    
-                    .__footernav li {
-                        list-style-type: \"·\";
-                        padding: 0 0.25rem;
-                    }
-
-                    .__footernav li:first-child {
-                    margin-left: -0.25rem;
-                    }
-                    
-                    .__footernav li:first-child {
-                        list-style-type: none;
-                    }
-                    
-                    .__footer_cardbtn {
-                        width: calc(33% - 0.25rem);
-                        height: 10rem !important;
-                        display: flex;
-                        flex-direction: column;
-                        justify-content: center;
-                        align-items: center;
-                        gap: 0.5rem;
-                        border-radius: 0.4rem;
-                    }"
-                }
-            </style>
 
             // theme
             <div style="position: relative; width: 100%;">

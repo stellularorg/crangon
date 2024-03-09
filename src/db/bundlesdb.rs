@@ -2225,7 +2225,7 @@ impl BundlesDB {
         // check values
 
         // (check length)
-        if (p.content.len() < 2) | (p.content.len() > 200_000) {
+        if (p.content.len() < 2) | (p.content.len() > 1_000) {
             return DefaultReturn {
                 success: false,
                 message: String::from("Content is invalid"),

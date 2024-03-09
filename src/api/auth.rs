@@ -157,6 +157,20 @@ pub async fn edit_about_request(
             .body("You do not have permission to manage this user's contents.");
     }
 
+    // (check length)
+    if (body.about.len() < 2) | (body.about.len() > 200_000) {
+        return HttpResponse::Ok()
+            .append_header(("Content-Type", "application/json"))
+            .body(
+                serde_json::to_string::<DefaultReturn<Option<String>>>(&DefaultReturn {
+                    success: false,
+                    message: String::from("Content is invalid"),
+                    payload: Option::None,
+                })
+                .unwrap(),
+            );
+    }
+
     // update about
     user.about = body.about.clone();
 

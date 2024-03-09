@@ -225,7 +225,7 @@ fn ProfileView(props: &Props) -> Html {
                                             class="full round"
                                             value={meta.about}
                                             minlength={2}
-                                            maxlength={1_000}
+                                            maxlength={200_000}
                                             required={true}
                                         ></textarea>
                                     </form> }

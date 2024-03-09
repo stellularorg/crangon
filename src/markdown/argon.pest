@@ -1,6 +1,6 @@
 // this grammar is ONLY for the bundlrs' custom templating and formatting language!
 // for markdown formatting, please see [comrak](https://hrzn.ee/kivikakk/comrak)
-// license available here: <https://code.stellular.org/SentryTwo/bundlrs/src/branch/master/LICENSE>
+// license available here: <https://code.stellular.org/stellular/bundlrs/src/branch/master/LICENSE>
 
 FILE = { SOI ~ (BLOCKS | ANY)* ~ EOI }
 
