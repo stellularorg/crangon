@@ -109,6 +109,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::auth::register)
             .service(crate::api::auth::login)
             .service(crate::api::auth::edit_about_request)
+            .service(crate::api::auth::follow_request)
             // POST api::pastes
             .service(crate::api::pastes::render_request)
             .service(crate::api::pastes::create_request)

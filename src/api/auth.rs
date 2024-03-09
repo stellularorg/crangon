@@ -1,7 +1,7 @@
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
 
 use crate::{
-    db::bundlesdb::{AppData, DefaultReturn, UserMetadata, UserState},
+    db::bundlesdb::{AppData, DefaultReturn, UserFollow, UserMetadata, UserState},
     utility,
 };
 
@@ -176,6 +176,48 @@ pub async fn edit_about_request(
 
     // ...
     let res = data.db.edit_user_metadata_by_name(name, user).await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string(&res).unwrap());
+}
+
+#[post("/api/auth/users/{name:.*}/follow")]
+pub async fn follow_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
+    let name: String = req.match_info().get("name").unwrap().to_string();
+
+    // get owner
+    let token_cookie = req.cookie("__Secure-Token");
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists
+        if token_user.as_ref().unwrap().success == false {
+            return HttpResponse::NotFound().body("Invalid token");
+        }
+    } else {
+        return HttpResponse::NotAcceptable().body("An account is required to do this");
+    }
+
+    let token_user = token_user.unwrap().payload.unwrap();
+
+    // ...
+    let res = data
+        .db
+        .toggle_user_follow(&mut UserFollow {
+            user: token_user.username,
+            is_following: name,
+        })
+        .await;
 
     // return
     return HttpResponse::Ok()

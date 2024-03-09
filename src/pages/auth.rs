@@ -4,7 +4,7 @@ use actix_web::{get, web, HttpRequest, Responder};
 use yew::prelude::*;
 use yew::ServerRenderer;
 
-use crate::db::bundlesdb::{self, AppData, UserMetadata, UserState};
+use crate::db::bundlesdb::{self, AppData, Log, UserMetadata, UserState};
 use crate::utility;
 use crate::utility::format_html;
 
@@ -18,6 +18,8 @@ struct Props {
     pub auth_state: Option<bool>,
     pub active_user: Option<UserState<String>>,
     pub edit_mode: bool,
+    pub follower_count: usize,
+    pub is_following: bool,
 }
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
@@ -171,14 +173,26 @@ fn ProfileView(props: &Props) -> Html {
 
             <div class="toolbar-layout-wrapper">
                 <main class="small flex flex-column g-4">
+                    <div id="error" class="mdnote note-error full" style="display: none;" />
+                    <div id="success" class="mdnote note-note full" style="display: none;" />
+
                     <div class="flex justify-space-between align-center">
                         <h1 class="no-margin">{&props.user.username}</h1>
 
                         // must not be receiver and must still be authenticated
-                        {if (can_edit == false) && (props.auth_state.is_some()) {
+                        {if (can_edit == false) && (props.auth_state.is_some()) && (props.auth_state.unwrap() == true) {
                             html! {
-                                // direct messages will likely just be all within the same board with "is_private" enabled
-                                <button class="round bundles-primary" disabled={true}>{"Message"}</button>
+                                <div class="flex flex-wrap g-4">
+                                    <button class="round bundles-primary" id="follow-user" data-endpoint={format!("/api/auth/users/{}/follow", &props.user.username)}>
+                                        {if props.is_following == false {
+                                            "Follow"
+                                        } else {
+                                            "Unfollow"
+                                        }}
+                                    </button>
+                                    // direct messages will likely just be all within the same board with "is_private" enabled
+                                    // <button class="round bundles-primary" disabled={true}>{"Message"}</button>
+                                </div>
                             }
                         } else {
                             html! {}
@@ -191,6 +205,7 @@ fn ProfileView(props: &Props) -> Html {
                             <li>{"Joined: "}<span class="date-time-to-localize">{&props.user.timestamp}</span></li>
                             <li>{"Paste count: "}{&props.paste_count}</li>
                             <li>{"Board count: "}{&props.board_count}</li>
+                            <li>{"Followers: "}{&props.follower_count}</li>
                         </ul>
 
                         <hr />
@@ -309,6 +324,29 @@ pub async fn profile_view_request(
     let boards_res: bundlesdb::DefaultReturn<Option<Vec<bundlesdb::BoardIdentifier>>> =
         data.db.get_boards_by_owner(username_c.clone()).await;
 
+    let followers_res: bundlesdb::DefaultReturn<usize> =
+        data.db.get_user_follow_count(username_c.clone()).await;
+
+    let is_following_res: Option<bundlesdb::DefaultReturn<Option<Log>>> = if token_user.is_some() {
+        Option::Some(
+            data.db
+                .get_follow_by_user(
+                    token_user
+                        .as_ref()
+                        .unwrap()
+                        .payload
+                        .as_ref()
+                        .unwrap()
+                        .username
+                        .clone(),
+                    username_c.clone(),
+                )
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
     let renderer = build_renderer_with_props(Props {
         user: unwrap.clone(),
         paste_count: if pastes_res.success {
@@ -333,6 +371,12 @@ pub async fn profile_view_request(
         },
         edit_mode: if info.edit.is_some() {
             info.edit.unwrap()
+        } else {
+            false
+        },
+        follower_count: followers_res.payload,
+        is_following: if is_following_res.is_some() {
+            is_following_res.unwrap().payload.is_some()
         } else {
             false
         },

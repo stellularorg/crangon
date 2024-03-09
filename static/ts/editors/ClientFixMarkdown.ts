@@ -13,14 +13,16 @@ import hljs from "highlight.js";
 export function HandleCustomElements() {
     // handle SECRET
     let p = new URLSearchParams(window.location.search);
+
     if (p.get("SECRET")) {
         const s = document.getElementById("secret");
         if (!s) return;
         s.innerHTML = `<div class="mdnote note-warn">
             <b class="mdnote-title">Application Secret</b>
-            <p>Don't lose your edit password! <code>${p.get(
-                "SECRET"
-            )}</code></p>
+            <p>Don't lose your edit password! <code>${p
+                .get("SECRET")!
+                .replaceAll("<", "&lt;")
+                .replaceAll(">", "&gt;")}</code></p>
         </div>`;
     }
 
@@ -105,7 +107,7 @@ export function HandleCustomElements() {
     const styleElements = Array.from(
         document.querySelectorAll("#editor-tab-preview style")
     );
-    
+
     if (
         window.localStorage.getItem("bundles:user.DisableCustomPasteCSS") ===
         "true"

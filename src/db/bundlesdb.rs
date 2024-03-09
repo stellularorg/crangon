@@ -175,6 +175,12 @@ pub struct BoardIdentifier {
     pub name: String,
 }
 
+#[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
+pub struct UserFollow {
+    pub user: String,         // the user that is following `is_following`
+    pub is_following: String, // use user that `user` is following
+}
+
 // ...
 #[derive(Clone)]
 #[cfg(feature = "postgres")]
@@ -2442,5 +2448,155 @@ impl BundlesDB {
             message: String::from("Board deleted!"),
             payload: Option::Some(name),
         };
+    }
+
+    // follows
+
+    // GET
+    /// Get a [`UserFollow`] by the username of the user following
+    ///
+    /// # Arguments:
+    /// * `user` - username of user following
+    /// * `is_following` - the username of the user that `user` is following
+    pub async fn get_follow_by_user(
+        &self,
+        user: String,
+        is_following: String,
+    ) -> DefaultReturn<Option<Log>> {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? AND \"logtype\" = 'follow'"
+        } else {
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 AND \"logtype\" = 'follow'"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&format!(
+                "%\"user\":\"{user}\",\"is_following\":\"{is_following}\"%"
+            ))
+            .fetch_one(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Follow does not exist"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let row = res.unwrap();
+        let row = self.textify_row(row).data;
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Follow exists"),
+            payload: Option::Some(Log {
+                id: row.get("id").unwrap().to_string(),
+                logtype: row.get("logtype").unwrap().to_string(),
+                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+                content: row.get("content").unwrap().to_string(),
+            }),
+        };
+    }
+
+    /// Get the amount of followers a user has
+    ///
+    /// # Arguments:
+    /// * `user` - username of user to check
+    pub async fn get_user_follow_count(&self, user: String) -> DefaultReturn<usize> {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? AND \"logtype\" = 'follow'"
+        } else {
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 AND \"logtype\" = 'follow'"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&format!("%\"is_following\":\"{user}\"%"))
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to fetch followers"),
+                payload: 0,
+            };
+        }
+
+        // ...
+        let rows = res.unwrap();
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Follow exists"),
+            payload: rows.len(),
+        };
+    }
+
+    // SET
+    /// Toggle the following status of `user` on `is_following` ([`UserFollow`])
+    ///
+    /// # Arguments:
+    /// * `props` - [`UserFollow`]
+    pub async fn toggle_user_follow(
+        &self,
+        props: &mut UserFollow,
+    ) -> DefaultReturn<Option<String>> {
+        let p: &mut UserFollow = props; // borrowed props
+
+        // users cannot be the same
+        if p.user == p.is_following {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Cannot follow yourself!"),
+                payload: Option::None,
+            };
+        }
+
+        // make sure both users exist
+        let existing: DefaultReturn<Option<UserState<String>>> =
+            self.get_user_by_username(p.user.to_owned()).await;
+
+        if !existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("User does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // make sure both users exist
+        let existing: DefaultReturn<Option<UserState<String>>> =
+            self.get_user_by_username(p.is_following.to_owned()).await;
+
+        if !existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("User (2) does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // check if follow exists
+        let existing: DefaultReturn<Option<Log>> = self
+            .get_follow_by_user(p.user.to_owned(), p.is_following.to_owned())
+            .await;
+
+        if existing.success {
+            // delete log and return
+            return self.delete_log(existing.payload.unwrap().id).await;
+        }
+
+        // return
+        self.create_log(
+            String::from("follow"),
+            serde_json::to_string::<UserFollow>(&p).unwrap(),
+        )
+        .await
     }
 }
