@@ -418,3 +418,10 @@ pre {
     padding: var(--u-08);
     border-radius: var(--u-04);
 }
+
+/* heading anchors */
+.anchor {
+    display: block;
+    width: 100%;
+    height: 100%;
+}

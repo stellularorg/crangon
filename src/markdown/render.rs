@@ -10,6 +10,7 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
     options.extension.superscript = true;
     options.extension.strikethrough = true;
     options.extension.autolink = true;
+    options.extension.header_ids = Option::Some(String::new());
     // options.render.unsafe_ = true;
     options.render.escape = true;
     options.parse.smart = false;

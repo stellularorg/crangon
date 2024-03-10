@@ -121,5 +121,47 @@ for (const dismissable of Array.from(dismissables) as HTMLElement[]) {
     }
 }
 
+// heading links
+const headings = document.querySelectorAll("h1, h2, h3, h4, h5, h6");
+
+for (const heading of Array.from(headings) as HTMLHeadingElement[]) {
+    heading.style.cursor = "pointer";
+
+    // set title
+    heading.title = heading.innerText;
+
+    // get id element
+    const id_element = heading.querySelector("a.anchor");
+
+    if (id_element) {
+        // move id
+        heading.id = id_element.id;
+        id_element.removeAttribute("id");
+        id_element.remove();
+    } else {
+        heading.id = encodeURIComponent(heading.innerText);
+    }
+
+    // check focus status
+    if (window.location.hash === `#${heading.id}`) {
+        heading.style.background = "var(--yellow1)";
+        heading.scrollTo();
+    }
+
+    // ...
+    heading.addEventListener("click", () => {
+        window.location.hash = heading.id;
+        window.navigator.clipboard.writeText(window.location.href);
+
+        // toggle highlight color
+        for (const _heading of Array.from(headings) as HTMLHeadingElement[]) {
+            _heading.style.background = "unset";
+        }
+
+        heading.style.background = "var(--yellow1)";
+        heading.scrollTo();
+    });
+}
+
 // default export
 export default {};
