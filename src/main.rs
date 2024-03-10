@@ -157,10 +157,12 @@ async fn main() -> std::io::Result<()> {
             // GET staff
             .service(crate::pages::staff::dashboard_request)
             .service(crate::pages::staff::staff_boards_dashboard_request)
+            // GET users
+            .service(crate::pages::auth::followers_request)
+            .service(crate::pages::auth::profile_view_request)
             // GET root
             .service(crate::pages::home::home_request)
             .service(crate::pages::home::robotstxt)
-            .service(crate::pages::auth::profile_view_request)
             .service(crate::pages::paste_view::atomic_paste_view_request)
             .service(crate::pages::paste_view::paste_view_request) // must be run last as it matches all other paths!
             // ERRORS

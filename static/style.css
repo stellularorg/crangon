@@ -76,6 +76,7 @@ button,
 .button {
     padding: var(--u-02) var(--u-08);
     height: 35px !important;
+    min-height: 35px;
     user-select: none;
 }
 

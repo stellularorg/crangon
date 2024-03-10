@@ -333,7 +333,7 @@ pub async fn view_board_request(
         // anonymous
         if token_user.is_none() {
             return HttpResponse::NotFound()
-                .body("You do not have permission to view this paste's contents.");
+                .body("You do not have permission to view this board's contents.");
         }
 
         // not owner
@@ -905,10 +905,10 @@ pub async fn dashboard_request(
             set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
         }
     } else {
-        // you must have an account to use atomic pastes
+        // you must have an account to use boards
         // we'll likely track bandwidth used by atomic pastes and limit it in the future
         return HttpResponse::NotFound().body(
-            "You must have an account to use atomic pastes.
+            "You must have an account to use boards.
 You can login at: /d/auth/login
 You can create an account at: /d/auth/register",
         );
