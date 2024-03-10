@@ -56,6 +56,20 @@ struct DashboardProps {
     pub auth_state: Option<bool>,
 }
 
+#[derive(Default, Properties, PartialEq, serde::Deserialize)]
+struct SearchProps {
+    pub boards: Vec<bundlesdb::BoardIdentifier>,
+    pub tags: String,
+    pub offset: i32,
+    pub auth_state: Option<bool>,
+}
+
+#[derive(Default, Properties, PartialEq, serde::Deserialize)]
+pub struct SearchQueryProps {
+    pub offset: Option<i32>,
+    pub tags: Option<String>,
+}
+
 #[function_component]
 fn CreateNew(props: &NewProps) -> Html {
     return html! {
@@ -196,6 +210,32 @@ fn ViewBoard(props: &Props) -> Html {
                         } else {
                             html! {}
                         }}
+
+                        <hr />
+
+                        <ul style="opacity: 75%;">
+                            <li>{"Created: "}<span class="date-time-to-localize">{&props.board.timestamp}</span></li>
+                            <li>{"Owner: "}<a href={format!("/~{}", &board_m.owner)}>{&board_m.owner}</a></li>
+
+                            {if board_m.tags.is_some() {
+                                let binding = board_m.tags.unwrap().clone();
+                                let tags = binding.split(" ");
+
+                                html! { <li>
+                                    {"Tags: "}
+
+                                    <span class="g-4 flex-wrap" style="display: inline-flex;">
+                                        {for tags.into_iter().map(|t| {
+                                            html! { <a href={format!("/d/boards/browse?tags={}", t.replace("+", "%2B"))}>{&t}</a> }
+                                        })}
+                                    </span>
+                                </li> }
+                            } else {
+                                html! {}
+                            }}
+                        </ul>
+
+                        <hr />
                     </div>
 
                     {if (props.auth_state.is_some() && props.auth_state.unwrap() == true) || (can_post_from_anonymous == true) {
@@ -818,8 +858,170 @@ pub async fn board_settings_request(
 }
 
 #[function_component]
+fn SearchByTag(props: &SearchProps) -> Html {
+    html! {
+        <div class="flex flex-column" style="height: 100dvh;">
+            <div class="toolbar flex justify-space-between">
+                // left
+                <div class="flex">
+                    <a class="button" href="/" style="border-left: 0">
+                        <b>{"::SITE_NAME::"}</b>
+                    </a>
+
+                    <a class="button" href="/d" style="border-left: 0">
+                        {"Dashboard"}
+                    </a>
+                </div>
+            </div>
+
+            <div class="toolbar-layout-wrapper">
+                <div id="link-header" style="display: flex;" class="flex-column bg-1">
+                    <div class="link-header-top"></div>
+
+                    <div class="link-header-middle">
+                        <h1 class="no-margin">{"Browse Boards"}</h1>
+                    </div>
+
+                    <div class="link-header-bottom">
+                        <a href="/d" class="button">{"Home"}</a>
+                        <a href="/d/atomic" class="button">{"Atomic"}</a>
+                        <a href="/d/boards" class="button active">{"Boards"}</a>
+                    </div>
+                </div>
+
+                <main class="small flex flex-column g-4">
+                    <div class="flex justify-space-between align-center mobile:flex-column g-4">
+                        <b>{"Search Boards"}</b>
+
+                        <form style="width: 50%;" class="flex g-4 mobile:max">
+                            <input
+                                type="text"
+                                name="tags"
+                                id="tags"
+                                placeholder="Tags"
+                                class="round"
+                                value={props.tags.clone()}
+                                maxlength={250}
+                                style="width: calc(100% - 50px);"
+                            />
+
+                            <button class="round bundles-primary" style="width: 50px;">{"Go"}</button>
+                        </form>
+                    </div>
+
+                    <div class="card round secondary flex g-4 flex-column justify-center" id="boards_list">
+                        {for props.boards.iter().map(|b| html! {
+                            <a class="button secondary round full justify-start" href={format!("/b/{}", &b.name)} title={b.tags.clone()}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-messages-square"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2v5Z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg>
+                                {&b.name}
+                            </a>
+                        })}
+                    </div>
+
+                    <div class="full flex justify-space-between" id="pages">
+                        <a class="button round" href={format!("?tags={}&offset={}", props.tags, props.offset - 50)} disabled={props.offset <= 0}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                            {"Back"}
+                        </a>
+
+                        <a class="button round" href={format!("?tags={}&offset={}", props.tags, props.offset + 50)} disabled={props.boards.len() == 0}>
+                            {"Next"}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        </a>
+                    </div>
+
+                    <Footer auth_state={props.auth_state} />
+                </main>
+            </div>
+        </div>
+    }
+}
+
+fn build_search_renderer_with_props(props: SearchProps) -> ServerRenderer<SearchByTag> {
+    ServerRenderer::<SearchByTag>::with_props(|| props)
+}
+
+#[get("/d/boards/browse")]
+/// Available at "/d/boards/browse"
+pub async fn search_by_tags_request(
+    req: HttpRequest,
+    data: web::Data<db::bundlesdb::AppData>,
+    info: web::Query<SearchQueryProps>,
+) -> impl Responder {
+    // verify auth status
+    let token_cookie = req.cookie("__Secure-Token");
+    let mut set_cookie: &str = "";
+
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists, refresh token if not
+        if token_user.as_ref().unwrap().success == false {
+            set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+        }
+    } else {
+        // you must have an account to use boards
+        // we'll likely track bandwidth used by atomic pastes and limit it in the future
+        return HttpResponse::NotFound().body(
+            "You must have an account to use boards.
+You can login at: /d/auth/login
+You can create an account at: /d/auth/register",
+        );
+    }
+
+    // fetch boards
+    let boards = if info.tags.is_some() {
+        data.db
+            .get_boards_by_tags(info.tags.as_ref().unwrap().to_string(), info.offset)
+            .await
+    } else {
+        data.db.get_boards(info.offset).await
+    };
+
+    if boards.success == false {
+        return HttpResponse::NotFound().body(boards.message);
+    }
+
+    // ...
+    let renderer = build_search_renderer_with_props(SearchProps {
+        boards: boards.payload.unwrap(),
+        tags: if info.tags.is_some() {
+            info.tags.as_ref().unwrap().to_string()
+        } else {
+            String::new()
+        },
+        offset: if info.offset.is_some() {
+            info.offset.unwrap()
+        } else {
+            0
+        },
+        auth_state: if req.cookie("__Secure-Token").is_some() {
+            Option::Some(true)
+        } else {
+            Option::Some(false)
+        },
+    });
+
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
+        .body(format_html(
+            renderer.render().await,
+            "<title>Browse Boards - ::SITE_NAME::</title>",
+        ));
+}
+
+#[function_component]
 fn Dashboard(props: &DashboardProps) -> Html {
-    return html! {
+    html! {
         <div class="flex flex-column" style="height: 100dvh;">
             <div class="toolbar flex justify-space-between">
                 // left
@@ -853,10 +1055,17 @@ fn Dashboard(props: &DashboardProps) -> Html {
                     <div class="flex justify-space-between align-center">
                         <b>{"My Boards"}</b>
 
-                        <a class="button bundles-primary round" href="/b/new">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-square"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
-                            {"New"}
-                        </a>
+                        <div class="flex g-4 flex-wrap">
+                            <a class="button border round" href="/d/boards/browse">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                                {"Browse"}
+                            </a>
+
+                            <a class="button bundles-primary round" href="/b/new">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-square"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                                {"New"}
+                            </a>
+                        </div>
                     </div>
 
                     <div class="card round secondary flex g-4 flex-column justify-center" id="boards_list">
@@ -872,7 +1081,7 @@ fn Dashboard(props: &DashboardProps) -> Html {
                 </main>
             </div>
         </div>
-    };
+    }
 }
 
 fn build_dashboard_renderer_with_props(props: DashboardProps) -> ServerRenderer<Dashboard> {

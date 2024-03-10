@@ -33,7 +33,7 @@ import {
 import { history, indentWithTab } from "@codemirror/commands";
 import { tags } from "@lezer/highlight";
 
-import { HandleCustomElements } from "./ClientFixMarkdown";
+import ClientFixMarkdown from "./ClientFixMarkdown";
 
 // create theme
 const highlight = HighlightStyle.define([
@@ -561,7 +561,7 @@ document
             .classList.remove("secondary");
 
         // fix markdown rendering
-        HandleCustomElements();
+        ClientFixMarkdown();
     });
 
 document.querySelector(".tab-container")!.addEventListener("click", () => {
@@ -737,7 +737,7 @@ if (submit_form.getAttribute("data-edit") === "false") {
         const _confirm = confirm(
             "Are you sure you would like to do this? This URL will be available for anybody to claim."
         );
-        
+
         if (!_confirm) return;
 
         const edit_password = prompt(

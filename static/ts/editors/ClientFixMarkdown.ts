@@ -130,5 +130,16 @@ export function HandleCustomElements() {
  */
 export default async function ClientFixMarkdown() {
     HandleCustomElements();
+
+    // escape all code blocks
+    for (const block of Array.from(
+        document.querySelectorAll("#editor-tab-preview pre code")
+    )) {
+        (block as HTMLElement).innerHTML = (block as HTMLElement).innerHTML
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;");
+    }
+
+    // ...
     hljs.highlightAll();
 }

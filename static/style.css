@@ -80,6 +80,11 @@ button,
     user-select: none;
 }
 
+button.border,
+.button.border {
+    box-shadow: 0 0 0 1px var(--background-surface2a);
+}
+
 button.bundles-primary,
 .button.bundles-primary {
     background: var(--primary);
@@ -100,6 +105,19 @@ button.bundles-secondary,
 button.bundles-secondary:hover,
 .button.bundles-secondary:hover {
     background: var(--secondary-low);
+}
+
+/* input modifications */
+button + input,
+.button + input {
+    height: 35px !important;
+    min-height: 35px;
+}
+
+input + button,
+input + .button {
+    height: 40px !important;
+    min-height: 40px;
 }
 
 /* details */
@@ -379,4 +397,24 @@ select:focus {
 
 .__footernav .item:first-child:before {
     display: none;
+}
+
+/* more highlight.js styles */
+.hljs-tag,
+.hljs-number {
+    color: var(--yellow);
+}
+
+.hljs-type {
+    color: var(--green3);
+}
+
+.hljs-built_in {
+    color: var(--blue2);
+}
+
+/* code */
+pre {
+    padding: var(--u-08);
+    border-radius: var(--u-04);
 }

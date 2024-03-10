@@ -18,13 +18,6 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
     // original_in = regex_replace(&original_in, "<", "&lt;");
     // original_in = regex_replace(&original_in, ">", "&gt;");
 
-    // unescape arrow alignment
-    original_in = regex_replace(&original_in, "-&gt;&gt;", "->>");
-    original_in = regex_replace(&original_in, "&lt;&lt;-", "<<-");
-
-    original_in = regex_replace(&original_in, "-&gt;", "->");
-    original_in = regex_replace(&original_in, "&lt;-", "<-");
-
     // underline
     original_in = regex_replace(
         &original_in,
@@ -318,22 +311,12 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
         "<span class=\"highlight\">$2</span>",
     );
 
-    // image with sizing
-    let image_sizing_regex = RegexBuilder::new("(!)\\[(.*?)\\]\\((.*?)\\)\\:\\{(.*?)x(.*?)\\}")
-        .multi_line(true)
-        .build()
-        .unwrap();
+    // unescape arrow alignment
+    out = regex_replace(&out, "-&gt;&gt;", "->>");
+    out = regex_replace(&out, "&lt;&lt;-", "<<-");
 
-    for capture in image_sizing_regex.captures_iter(&out.clone()) {
-        let title = capture.get(2).unwrap().as_str();
-        let src = capture.get(3).unwrap().as_str();
-
-        let width = capture.get(4).unwrap().as_str();
-        let height = capture.get(5).unwrap().as_str();
-
-        let result = &format!("<img alt=\"{title}\" title=\"{title}\" src=\"{src}\" style=\"width: {width}px; height: {height}px;\" />");
-        out = out.replacen(capture.get(0).unwrap().as_str(), result, 1);
-    }
+    out = regex_replace(&out, "-&gt;", "->");
+    out = regex_replace(&out, "&lt;-", "<-");
 
     // arrow alignment (flex)
     let arrow_alignment_flex_regex = RegexBuilder::new("(\\->{2})(.*?)(\\->{2}|<{2}\\-)")

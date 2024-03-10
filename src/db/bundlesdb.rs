@@ -157,6 +157,8 @@ pub struct BoardMetadata {
     pub allow_anonymous: Option<String>, // if anonymous users can post
     pub allow_open_posting: Option<String>, // if all users can post on the board (not just owner)
     pub about: Option<String>, // welcome message
+    pub tags: Option<String>, // SPACE separated list of tags that identify the board for searches
+                            // TODO: we could likely export a list of "valid" tags at some point in the future
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
@@ -174,6 +176,7 @@ pub struct BoardPostLog {
 #[derive(Debug, Default, sqlx::FromRow, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BoardIdentifier {
     pub name: String,
+    pub tags: String,
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
@@ -1729,6 +1732,132 @@ impl BundlesDB {
         };
     }
 
+    /// Get public [`Board`]s
+    ///
+    /// # Arguments:
+    /// * `offset` - optional value representing the SQL fetch offset
+    pub async fn get_boards(
+        &self,
+        offset: Option<i32>,
+    ) -> DefaultReturn<Option<Vec<BoardIdentifier>>> {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Boards\" WHERE \"metadata\" NOT LIKE '%\"is_private\":\"yes\"%' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
+        } else {
+            "SELECT * FROM \"Boards\" WHERE \"metadata\" NOT LIKE '%\"is_private\":\"yes\"%' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $1"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind(if offset.is_some() { offset.unwrap() } else { 0 })
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to fetch boards"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let rows = res.unwrap();
+        let mut output: Vec<BoardIdentifier> = Vec::new();
+
+        for row in rows {
+            let row = self.textify_row(row).data;
+            output.push(BoardIdentifier {
+                name: row.get("name").unwrap().to_string(),
+                tags: String::new(),
+            });
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Board exists"),
+            payload: Option::Some(output),
+        };
+    }
+
+    /// Get public [`Board`]s by their tags
+    ///
+    /// # Arguments:
+    /// * `tags` - space separated list of tags, tags should use "_" instead of a space in their names, all tags should start with "+"
+    /// * `offset` - optional value representing the SQL fetch offset
+    pub async fn get_boards_by_tags(
+        &self,
+        mut tags: String,
+        offset: Option<i32>,
+    ) -> DefaultReturn<Option<Vec<BoardIdentifier>>> {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Boards\" WHERE \"metadata\" LIKE ? AND \"metadata\" NOT LIKE '%\"is_private\":\"yes\"%' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
+        } else {
+            "SELECT * FROM \"Boards\" WHERE \"metadata\" LIKE $1 AND \"metadata\" NOT LIKE '%\"is_private\":\"yes\"%' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $2"
+        };
+
+        // check tags (reason below)
+        for tag in tags.clone().split(" ") {
+            if tag.starts_with("+") | (tag.len() == 0) {
+                continue;
+            }
+
+            tags = tags.replacen(tag, &format!("+{}", tag), 1);
+
+            // return DefaultReturn {
+            //     success: false,
+            //     message: String::from("Invalid tags: all tags should start with \"+\""),
+            //     payload: Option::None,
+            // };
+        }
+
+        // ...
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            // this allows us to search within ANY field of the metadata ...
+            // ideally we would use MySQL JSON_VALUE here, but SQLite and PostgreSQL don't support this
+            // instead we'll just require that tags start with "+"
+            .bind::<&String>(&format!("%{tags}%"))
+            .bind(if offset.is_some() { offset.unwrap() } else { 0 })
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to fetch boards"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let rows = res.unwrap();
+        let mut output: Vec<BoardIdentifier> = Vec::new();
+
+        for row in rows {
+            let row = self.textify_row(row).data;
+            let metadata =
+                serde_json::from_str::<BoardMetadata>(&row.get("metadata").unwrap().to_string())
+                    .unwrap();
+
+            output.push(BoardIdentifier {
+                name: row.get("name").unwrap().to_string(),
+                tags: if metadata.tags.is_some() {
+                    metadata.tags.unwrap()
+                } else {
+                    String::new()
+                },
+            });
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Board exists"),
+            payload: Option::Some(output),
+        };
+    }
+
     /// Get all posts in a [`Board`] by its name
     ///
     /// # Arguments:
@@ -2061,6 +2190,7 @@ impl BundlesDB {
             let row = self.textify_row(row).data;
             full_res.push(BoardIdentifier {
                 name: row.get("name").unwrap().to_string(),
+                tags: String::new(),
             });
         }
 
@@ -2143,6 +2273,7 @@ impl BundlesDB {
             allow_anonymous: Option::Some(String::from("yes")),
             allow_open_posting: Option::Some(String::from("yes")),
             about: Option::None,
+            tags: Option::None,
         };
 
         // check values

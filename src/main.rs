@@ -138,6 +138,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::pages::atomic_editor::edit_request)
             // GET boards
             .service(crate::pages::boards::dashboard_request)
+            .service(crate::pages::boards::search_by_tags_request)
             .service(crate::pages::boards::new_request)
             .service(crate::pages::boards::view_board_post_request)
             .service(crate::pages::boards::board_settings_request)

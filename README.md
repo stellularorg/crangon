@@ -1,8 +1,10 @@
-# 🗃️ bundlrs
+# ☄️ bundlrs
 
 *Bundlrs* is a rewrite of [Bundles](https://codeberg.org/SentryTwo/bundles) in Rust without some of the extra features.
 
-Bundlrs is a *super* lightweight and [anonymous](#user-accounts) markdown pastebin featuring custom URLs, quick and full deletion, easy editing, live preview, advanced styling, and [much more](#features)!
+Bundlrs is a *super* lightweight and [anonymous](#user-accounts) social markdown platform featuring pastes with custom URLs, quick and full deletion, easy editing, live preview, advanced styling, and [much more](#features)!
+
+For migration from Bundles, please see [#3](https://code.stellular.org/stellular/bundlrs/issues/3).
 
 ## Install
 
@@ -50,14 +52,15 @@ Environment variables:
 
 ## Features
 
-Bundlrs supports all [Bundles features](https://bundles.cc/what#features) with some minor modifications. These are listed below with their reasons:
+- [Bundlrs Info Page](https://stellular.net/pub/info)
+- [Markdown Info Page](https://stellular.net/pub/markdown)
+- [API Docs](https://stellular.net/api/docs/bundlrs/index.html)
 
-- Bundlrs does **not** support comments
-    - Comments were the cause of many bugs in the original version of Bundles, as well as being one of the least used features. The amount of time taken to get comments working with the correct configuration was not worth the output.
-- Bundles does **not** support writer mode
-    - *\*this could change*
-- Bundles does **not** support paste media
-    - *\*this could change*
+## Boards
+
+Boards are simple forum-like rooms that can be created by users. Boards can be made private by changing `is_private` to `yes` in their configuration page; however this will not stop [users](#user-accounts) with the `Staff` role from viewing and posting on the board.
+
+Boards can be given tags in their configuration. All tags must start with `+` and must be space separated.
 
 ## User Accounts
 
