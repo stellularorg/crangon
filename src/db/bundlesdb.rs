@@ -171,6 +171,7 @@ pub struct BoardPostLog {
     pub reply: Option<String>,  // the ID of the post we're replying to
     pub pinned: Option<bool>,   // pin the post to the top of the board feed
     pub replies: Option<usize>, // not really managed in the log, just used to show the number of replies this post has
+    pub tags: Option<String>,   // same as board tags, just for posts specifically
 }
 
 #[derive(Debug, Default, sqlx::FromRow, Clone, Serialize, Deserialize, PartialEq)]
@@ -1803,12 +1804,6 @@ impl BundlesDB {
             }
 
             tags = tags.replacen(tag, &format!("+{}", tag), 1);
-
-            // return DefaultReturn {
-            //     success: false,
-            //     message: String::from("Invalid tags: all tags should start with \"+\""),
-            //     payload: Option::None,
-            // };
         }
 
         // ...
@@ -1890,6 +1885,104 @@ impl BundlesDB {
         let c = &self.db.client;
         let res = sqlx::query(query)
             .bind::<&String>(&format!("%\"board\":\"{}\"%", url))
+            .bind(if offset.is_some() { offset.unwrap() } else { 0 })
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to fetch posts"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let rows = res.unwrap();
+        let mut output: Vec<Log> = Vec::new();
+
+        for row in rows {
+            let row = self.textify_row(row).data;
+            output.push(Log {
+                id: row.get("id").unwrap().to_string(),
+                logtype: row.get("logtype").unwrap().to_string(),
+                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+                content: row.get("content").unwrap().to_string(),
+            });
+        }
+
+        let mut true_output: Vec<Log> = Vec::new();
+        for mut post in output {
+            let mut parsed = serde_json::from_str::<BoardPostLog>(&post.content).unwrap();
+
+            // get replies
+            let replies = &self.get_post_replies_limited(post.clone().id, false).await;
+
+            if replies.payload.is_some() {
+                parsed.replies = Option::Some(replies.payload.as_ref().unwrap().len());
+
+                // update
+                post.content = serde_json::to_string::<BoardPostLog>(&parsed).unwrap();
+                true_output.push(post);
+
+                continue;
+            }
+
+            continue;
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Successfully fetched posts"),
+            payload: Option::Some(true_output),
+        };
+    }
+
+    /// Get all posts in a [`Board`] by its name and their tags
+    ///
+    /// # Arguments:
+    /// * `url` - board name
+    /// * `tags` - space separated list of tags, tags should use "_" instead of a space in their names, all tags should start with "+"
+    /// * `offset` - optional value representing the SQL fetch offset
+    pub async fn get_board_posts_by_tag(
+        &self,
+        url: String,
+        mut tags: String,
+        offset: Option<i32>,
+    ) -> DefaultReturn<Option<Vec<Log>>> {
+        // make sure board exists
+        let existing: DefaultReturn<Option<Board<String>>> =
+            self.get_board_by_name(url.to_owned()).await;
+
+        if existing.success == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Board does not exist"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? AND \"content\" LIKE ? AND \"content\" NOT LIKE '%\"reply\":\"%' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
+        } else {
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 AND \"content\" LIKE $2 AND \"content\" NOT LIKE '%\"reply\":\"%' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $3"
+        };
+
+        // check tags
+        for tag in tags.clone().split(" ") {
+            if tag.starts_with("+") | (tag.len() == 0) {
+                continue;
+            }
+
+            tags = tags.replacen(tag, &format!("+{}", tag), 1);
+        }
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&format!("%\"board\":\"{}\"%", url))
+            .bind::<&String>(&format!("%{tags}%"))
             .bind(if offset.is_some() { offset.unwrap() } else { 0 })
             .fetch_all(c)
             .await;
@@ -2428,6 +2521,7 @@ impl BundlesDB {
             reply: p.reply.clone(),
             pinned: Option::Some(false),
             replies: Option::None,
+            tags: Option::None,
         };
 
         // return

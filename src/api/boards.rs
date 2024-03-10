@@ -21,6 +21,11 @@ struct UpdatePostInfo {
     content: String,
 }
 
+#[derive(serde::Deserialize)]
+struct UpdatePostTagsInfo {
+    tags: String,
+}
+
 #[post("/api/board/new")]
 pub async fn create_request(
     req: HttpRequest,
@@ -230,6 +235,7 @@ pub async fn create_post_request(
                 },
                 pinned: Option::Some(false),
                 replies: Option::None,
+                tags: Option::None,
             },
             if token_user.is_some() {
                 Option::Some(token_user.clone().unwrap().username)
@@ -402,6 +408,88 @@ pub async fn update_post_request(
         crate::markdown::render::parse_markdown(&body.content),
         crate::utility::unix_epoch_timestamp()
     );
+
+    // ...
+    let res = data
+        .db
+        .edit_log(id, serde_json::to_string::<BoardPostLog>(&post).unwrap())
+        .await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string(&res).unwrap());
+}
+
+#[post("/api/board/{name:.*}/posts/{id:.*}/tags")]
+pub async fn update_post_tags_request(
+    req: HttpRequest,
+    body: web::Json<UpdatePostTagsInfo>,
+    data: web::Data<AppData>,
+) -> impl Responder {
+    let name: String = req.match_info().get("name").unwrap().to_string();
+    let id: String = req.match_info().get("id").unwrap().to_string();
+
+    // get owner
+    let token_cookie = req.cookie("__Secure-Token");
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists
+        if token_user.as_ref().unwrap().success == false {
+            return HttpResponse::NotFound().body("Invalid token");
+        }
+    } else {
+        return HttpResponse::NotAcceptable().body("An account is required to do this");
+    }
+
+    // make sure board exists
+    let board: DefaultReturn<Option<Board<String>>> =
+        data.db.get_board_by_name(name.to_owned()).await;
+
+    if !board.success {
+        return HttpResponse::NotFound()
+            .append_header(("Content-Type", "application/json"))
+            .body(
+                serde_json::to_string::<DefaultReturn<Option<String>>>(&DefaultReturn {
+                    success: false,
+                    message: String::from("Board does not exist!"),
+                    payload: Option::None,
+                })
+                .unwrap(),
+            );
+    }
+
+    let board = serde_json::from_str::<BoardMetadata>(&board.payload.unwrap().metadata).unwrap();
+
+    // get post
+    let p = data.db.get_log_by_id(id.to_owned()).await;
+    let mut post = serde_json::from_str::<BoardPostLog>(&p.payload.unwrap().content).unwrap();
+
+    // check if we can update this post
+    // must be authenticated AND post author OR staff OR board owner
+    let user = token_user.unwrap().payload.unwrap();
+
+    let can_update: bool = (user.username != String::from("Anonymous"))
+        && ((user.username == board.owner)
+            | (user.username == post.author)
+            | (user.role == String::from("staff")));
+
+    if can_update == false {
+        return HttpResponse::NotFound()
+            .body("You do not have permission to manage this post's contents.");
+    }
+
+    // update tags
+    post.tags = Option::Some(body.tags.clone());
 
     // ...
     let res = data

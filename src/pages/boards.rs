@@ -21,12 +21,14 @@ struct Props {
     pub posts: Vec<Log>,
     pub pinned: Vec<Log>,
     pub offset: i32,
+    pub tags: String,
     pub auth_state: Option<bool>,
 }
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 pub struct ViewBoardQueryProps {
     pub offset: Option<i32>,
+    pub tags: Option<String>,
 }
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
@@ -37,11 +39,13 @@ struct ViewPostProps {
     pub auth_state: Option<bool>,
     pub user: Option<UserState<String>>,
     pub edit: bool,
+    pub edit_tags: bool,
 }
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 pub struct ViewBoardPostQueryProps {
     pub edit: Option<bool>,
+    pub edit_tags: Option<bool>,
 }
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
@@ -213,27 +217,57 @@ fn ViewBoard(props: &Props) -> Html {
 
                         <hr />
 
-                        <ul style="opacity: 75%;">
-                            <li>{"Created: "}<span class="date-time-to-localize">{&props.board.timestamp}</span></li>
-                            <li>{"Owner: "}<a href={format!("/~{}", &board_m.owner)}>{&board_m.owner}</a></li>
+                        <div class="flex flex-column g-4">
+                            <details class="full round">
+                                <summary>{"Board Information"}</summary>
 
-                            {if board_m.tags.is_some() {
-                                let binding = board_m.tags.unwrap().clone();
-                                let tags = binding.split(" ");
+                                <div class="card secondary">
+                                    <ul>
+                                        <li>{"Created: "}<span class="date-time-to-localize">{&props.board.timestamp}</span></li>
+                                        <li>{"Owner: "}<a href={format!("/~{}", &board_m.owner)}>{&board_m.owner}</a></li>
 
-                                html! { <li>
-                                    {"Tags: "}
+                                        {if board_m.tags.is_some() {
+                                            let binding = board_m.tags.unwrap().clone();
+                                            let tags = binding.split(" ");
 
-                                    <span class="g-4 flex-wrap" style="display: inline-flex;">
-                                        {for tags.into_iter().map(|t| {
-                                            html! { <a href={format!("/d/boards/browse?tags={}", t.replace("+", "%2B"))}>{&t}</a> }
-                                        })}
-                                    </span>
-                                </li> }
-                            } else {
-                                html! {}
-                            }}
-                        </ul>
+                                            html! { <li>
+                                                {"Tags: "}
+
+                                                <span class="g-4 flex-wrap" style="display: inline-flex;">
+                                                    {for tags.into_iter().map(|t| {
+                                                        html! { <a href={format!("/d/boards/browse?tags={}", t.replace("+", "%2B"))}>{&t}</a> }
+                                                    })}
+                                                </span>
+                                            </li> }
+                                        } else {
+                                            html! {}
+                                        }}
+                                    </ul>
+                                </div>
+                            </details>
+
+                            <details class="full round">
+                                <summary>{"Search"}</summary>
+
+                                <div class="card secondary flex flex-column g-4">
+                                    <b>{"By Tags"}</b>
+                                    <form class="flex g-4 full">
+                                        <input
+                                            type="text"
+                                            name="tags"
+                                            id="tags"
+                                            placeholder="Tags"
+                                            class="round"
+                                            value={props.tags.clone()}
+                                            maxlength={250}
+                                            style="width: calc(100% - 50px);"
+                                        />
+
+                                        <button class="round bundles-primary" style="width: 50px;">{"Go"}</button>
+                                    </form>
+                                </div>
+                            </details>
+                        </div>
 
                         <hr />
                     </div>
@@ -288,21 +322,21 @@ fn ViewBoard(props: &Props) -> Html {
                         html! {}
                     }}
 
+                    {for props.posts.iter().map(|p| {
+                        html! { <Message post={p.clone()} show_open={true} pinned={false} /> }
+                    })}
+
                     <div class="full flex justify-space-between" id="pages">
-                        <a class="button round" href={format!("?offset={}", props.offset - 50)} disabled={props.offset <= 0}>
+                        <a class="button round" href={format!("?tags={}&offset={}", props.tags, props.offset - 50)} disabled={props.offset <= 0}>
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
                             {"Back"}
                         </a>
 
-                        <a class="button round" href={format!("?offset={}", props.offset + 50)} disabled={props.posts.len() == 0}>
+                        <a class="button round" href={format!("?tags={}&offset={}", props.tags, props.offset + 50)} disabled={props.posts.len() == 0}>
                             {"Next"}
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                         </a>
                     </div>
-
-                    {for props.posts.iter().map(|p| {
-                        html! { <Message post={p.clone()} show_open={true} pinned={false} /> }
-                    })}
 
                     <script type="module">
                         {"import \"/static/js/BoardView.js\";"}
@@ -387,7 +421,18 @@ pub async fn view_board_request(
 
     // ...
     let posts: bundlesdb::DefaultReturn<Option<Vec<Log>>> =
-        data.db.get_board_posts(name.clone(), info.offset).await;
+        if info.tags.is_some() && (info.tags.as_ref().unwrap().len() > 0) {
+            data.db
+                .get_board_posts_by_tag(
+                    name.clone(),
+                    info.tags.as_ref().unwrap().to_string(),
+                    info.offset,
+                )
+                .await
+        } else {
+            // all posts
+            data.db.get_board_posts(name.clone(), info.offset).await
+        };
 
     let pinned: bundlesdb::DefaultReturn<Option<Vec<Log>>> =
         data.db.get_pinned_board_posts(name.clone()).await;
@@ -401,6 +446,11 @@ pub async fn view_board_request(
             info.offset.unwrap()
         } else {
             0
+        },
+        tags: if info.tags.is_some() {
+            info.tags.as_ref().unwrap().to_string()
+        } else {
+            String::new()
         },
         auth_state: if req.cookie("__Secure-Token").is_some() {
             Option::Some(true)
@@ -483,9 +533,40 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                     <div id="error" class="mdnote note-error full" style="display: none;" />
                     <div id="success" class="mdnote note-note full" style="display: none;" />
 
-                    {if (props.edit == false) | (can_edit == false) {
+                    {if (props.edit == false && props.edit_tags == false) | (can_edit == false) {
                         html! { <Message post={p.clone()} show_open={false} pinned={false} /> }
+                    } else if props.edit_tags == true {
+                        // edit tags
+                        html! { <div class="card round secondary" id="post">
+                            <form id="edit-post-tags" class="flex flex-column g-4" data-endpoint={format!("/api/board/{}/posts/{}/tags", &post.board, &p.id)}>
+                                <div class="full flex justify-space-between align-center g-4">
+                                    <b>{"Edit Post Tags"}</b>
+
+                                    <button class="bundles-primary round">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                        {"Save"}
+                                    </button>
+                                </div>
+
+                                <textarea
+                                    type="text"
+                                    name="tags"
+                                    id="tags"
+                                    placeholder="Tags"
+                                    class="full round"
+                                    value={if post.tags.is_some() {
+                                        post.tags.unwrap()
+                                    } else {
+                                        String::new()
+                                    }}
+                                    minlength={2}
+                                    maxlength={1_000}
+                                    required={true}
+                                ></textarea>
+                            </form>
+                        </div> }
                     } else {
+                        // edit content
                         html! { <div class="card round secondary" id="post">
                             <form id="edit-post" class="flex flex-column g-4" data-endpoint={format!("/api/board/{}/posts/{}/update", &post.board, &p.id)}>
                                 <div class="full flex justify-space-between align-center g-4">
@@ -515,7 +596,10 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                     <div class="flex flex-wrap g-4">
                         {if can_manage {
                             html! {
-                                <button class="bundles-primary round" id="delete-post" data-endpoint={format!("/api/board/{}/posts/{}", &post.board, &p.id)}>{"Delete"}</button>
+                                <>
+                                    <button class="bundles-primary round" id="delete-post" data-endpoint={format!("/api/board/{}/posts/{}", &post.board, &p.id)}>{"Delete"}</button>
+                                    <a class="button border round" href="?edit_tags=true">{"Edit Tags"}</a>
+                                </>
                             }
                         } else {
                             html! {}
@@ -545,10 +629,10 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                                 <hr style="var(--u-04) 0 var(--u-08) 0" />
 
                                 <div class="full flex flex-column g-4">
-                                    <details class="full round secondary">
+                                    <details class="full round">
                                         <summary>{"About this board"}</summary>
 
-                                        <div class="card full" id="about">
+                                        <div class="card secondary full" id="about">
                                             {if board.about.is_some() {
                                                 let content = Html::from_html_unchecked(AttrValue::from(
                                                     crate::markdown::render::parse_markdown(&board.about.unwrap())
@@ -692,6 +776,11 @@ pub async fn view_board_post_request(
         },
         edit: if info.edit.is_some() {
             info.edit.unwrap()
+        } else {
+            false
+        },
+        edit_tags: if info.edit_tags.is_some() {
+            info.edit_tags.unwrap()
         } else {
             false
         },

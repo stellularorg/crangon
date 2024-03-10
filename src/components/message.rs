@@ -28,7 +28,11 @@ pub fn Message(props: &MessageProps) -> Html {
             "message {} {} round full flex flex-column g-4",
             if post.reply.is_some() { "reply" } else { "" },
             if pinned == true { "pinned" } else { "" }
-        )}>
+        )} title={if post.tags.is_some() {
+            post.tags.unwrap()
+        } else {
+            String::new()
+        }}>
             <div class="flex justify-space-between align-center g-4">
                 <div class="flex g-4 flex-wrap">
                     <span class="chip mention round" style="width: max-content;">

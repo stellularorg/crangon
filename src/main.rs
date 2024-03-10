@@ -150,6 +150,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::boards::create_request)
             .service(crate::api::boards::create_post_request)
             .service(crate::api::boards::update_post_request)
+            .service(crate::api::boards::update_post_tags_request)
             .service(crate::api::boards::metadata_request)
             .service(crate::api::boards::pin_post_request)
             // DELETE boards api

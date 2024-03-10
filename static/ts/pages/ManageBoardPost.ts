@@ -78,6 +78,35 @@ if (edit_form) {
     });
 }
 
+const edit_tags_form: HTMLFormElement | null = document.getElementById(
+    "edit-post-tags"
+) as HTMLFormElement | null;
+
+if (edit_tags_form) {
+    // update post
+    edit_tags_form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const res = await fetch(edit_tags_form.getAttribute("data-endpoint")!, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                tags: edit_tags_form.tags.value,
+            }),
+        });
+
+        const json = await res.json();
+
+        if (json.success === false) {
+            error.style.display = "block";
+            error.innerHTML = `<div class="mdnote-title">${json.message}</div>`;
+        } else {
+            window.location.href = "?";
+        }
+    });
+}
+
 // create reply
 const create_form: HTMLFormElement | null = document.getElementById(
     "create-post"
