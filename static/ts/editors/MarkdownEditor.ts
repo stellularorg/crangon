@@ -9,6 +9,8 @@ import {
     rectangularSelection,
     lineNumbers,
     placeholder,
+    crosshairCursor,
+    dropCursor,
 } from "@codemirror/view";
 
 import {
@@ -16,12 +18,17 @@ import {
     indentOnInput,
     HighlightStyle,
     indentUnit,
+    foldKeymap,
+    bracketMatching,
+    defaultHighlightStyle,
 } from "@codemirror/language";
 
 import {
     CompletionContext,
     autocompletion,
     closeBrackets,
+    closeBracketsKeymap,
+    completionKeymap,
 } from "@codemirror/autocomplete";
 
 import {
@@ -30,7 +37,14 @@ import {
     markdownLanguage,
 } from "@codemirror/lang-markdown";
 
-import { history, indentWithTab } from "@codemirror/commands";
+import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+import { lintKeymap } from "@codemirror/lint";
+import {
+    defaultKeymap,
+    history,
+    historyKeymap,
+    indentWithTab,
+} from "@codemirror/commands";
 import { tags } from "@lezer/highlight";
 
 import ClientFixMarkdown from "./ClientFixMarkdown";
@@ -40,32 +54,32 @@ const highlight = HighlightStyle.define([
     {
         tag: tags.heading1,
         fontWeight: "700",
-        fontSize: "2.5rem",
+        // fontSize: "2.5rem",
     },
     {
         tag: tags.heading2,
         fontWeight: "700",
-        fontSize: "2rem",
+        // fontSize: "2rem",
     },
     {
         tag: tags.heading3,
         fontWeight: "700",
-        fontSize: "1.75rem",
+        // fontSize: "1.75rem",
     },
     {
         tag: tags.heading4,
         fontWeight: "700",
-        fontSize: "1.5rem",
+        // fontSize: "1.5rem",
     },
     {
         tag: tags.heading5,
         fontWeight: "700",
-        fontSize: "1.25rem",
+        // fontSize: "1.25rem",
     },
     {
         tag: tags.heading6,
         fontWeight: "700",
-        fontSize: "1rem",
+        // fontSize: "1rem",
     },
     {
         tag: tags.strong,
@@ -329,13 +343,7 @@ export default function CreateEditor(ElementID: string, content: string) {
 
     // load extensions
     const ExtensionsList = [
-        keymap.of(markdownKeymap),
-        highlightSpecialChars(),
-        drawSelection(),
-        rectangularSelection(),
         EditorView.lineWrapping,
-        closeBrackets(),
-        history(),
         placeholder(`# ${new Date().toLocaleDateString()}`),
         EditorView.updateListener.of(async (update) => {
             if (update.docChanged) {
@@ -352,89 +360,7 @@ export default function CreateEditor(ElementID: string, content: string) {
             }
         }),
         EditorState.allowMultipleSelections.of(true),
-        indentOnInput(),
         indentUnit.of("    "),
-        keymap.of([
-            // we're creating this keymap because of a weird issue in firefox where
-            // (if there is no text before or after), a new line is not created
-            // ...we're basically just manually inserting the new line here
-            {
-                key: "Enter",
-                run: (): boolean => {
-                    // get current line
-                    const CurrentLine = view.state.doc.lineAt(
-                        view.state.selection.main.head
-                    );
-
-                    // get indentation string (for automatic indent)
-                    let IndentationString =
-                        // gets everything before the first non-whitespace character
-                        CurrentLine.text.split(/[^\s]/)[0];
-
-                    let ExtraCharacters = "";
-
-                    // if last character of the line is }, add an indentation
-                    // } because it's automatically added after opened braces!
-                    if (
-                        CurrentLine.text[CurrentLine.text.length - 1] === "{" ||
-                        CurrentLine.text[CurrentLine.text.length - 1] === "}"
-                    ) {
-                        IndentationString += "    ";
-                        ExtraCharacters = "\n"; // auto insert line break after
-                    }
-
-                    // start transaction
-                    const cursor = view.state.selection.main.head;
-                    const transaction = view.state.update({
-                        changes: {
-                            from: cursor,
-                            insert: `\n${IndentationString}${ExtraCharacters}`,
-                        },
-                        selection: {
-                            anchor: cursor + 1 + IndentationString.length,
-                        },
-                        scrollIntoView: true,
-                    });
-
-                    if (transaction) {
-                        view.dispatch(transaction);
-                    }
-
-                    // return
-                    return true;
-                },
-            },
-            {
-                key: "<",
-                run: (): boolean => {
-                    // get current line
-                    const CurrentLine = view.state.doc.lineAt(
-                        view.state.selection.main.head
-                    );
-
-                    // start transaction
-                    const cursor = view.state.selection.main.head;
-                    const transaction = view.state.update({
-                        changes: {
-                            from: cursor,
-                            insert: "<>",
-                        },
-                        selection: {
-                            anchor: cursor + 1,
-                        },
-                        scrollIntoView: true,
-                    });
-
-                    if (transaction) {
-                        view.dispatch(transaction);
-                    }
-
-                    // return
-                    return true;
-                },
-            },
-            indentWithTab,
-        ]),
         // markdown
         syntaxHighlighting(highlight),
         markdown({
@@ -447,6 +373,30 @@ export default function CreateEditor(ElementID: string, content: string) {
                 window.localStorage.getItem("bundles:user.EditorHints") ===
                     "true",
         }),
+        // basic setup
+        highlightSpecialChars(),
+        history(),
+        drawSelection(),
+        dropCursor(),
+        EditorState.allowMultipleSelections.of(true),
+        indentOnInput(),
+        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        bracketMatching(),
+        closeBrackets(),
+        autocompletion(),
+        rectangularSelection(),
+        crosshairCursor(),
+        highlightSelectionMatches(),
+        keymap.of([
+            ...closeBracketsKeymap,
+            ...defaultKeymap,
+            ...searchKeymap,
+            ...historyKeymap,
+            ...foldKeymap,
+            ...completionKeymap,
+            ...lintKeymap,
+        ]),
+        keymap.of(markdownKeymap),
     ];
 
     if (window.localStorage.getItem("bundles:user.ShowLineNumbers") === "true")
@@ -563,16 +513,6 @@ document
         // fix markdown rendering
         ClientFixMarkdown();
     });
-
-document.querySelector(".tab-container")!.addEventListener("click", () => {
-    if (
-        document.getElementById("editor-open-tab-text")!.style.display ===
-        "none"
-    )
-        return;
-
-    (document.querySelector(".cm-content")! as HTMLElement).focus();
-});
 
 // check CustomURL
 const CustomURLInput: HTMLInputElement | null = document.getElementById(

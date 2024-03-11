@@ -19,6 +19,7 @@ struct Props {
     pub active_user: Option<UserState<String>>,
     pub edit_mode: bool,
     pub follower_count: usize,
+    pub following_count: usize,
     pub is_following: bool,
 }
 
@@ -37,6 +38,19 @@ struct FollowersProps {
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 pub struct FollowersQueryProps {
+    pub offset: Option<i32>,
+}
+
+#[derive(Default, Properties, PartialEq)]
+struct FollowingProps {
+    pub user: UserState<String>,
+    pub following: Vec<bundlesdb::Log>,
+    pub offset: i32,
+    pub auth_state: Option<bool>,
+}
+
+#[derive(Default, Properties, PartialEq, serde::Deserialize)]
+pub struct FollowingQueryProps {
     pub offset: Option<i32>,
 }
 
@@ -219,6 +233,7 @@ fn ProfileView(props: &Props) -> Html {
                             <li>{"Paste count: "}{&props.paste_count}</li>
                             <li>{"Board count: "}{&props.board_count}</li>
                             <li>{"Followers: "}<a href={format!("/~{}/followers", props.user.username)}>{&props.follower_count}</a></li>
+                            <li>{"Following: "}<a href={format!("/~{}/following", props.user.username)}>{&props.following_count}</a></li>
                         </ul>
 
                         <hr />
@@ -340,6 +355,9 @@ pub async fn profile_view_request(
     let followers_res: bundlesdb::DefaultReturn<usize> =
         data.db.get_user_follow_count(username_c.clone()).await;
 
+    let following_res: bundlesdb::DefaultReturn<usize> =
+        data.db.get_user_following_count(username_c.clone()).await;
+
     let is_following_res: Option<bundlesdb::DefaultReturn<Option<bundlesdb::Log>>> =
         if token_user.is_some() {
             Option::Some(
@@ -389,6 +407,7 @@ pub async fn profile_view_request(
             false
         },
         follower_count: followers_res.payload,
+        following_count: following_res.payload,
         is_following: if is_following_res.is_some() {
             is_following_res.unwrap().payload.is_some()
         } else {
@@ -579,6 +598,169 @@ pub async fn followers_request(
                 // extras
                 &username_c,
                 format!("{}'s followers on ::SITE_NAME::", &username_c)
+            ),
+        ));
+}
+
+#[function_component]
+fn FollowingView(props: &FollowingProps) -> Html {
+    html! {
+        <div class="flex flex-column" style="height: 100dvh;">
+            <div class="toolbar flex justify-space-between">
+                // left
+                <div class="flex">
+                    <a class="button" href="/" style="border-left: 0">
+                        <b>{"::SITE_NAME::"}</b>
+                    </a>
+
+                    <a class="button" href={format!("/~{}", props.user.username)} style="border-left: 0">
+                        {&props.user.username}
+                    </a>
+                </div>
+
+                // right
+                <div class="flex">
+                    <a class="button" href={format!("/~{}", props.user.username)} style="border-right: 0">{"Home"}</a>
+                </div>
+            </div>
+
+            <div class="toolbar-layout-wrapper">
+                <main class="small flex flex-column g-4">
+                    <div id="error" class="mdnote note-error full" style="display: none;" />
+                    <div id="success" class="mdnote note-note full" style="display: none;" />
+
+                    <div class="flex justify-space-between align-center">
+                        <h3 class="no-margin">{&props.user.username}{"'s following"}</h3>
+                    </div>
+
+                    <div class="card secondary round flex flex-column g-4">
+                        {for props.following.iter().map(|u| {
+                            let follow_log = serde_json::from_str::<UserFollow>(&u.content).unwrap();
+
+                            html! {
+                                <a class="button secondary full round justify-space-between flex-wrap" href={format!("/~{}", follow_log.user)} style="height: max-content !important;">
+                                    <span class="flex align-center g-4">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-user-round"><path d="M18 20a6 6 0 0 0-12 0"/><circle cx="12" cy="10" r="4"/><circle cx="12" cy="12" r="10"/></svg>
+                                        {follow_log.user}
+                                    </span>
+
+                                    <span style="opacity: 75%;">{"Followed "}<span class="date-time-to-localize">{u.timestamp}</span></span>
+                                </a>
+                            }
+                        })}
+                    </div>
+
+                    <div class="full flex justify-space-between" id="pages">
+                        <a class="button round" href={format!("?offset={}", props.offset - 50)} disabled={props.offset <= 0}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                            {"Back"}
+                        </a>
+
+                        <a class="button round" href={format!("?offset={}", props.offset + 50)} disabled={props.following.len() == 0}>
+                            {"Next"}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        </a>
+                    </div>
+
+                    <Footer auth_state={props.auth_state} />
+                </main>
+            </div>
+        </div>
+    }
+}
+
+fn build_following_renderer_with_props(props: FollowingProps) -> ServerRenderer<FollowingView> {
+    ServerRenderer::<FollowingView>::with_props(|| props)
+}
+
+#[get("/~{username:.*}/following")]
+/// Available at "/~{username}/following"
+pub async fn following_request(
+    req: HttpRequest,
+    data: web::Data<AppData>,
+    info: web::Query<FollowingQueryProps>,
+) -> impl Responder {
+    // get paste
+    let username: String = req.match_info().get("username").unwrap().to_string();
+    let username_c = username.clone();
+
+    let user: bundlesdb::DefaultReturn<Option<UserState<String>>> =
+        data.db.get_user_by_username(username).await;
+
+    if user.success == false {
+        let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();
+        return HttpResponse::NotFound()
+            .append_header(("Content-Type", "text/html"))
+            .body(utility::format_html(
+                renderer.render().await,
+                "<title>404: Not Found</title>",
+            ));
+    }
+
+    let unwrap = user.payload.as_ref().unwrap();
+
+    // verify auth status
+    let token_cookie = req.cookie("__Secure-Token");
+    let mut set_cookie: &str = "";
+
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists, refresh token if not
+        if token_user.as_ref().unwrap().success == false {
+            set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+        }
+    }
+
+    // ...
+    let following_res: bundlesdb::DefaultReturn<Option<Vec<bundlesdb::Log>>> = data
+        .db
+        .get_user_following(username_c.clone(), info.offset)
+        .await;
+
+    let renderer = build_following_renderer_with_props(FollowingProps {
+        user: unwrap.clone(),
+        following: following_res.payload.unwrap(),
+        offset: if info.offset.is_some() {
+            info.offset.unwrap()
+        } else {
+            0
+        },
+        auth_state: if req.cookie("__Secure-Token").is_some() {
+            Option::Some(req.cookie("__Secure-Token").is_some())
+        } else {
+            Option::Some(false)
+        },
+    });
+
+    let render = renderer.render();
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
+        .body(format_html(
+            render.await,
+            &format!(
+                "<title>{}</title>
+                <meta property=\"og:url\" content=\"{}\" />
+                <meta property=\"og:title\" content=\"{}\" />
+                <meta property=\"og:description\" content=\"{}\" />",
+                &username_c,
+                &format!(
+                    "{}{}",
+                    req.headers().get("Host").unwrap().to_str().unwrap(),
+                    req.head().uri.to_string()
+                ),
+                // extras
+                &username_c,
+                format!("{}'s following on ::SITE_NAME::", &username_c)
             ),
         ));
 }

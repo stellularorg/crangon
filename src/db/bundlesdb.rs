@@ -122,6 +122,7 @@ pub struct UserState<M> {
 #[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
 pub struct UserMetadata {
     pub about: String,
+    pub avatar_url: Option<String>,
 }
 
 #[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
@@ -557,6 +558,7 @@ impl BundlesDB {
             .bind::<&String>(
                 &serde_json::to_string::<UserMetadata>(&UserMetadata {
                     about: String::new(),
+                    avatar_url: Option::None,
                 })
                 .unwrap(),
             )
@@ -2781,6 +2783,59 @@ impl BundlesDB {
         };
     }
 
+    /// Get the [`UserFollow`]s that the given `user` is following
+    ///
+    /// # Arguments:
+    /// * `user` - username of user to check
+    /// * `offset` - optional value representing the SQL fetch offset
+    pub async fn get_user_following(
+        &self,
+        user: String,
+        offset: Option<i32>,
+    ) -> DefaultReturn<Option<Vec<Log>>> {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? AND \"logtype\" = 'follow' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
+        } else {
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 AND \"logtype\" = 'follow' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $2"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&format!("%\"user\":\"{user}\"%"))
+            .bind(if offset.is_some() { offset.unwrap() } else { 0 })
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to fetch following"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let rows = res.unwrap();
+        let mut output: Vec<Log> = Vec::new();
+
+        for row in rows {
+            let row = self.textify_row(row).data;
+            output.push(Log {
+                id: row.get("id").unwrap().to_string(),
+                logtype: row.get("logtype").unwrap().to_string(),
+                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+                content: row.get("content").unwrap().to_string(),
+            });
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Following exists"),
+            payload: Option::Some(output),
+        };
+    }
+
     /// Get the amount of followers a user has
     ///
     /// # Arguments:
@@ -2802,6 +2857,42 @@ impl BundlesDB {
             return DefaultReturn {
                 success: false,
                 message: String::from("Failed to fetch followers"),
+                payload: 0,
+            };
+        }
+
+        // ...
+        let rows = res.unwrap();
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Follow exists"),
+            payload: rows.len(),
+        };
+    }
+
+    /// Get the amount of user a user is following
+    ///
+    /// # Arguments:
+    /// * `user` - username of user to check
+    pub async fn get_user_following_count(&self, user: String) -> DefaultReturn<usize> {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? AND \"logtype\" = 'follow'"
+        } else {
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 AND \"logtype\" = 'follow'"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&format!("%\"user\":\"{user}\"%"))
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to fetch following"),
                 payload: 0,
             };
         }

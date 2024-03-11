@@ -30,7 +30,7 @@
 }
 
 #editor-tab-preview h1 {
-    width: 100%;
+    margin: 3.5rem auto 2.5rem auto;
 }
 
 /* colors */
@@ -424,4 +424,43 @@ pre {
     display: block;
     width: 100%;
     height: 100%;
+}
+
+/* codemirror search */
+.cm-panels.cm-panels-bottom {
+    border-top: solid 1px var(--background-surface2a) !important;
+    background: var(--background-surface2a);
+}
+
+.cm-search {
+    background: var(--background-surface1);
+    gap: var(--u-02);
+}
+
+.cm-search * {
+    border-radius: var(--u-02) !important;
+    color: var(--text-color) !important;
+    display: inline-block !important;
+}
+
+.cm-search .cm-textfield {
+    border: solid 1px var(--background-surface2a) !important;
+    padding: var(--u-04) var(--u-08) !important;
+}
+
+.cm-search .cm-button {
+    padding: var(--u-02) var(--u-08) !important;
+    background: var(--background-surface);
+    border: none !important;
+    height: 40px !important;
+    display: inline-flex !important;
+}
+
+.cm-search .cm-button:hover {
+    background: var(--background-surface1-5);
+}
+
+.cm-search label {
+    display: inline-flex !important;
+    align-items: center;
 }

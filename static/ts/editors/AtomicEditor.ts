@@ -7,25 +7,11 @@
 // codemirror
 import { EditorState } from "@codemirror/state";
 
-import {
-    EditorView,
-    keymap,
-    highlightSpecialChars,
-    drawSelection,
-    highlightActiveLine,
-    dropCursor,
-    rectangularSelection,
-    crosshairCursor,
-    lineNumbers,
-    highlightActiveLineGutter,
-    placeholder,
-} from "@codemirror/view";
+import { EditorView, keymap, placeholder } from "@codemirror/view";
 
 import {
     syntaxHighlighting,
     indentOnInput,
-    bracketMatching,
-    foldGutter,
     foldKeymap,
     HighlightStyle,
     indentUnit,
@@ -34,19 +20,19 @@ import {
 import {
     autocompletion,
     completionKeymap,
-    closeBrackets,
     closeBracketsKeymap,
     CompletionContext,
 } from "@codemirror/autocomplete";
 
 import {
     defaultKeymap,
-    history,
     historyKeymap,
     indentWithTab,
 } from "@codemirror/commands";
 
+import { basicSetup } from "codemirror";
 import { html, htmlCompletionSource } from "@codemirror/lang-html";
+import { css, cssCompletionSource } from "@codemirror/lang-css";
 import { tags } from "@lezer/highlight";
 
 import { linter, Diagnostic, lintGutter } from "@codemirror/lint";
@@ -156,6 +142,13 @@ export const HTMLLint = linter((view) => {
     return diagnostics;
 });
 
+export const EmptyLint = linter((view) => {
+    let diagnostics: Diagnostic[] = [];
+
+    // return
+    return diagnostics;
+});
+
 // create completion context
 
 /**
@@ -207,26 +200,18 @@ export function create_editor(
             doc: "",
             extensions: [
                 placeholder(path),
-                lineNumbers(),
-                highlightActiveLineGutter(),
-                highlightSpecialChars(),
-                history(),
-                foldGutter(),
-                drawSelection(),
-                dropCursor(),
-                EditorState.allowMultipleSelections.of(true),
                 syntaxHighlighting(DefaultHighlight, { fallback: true }),
-                bracketMatching(),
-                closeBrackets(),
                 autocompletion({
-                    override: [BasicCompletion, htmlCompletionSource],
+                    override: [
+                        BasicCompletion,
+                        path.endsWith("css")
+                            ? cssCompletionSource
+                            : htmlCompletionSource, // html should always be the default
+                    ],
                     activateOnTyping: true,
                 }),
-                rectangularSelection(),
-                crosshairCursor(),
-                highlightActiveLine(),
                 lintGutter(),
-                EditorView.lineWrapping,
+                // EditorView.lineWrapping,
                 EditorView.updateListener.of(async (update) => {
                     if (update.docChanged) {
                         const content = update.state.doc.toString();
@@ -236,8 +221,6 @@ export function create_editor(
                     }
                 }),
                 // keymaps
-                indentOnInput(),
-                indentUnit.of("    "),
                 keymap.of({
                     ...closeBracketsKeymap,
                     ...defaultKeymap,
@@ -246,63 +229,13 @@ export function create_editor(
                     ...completionKeymap,
                     ...indentWithTab,
                 }),
-                keymap.of([
-                    // ...new line fix
-                    {
-                        key: "Enter",
-                        run: (): boolean => {
-                            // get current line
-                            const CurrentLine = view.state.doc.lineAt(
-                                view.state.selection.main.head
-                            );
-
-                            // get indentation string (for automatic indent)
-                            let IndentationString =
-                                // gets everything before the first non-whitespace character
-                                CurrentLine.text.split(/[^\s]/)[0];
-
-                            let ExtraCharacters = "";
-
-                            // if last character of the line is }, add an indentation
-                            // } because it's automatically added after opened braces!
-                            if (
-                                CurrentLine.text[
-                                    CurrentLine.text.length - 1
-                                ] === "{" ||
-                                CurrentLine.text[
-                                    CurrentLine.text.length - 1
-                                ] === "}"
-                            ) {
-                                IndentationString += "    ";
-                                ExtraCharacters = "\n"; // auto insert line break after
-                            }
-
-                            // start transaction
-                            const cursor = view.state.selection.main.head;
-                            const transaction = view.state.update({
-                                changes: {
-                                    from: cursor,
-                                    insert: `\n${IndentationString}${ExtraCharacters}`,
-                                },
-                                selection: {
-                                    anchor:
-                                        cursor + 1 + IndentationString.length,
-                                },
-                                scrollIntoView: true,
-                            });
-
-                            if (transaction) {
-                                view.dispatch(transaction);
-                            }
-
-                            // return
-                            return true;
-                        },
-                    },
-                ]),
+                indentOnInput(),
+                indentUnit.of("    "),
                 // language
-                html({ autoCloseTags: true }),
-                HTMLLint,
+                path.endsWith("css") ? css() : html({ autoCloseTags: true }),
+                path.endsWith("html") ? HTMLLint : EmptyLint,
+                // default
+                basicSetup,
             ],
         }),
         parent: element,
