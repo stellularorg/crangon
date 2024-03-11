@@ -344,7 +344,14 @@ pub async fn avatar_request(req: HttpRequest, data: web::Data<AppData>) -> impl 
 
     // ...
     let mut res = res.unwrap();
-    let body = res.body().limit(2_000_000).await.unwrap();
+    let body = res.body().limit(20_000_000).await;
+
+    if body.is_err() {
+        return HttpResponse::NotFound()
+            .body("Failed to fetch avatar on server (image likely too large)");
+    }
+
+    let body = body.unwrap();
 
     // return
     return HttpResponse::Ok()
