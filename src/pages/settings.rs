@@ -62,7 +62,7 @@ fn PasteSettings(props: &Props) -> Html {
 fn UserSettings(props: &UserSettingsProps) -> Html {
     return html! {
         <main class="flex flex-column g-4 small">
-            <h2 class="full text-center">{"User Settings"}</h2>
+            <h2 class="full text-center">{"Session Settings"}</h2>
 
             <div class="mdnote note-info dismissable" id="dismissable:user_settings">
                 <div class="flex justify-space-between align-center flex-wrap g-4">

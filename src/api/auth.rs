@@ -1,4 +1,4 @@
-use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
+use actix_web::{get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 
 use crate::{
     db::bundlesdb::{AppData, DefaultReturn, UserFollow, UserMetadata, UserState},
@@ -223,4 +223,131 @@ pub async fn follow_request(req: HttpRequest, data: web::Data<AppData>) -> impl 
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
         .body(serde_json::to_string(&res).unwrap());
+}
+
+#[post("/api/auth/users/{name:.*}/update")]
+pub async fn update_request(
+    req: HttpRequest,
+    body: web::Json<UserMetadata>,
+    data: web::Data<AppData>,
+) -> impl Responder {
+    let name: String = req.match_info().get("name").unwrap().to_string();
+
+    // get owner
+    let token_cookie = req.cookie("__Secure-Token");
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists
+        if token_user.as_ref().unwrap().success == false {
+            return HttpResponse::NotFound().body("Invalid token");
+        }
+    } else {
+        return HttpResponse::NotAcceptable().body("An account is required to do this");
+    }
+
+    // make sure profile exists
+    let profile: DefaultReturn<Option<UserState<String>>> =
+        data.db.get_user_by_username(name.to_owned()).await;
+
+    if !profile.success {
+        return HttpResponse::NotFound()
+            .append_header(("Content-Type", "application/json"))
+            .body(
+                serde_json::to_string::<DefaultReturn<Option<String>>>(&DefaultReturn {
+                    success: false,
+                    message: String::from("Profile does not exist!"),
+                    payload: Option::None,
+                })
+                .unwrap(),
+            );
+    }
+
+    let token_user = token_user.unwrap().payload.unwrap();
+    let profile = profile.payload.unwrap();
+
+    // check if we can update this user
+    // must be authenticated AND same user OR staff
+    let can_update: bool =
+        (token_user.username == profile.username) | (token_user.role == String::from("staff"));
+
+    if can_update == false {
+        return HttpResponse::NotFound()
+            .body("You do not have permission to manage this user's contents.");
+    }
+
+    // ...
+    let res = data
+        .db
+        .edit_user_metadata_by_name(
+            name,            // select user
+            body.to_owned(), // new metadata
+        )
+        .await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string(&res).unwrap());
+}
+
+#[get("/api/auth/users/{name:.*}/avatar")]
+pub async fn avatar_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
+    let name: String = req.match_info().get("name").unwrap().to_string();
+
+    // make sure profile exists
+    let profile: DefaultReturn<Option<UserState<String>>> =
+        data.db.get_user_by_username(name.to_owned()).await;
+
+    if !profile.success {
+        return HttpResponse::NotFound()
+            .append_header(("Content-Type", "application/json"))
+            .body(
+                serde_json::to_string::<DefaultReturn<Option<String>>>(&DefaultReturn {
+                    success: false,
+                    message: String::from("Profile does not exist!"),
+                    payload: Option::None,
+                })
+                .unwrap(),
+            );
+    }
+
+    let profile = profile.payload.unwrap();
+    let user = serde_json::from_str::<UserMetadata>(&profile.metadata).unwrap();
+
+    if user.avatar_url.is_none() {
+        return HttpResponse::NotFound().body("User does not have an avatar set");
+    }
+
+    let avatar = user.avatar_url.unwrap();
+
+    // fetch avatar
+    let res = data
+        .http_client
+        .get(avatar)
+        .timeout(std::time::Duration::from_millis(5_000))
+        .insert_header(("User-Agent", "stellular-bundlrs/1.0"))
+        .send()
+        .await;
+
+    if res.is_err() {
+        return HttpResponse::NotFound().body("Failed to fetch avatar on server");
+    }
+
+    // ...
+    let mut res = res.unwrap();
+    let body = res.body().limit(2_000_000).await.unwrap();
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", res.content_type()))
+        .body(body);
 }

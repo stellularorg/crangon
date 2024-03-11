@@ -2,7 +2,7 @@ export function paste_settings(
     metadata: { [key: string]: any },
     paste: string,
     field: HTMLElement,
-    _type: "paste" | "board" | undefined
+    _type: "paste" | "user" | "board" | undefined
 ): void {
     if (_type === undefined) _type = "paste";
 
@@ -69,6 +69,23 @@ export function paste_settings(
                     edit_password: password,
                     metadata,
                 }),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            const json = await res.json();
+
+            if (json.success === false) {
+                return alert(json.message);
+            } else {
+                window.location.reload();
+            }
+        } else if (_type === "user") {
+            // user
+            const res = await fetch(`/api/auth/users/${paste}/update`, {
+                method: "POST",
+                body: JSON.stringify(metadata),
                 headers: {
                     "Content-Type": "application/json",
                 },

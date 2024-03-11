@@ -17,6 +17,7 @@ sqlite = []
 default = ["sqlite"]
 
 [dependencies]
+awc = { version = "3.4.0", features = ["rustls"] }
 actix-files = "0.6.5"
 actix-web = "4.4.1"
 comrak = "0.21.0"

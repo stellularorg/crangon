@@ -81,11 +81,14 @@ async fn main() -> std::io::Result<()> {
     // start server
     println!("Starting server at: http://localhost:{port}");
 
-    // create data
-    let data = web::Data::new(AppData { db: db.clone() });
-
     // serve routes
     HttpServer::new(move || {
+        let client = awc::Client::default();
+        let data = web::Data::new(AppData {
+            db: db.clone(),
+            http_client: client,
+        });
+
         App::new()
             .app_data(web::Data::clone(&data))
             // middleware
@@ -109,6 +112,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::auth::register)
             .service(crate::api::auth::login)
             .service(crate::api::auth::edit_about_request)
+            .service(crate::api::auth::update_request)
             .service(crate::api::auth::follow_request)
             // POST api::pastes
             .service(crate::api::pastes::render_request)
@@ -162,7 +166,9 @@ async fn main() -> std::io::Result<()> {
             // GET users
             .service(crate::pages::auth::followers_request)
             .service(crate::pages::auth::following_request)
+            .service(crate::pages::auth::user_settings_request)
             .service(crate::pages::auth::profile_view_request)
+            .service(crate::api::auth::avatar_request)
             // GET root
             .service(crate::pages::home::home_request)
             .service(crate::pages::home::robotstxt)

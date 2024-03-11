@@ -4,6 +4,7 @@ use actix_web::{get, web, HttpRequest, Responder};
 use yew::prelude::*;
 use yew::ServerRenderer;
 
+use crate::components::avatar::AvatarDisplay;
 use crate::db::bundlesdb::{self, AppData, UserFollow, UserMetadata, UserState};
 use crate::utility;
 use crate::utility::format_html;
@@ -52,6 +53,12 @@ struct FollowingProps {
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 pub struct FollowingQueryProps {
     pub offset: Option<i32>,
+}
+
+#[derive(Default, Properties, PartialEq, serde::Deserialize)]
+struct SettingsProps {
+    pub profile: UserState<String>,
+    pub auth_state: Option<bool>,
 }
 
 #[function_component]
@@ -195,7 +202,11 @@ fn ProfileView(props: &Props) -> Html {
                 </div>
 
                 // right
-                <div class="flex"></div>
+                <div class="flex">
+                    <a class="button" href={format!("/~{}/settings", props.user.username)} title="Synced User Settings">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-cog"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v2"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><circle cx="6" cy="14" r="3"/><path d="M6 10v1"/><path d="M6 17v1"/><path d="M10 14H9"/><path d="M3 14H2"/><path d="m9 11-.88.88"/><path d="M3.88 16.12 3 17"/><path d="m9 17-.88-.88"/><path d="M3.88 11.88 3 11"/></svg>
+                    </a>
+                </div>
             </div>
 
             <div class="toolbar-layout-wrapper">
@@ -204,7 +215,10 @@ fn ProfileView(props: &Props) -> Html {
                     <div id="success" class="mdnote note-note full" style="display: none;" />
 
                     <div class="flex justify-space-between align-center">
-                        <h1 class="no-margin">{&props.user.username}</h1>
+                        <div class="flex align-center g-4 flex-wrap">
+                            <AvatarDisplay size={50} username={props.user.username.clone()} />
+                            <h1 class="no-margin">{&props.user.username}</h1>
+                        </div>
 
                         // must not be receiver and must still be authenticated
                         {if (can_edit == false) && (props.auth_state.is_some()) && (props.auth_state.unwrap() == true) {
@@ -638,10 +652,10 @@ fn FollowingView(props: &FollowingProps) -> Html {
                             let follow_log = serde_json::from_str::<UserFollow>(&u.content).unwrap();
 
                             html! {
-                                <a class="button secondary full round justify-space-between flex-wrap" href={format!("/~{}", follow_log.user)} style="height: max-content !important;">
+                                <a class="button secondary full round justify-space-between flex-wrap" href={format!("/~{}", follow_log.is_following)} style="height: max-content !important;">
                                     <span class="flex align-center g-4">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-circle-user-round"><path d="M18 20a6 6 0 0 0-12 0"/><circle cx="12" cy="10" r="4"/><circle cx="12" cy="12" r="10"/></svg>
-                                        {follow_log.user}
+                                        {follow_log.is_following}
                                     </span>
 
                                     <span style="opacity: 75%;">{"Followed "}<span class="date-time-to-localize">{u.timestamp}</span></span>
@@ -761,6 +775,142 @@ pub async fn following_request(
                 // extras
                 &username_c,
                 format!("{}'s following on ::SITE_NAME::", &username_c)
+            ),
+        ));
+}
+
+#[function_component]
+fn UserSettings(props: &SettingsProps) -> Html {
+    let metadata = serde_json::from_str::<UserMetadata>(&props.profile.metadata).unwrap();
+
+    return html! {
+        <div>
+            <div class="toolbar flex justify-space-between">
+                // left
+                <div class="flex">
+                    <a class="button" href="/" style="border-left: 0">
+                        <b>{"::SITE_NAME::"}</b>
+                    </a>
+
+                    <a class="button" href={format!("/~{}", props.profile.username)} style="border-left: 0">
+                        {props.profile.username.clone()}
+                    </a>
+                </div>
+            </div>
+
+            <div class="toolbar-layout-wrapper">
+                <main class="flex flex-column g-4 small">
+                    <h2 class="full text-center">{"User Settings"}</h2>
+
+                    <div class="card round secondary flex flex-column g-4">
+                        <div class="flex full justify-space-between flex-wrap mobile:justify-center g-4">
+                            <div class="flex g-4">
+                                <form action="/api/metadata" id="update-form">
+                                    <button class="green round secondary">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                        {"Save"}
+                                    </button>
+                                </form>
+
+                                <button class="secondary round" id="add_field">{"Add Field"}</button>
+                            </div>
+
+                            <div class="flex g-4">
+                                // <button class="secondary round red" id="delete-user">{"Delete"}</button>
+                                <a href={format!("/~{}", props.profile.username)} class="button round secondary">{"Cancel"}</a>
+                            </div>
+                        </div>
+
+                        <div id="options-field" class="flex flex-wrap mobile:flex-column g-4 full justify-space-between" />
+                    </div>
+
+                    <script type="module">
+                        {format!("import {{ paste_settings }} from \"/static/js/SettingsEditor.js\";
+                        paste_settings({}, \"{}\", document.getElementById(\"options-field\"), \"user\");", serde_json::to_string(&metadata).unwrap(), &props.profile.username)}
+                    </script>
+
+                    <Footer auth_state={props.auth_state} />
+                </main>
+            </div>
+        </div>
+    };
+}
+
+fn build_settings_with_props(props: SettingsProps) -> ServerRenderer<UserSettings> {
+    ServerRenderer::<UserSettings>::with_props(|| props)
+}
+
+#[get("/~{name:.*}/settings")]
+/// Available at "/~{name}/settings"
+pub async fn user_settings_request(
+    req: HttpRequest,
+    data: web::Data<bundlesdb::AppData>,
+) -> impl Responder {
+    // get user
+    let name: String = req.match_info().get("name").unwrap().to_string();
+    let name_c = name.clone();
+
+    let profile: bundlesdb::DefaultReturn<Option<UserState<String>>> =
+        data.db.get_user_by_username(name).await;
+
+    if profile.success == false {
+        return HttpResponse::NotFound().body(profile.message);
+    }
+
+    let profile = profile.payload.unwrap();
+
+    // verify auth status
+    let token_cookie = req.cookie("__Secure-Token");
+    let mut set_cookie: &str = "";
+
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists, refresh token if not
+        if token_user.as_ref().unwrap().success == false {
+            set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+        }
+    } else {
+        return HttpResponse::NotAcceptable().body("An account is required to do this");
+    }
+
+    // ...
+    let user = token_user.unwrap().payload.unwrap();
+    let can_view: bool = (user.username == profile.username) | (user.role == String::from("staff"));
+
+    if can_view == false {
+        return HttpResponse::NotFound()
+            .body("You do not have permission to manage this user's contents.");
+    }
+
+    // ...
+    let renderer = build_settings_with_props(SettingsProps {
+        profile,
+        auth_state: if req.cookie("__Secure-Token").is_some() {
+            Option::Some(req.cookie("__Secure-Token").is_some())
+        } else {
+            Option::Some(false)
+        },
+    });
+
+    let render = renderer.render();
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
+        .body(format_html(
+            render.await,
+            &format!(
+                "<title>{}</title>
+                <meta property=\"og:title\" content=\"{} (synced user settings) - ::SITE_NAME::\" />",
+                &name_c, &name_c
             ),
         ));
 }

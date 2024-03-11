@@ -18,6 +18,7 @@ use std::sync::Mutex;
 #[derive(Clone)]
 pub struct AppData {
     pub db: BundlesDB,
+    pub http_client: awc::Client,
 }
 
 #[allow(dead_code)]

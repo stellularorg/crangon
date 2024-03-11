@@ -163,5 +163,21 @@ for (const heading of Array.from(headings) as HTMLHeadingElement[]) {
     });
 }
 
+// avatars
+const avatars = document.querySelectorAll(".avatar");
+
+for (const avatar of Array.from(avatars) as HTMLImageElement[]) {
+    if (avatar.complete) {
+        // image already loaded
+        if (avatar.naturalWidth !== 0) continue; // 0 means either the image is empty OR failed to load
+        avatar.remove();
+    } else {
+        // image loading
+        avatar.addEventListener("error", () => {
+            avatar.remove();
+        });
+    }
+}
+
 // default export
 export default {};

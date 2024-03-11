@@ -464,3 +464,11 @@ pre {
     display: inline-flex !important;
     align-items: center;
 }
+
+/* avatar */
+.avatar {
+    --size: 50px;
+    border-radius: var(--u-02);
+    width: var(--size);
+    height: var(--size);
+}
