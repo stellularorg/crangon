@@ -111,7 +111,7 @@ pub async fn create_request(
         ""
     };
 
-    // get owner
+    // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
@@ -181,7 +181,7 @@ pub async fn edit_request(
     let new_url: Option<String> = body.new_custom_url.to_owned();
     let new_edit_password: Option<String> = body.new_edit_password.to_owned();
 
-    // get owner
+    // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
@@ -236,7 +236,7 @@ pub async fn edit_atomic_request(
     let path: String = body.path.trim().to_string();
     let content: String = body.content.trim().to_string();
 
-    // get owner
+    // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
@@ -329,7 +329,7 @@ pub async fn delete_request(
     let custom_url: String = body.custom_url.trim().to_string();
     let edit_password: String = body.edit_password.to_owned();
 
-    // get owner
+    // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
@@ -381,7 +381,7 @@ pub async fn metadata_request(
     let m = body.metadata.to_owned();
     let metadata: bundlesdb::PasteMetadata = m;
 
-    // get owner
+    // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
@@ -526,27 +526,6 @@ pub async fn get_from_id_request(
             serde_json::to_string::<bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>>>(
                 &res,
             )
-            .unwrap(),
-        );
-}
-
-#[get("/api/owner/{username:.*}")]
-/// Get all pastes by owner
-pub async fn get_from_owner_request(
-    req: HttpRequest,
-    data: web::Data<bundlesdb::AppData>,
-) -> impl Responder {
-    let username: String = req.match_info().get("username").unwrap().to_string();
-    let res: bundlesdb::DefaultReturn<Option<Vec<bundlesdb::PasteIdentifier>>> =
-        data.db.get_pastes_by_owner(username).await;
-
-    // return
-    return HttpResponse::Ok()
-        .append_header(("Content-Type", "application/json"))
-        .body(
-            serde_json::to_string::<
-                bundlesdb::DefaultReturn<Option<Vec<bundlesdb::PasteIdentifier>>>,
-            >(&res)
             .unwrap(),
         );
 }

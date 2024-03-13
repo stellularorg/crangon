@@ -65,6 +65,7 @@ fn Dashboard(props: &Props) -> Html {
 
                     <div class="link-header-bottom">
                         <a href="/d" class="button">{"Home"}</a>
+                        <a href="/d/pastes" class="button">{"Pastes"}</a>
                         <a href="/d/atomic" class="button active">{"Atomic"}</a>
                         <a href="/d/boards" class="button">{"Boards"}</a>
                     </div>

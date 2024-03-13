@@ -20,6 +20,7 @@ const output = await build({
         "./static/ts/pages/BoardView.ts",
         "./static/ts/pages/ManageBoardPost.ts",
         "./static/ts/pages/ProfileView.ts",
+        "./static/ts/pages/SDManageUser.ts",
     ],
     minify: {
         identifiers: true,

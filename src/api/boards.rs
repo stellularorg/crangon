@@ -32,7 +32,7 @@ pub async fn create_request(
     body: web::Json<CreateInfo>,
     data: web::Data<AppData>,
 ) -> impl Responder {
-    // get owner
+    // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
@@ -193,7 +193,7 @@ pub async fn create_post_request(
 ) -> impl Responder {
     let name: String = req.match_info().get("name").unwrap().to_string();
 
-    // get owner
+    // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
@@ -261,7 +261,7 @@ pub async fn pin_post_request(req: HttpRequest, data: web::Data<AppData>) -> imp
     let name: String = req.match_info().get("name").unwrap().to_string();
     let id: String = req.match_info().get("id").unwrap().to_string();
 
-    // get owner
+    // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
@@ -346,7 +346,7 @@ pub async fn update_post_request(
     let name: String = req.match_info().get("name").unwrap().to_string();
     let id: String = req.match_info().get("id").unwrap().to_string();
 
-    // get owner
+    // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
@@ -430,7 +430,7 @@ pub async fn update_post_tags_request(
     let name: String = req.match_info().get("name").unwrap().to_string();
     let id: String = req.match_info().get("id").unwrap().to_string();
 
-    // get owner
+    // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
@@ -508,7 +508,7 @@ pub async fn delete_post_request(req: HttpRequest, data: web::Data<AppData>) -> 
     let name: String = req.match_info().get("name").unwrap().to_string();
     let id: String = req.match_info().get("id").unwrap().to_string();
 
-    // get owner
+    // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
@@ -597,7 +597,7 @@ pub async fn metadata_request(
         return HttpResponse::NotFound().body(board.message);
     }
 
-    // get owner
+    // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(

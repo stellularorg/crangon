@@ -33,9 +33,9 @@ if (edit_form) {
 }
 
 // follow
-const follow_button: HTMLFormElement | null = document.getElementById(
+const follow_button: HTMLButtonElement | null = document.getElementById(
     "follow-user"
-) as HTMLFormElement | null;
+) as HTMLButtonElement | null;
 
 if (follow_button) {
     // follow user

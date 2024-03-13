@@ -5,6 +5,7 @@ use yew::prelude::*;
 use yew::ServerRenderer;
 
 use crate::components::navigation::Footer;
+use crate::db::bundlesdb::{DefaultReturn, UserState};
 use crate::db::{self, bundlesdb};
 use crate::utility::format_html;
 
@@ -20,6 +21,18 @@ struct BoardsProps {
     pub offset: i32,
     pub posts: Vec<bundlesdb::Log>,
     pub auth_state: Option<bool>,
+}
+
+#[derive(Default, Properties, PartialEq, serde::Deserialize)]
+struct UsersProps {
+    pub username: String,
+    pub user: Option<UserState<String>>,
+    pub auth_state: Option<bool>,
+}
+
+#[derive(Default, Properties, PartialEq, serde::Deserialize)]
+pub struct UsersQueryProps {
+    pub username: Option<String>,
 }
 
 #[function_component]
@@ -49,7 +62,7 @@ fn Dashboard(props: &DashboardProps) -> Html {
 
                     <div class="link-header-bottom">
                         <a href="/d/staff" class="button active">{"Home"}</a>
-                        <a href="/d/staff/users" class="button" disabled={true}>{"Users"}</a>
+                        <a href="/d/staff/users" class="button">{"Users"}</a>
                         <a href="/d/staff/boards" class="button">{"Boards"}</a>
                     </div>
                 </div>
@@ -153,7 +166,7 @@ fn BoardsDashboard(props: &BoardsProps) -> Html {
 
                     <div class="link-header-bottom">
                         <a href="/d/staff" class="button">{"Home"}</a>
-                        <a href="/d/staff/users" class="button" disabled={true}>{"Users"}</a>
+                        <a href="/d/staff/users" class="button">{"Users"}</a>
                         <a href="/d/staff/boards" class="button active">{"Boards"}</a>
                     </div>
                 </div>
@@ -257,6 +270,178 @@ You can create an account at: /d/auth/register",
             0
         },
         posts: posts.payload.unwrap(),
+        auth_state: if req.cookie("__Secure-Token").is_some() {
+            Option::Some(true)
+        } else {
+            Option::Some(false)
+        },
+    });
+
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
+        .body(format_html(
+            renderer.render().await,
+            "<title>Staff Dashboard - ::SITE_NAME::</title>",
+        ));
+}
+
+#[function_component]
+fn UsersDashboard(props: &UsersProps) -> Html {
+    return html! {
+        <div class="flex flex-column" style="height: 100dvh;">
+            <div class="toolbar flex justify-space-between">
+                // left
+                <div class="flex">
+                    <a class="button" href="/" style="border-left: 0">
+                        <b>{"::SITE_NAME::"}</b>
+                    </a>
+
+                    <a class="button" href="/d/staff" style="border-left: 0">
+                        {"Staff"}
+                    </a>
+                </div>
+            </div>
+
+            <div class="toolbar-layout-wrapper">
+                <div id="link-header" style="display: flex;" class="flex-column bg-1">
+                    <div class="link-header-top"></div>
+
+                    <div class="link-header-middle">
+                        <h1 class="no-margin">{"Dashboard"}</h1>
+                    </div>
+
+                    <div class="link-header-bottom">
+                        <a href="/d/staff" class="button">{"Home"}</a>
+                        <a href="/d/staff/users" class="button active">{"Users"}</a>
+                        <a href="/d/staff/boards" class="button">{"Boards"}</a>
+                    </div>
+                </div>
+
+                <main class="small flex flex-column g-4">
+                    <div id="error" class="mdnote note-error full" style="display: none;" />
+                    <div id="success" class="mdnote note-note full" style="display: none;" />
+
+                    <div class="flex justify-space-between align-center mobile:flex-column g-4">
+                        <b>{"Manage Users"}</b>
+
+                        <form style="width: 50%;" class="flex g-4 mobile:max">
+                            <input
+                                type="text"
+                                name="username"
+                                id="username"
+                                placeholder="Username"
+                                class="round"
+                                value={props.username.clone()}
+                                maxlength={250}
+                                style="width: calc(100% - 50px);"
+                            />
+
+                            <button class="round bundles-primary" style="width: 50px;">{"Go"}</button>
+                        </form>
+                    </div>
+
+                    {if props.user.is_some() {
+                        let user = props.user.as_ref().unwrap();
+
+                        if user.role == "staff" {
+                            return html! { <span>{"Cannot manage users of role \"staff\""}</span> };
+                        }
+
+                        html! {
+                            <div class="card full round secondary flex flex-column g-4">
+                                <h4 class="no-margin">{&user.username}</h4>
+
+                                <hr />
+
+                                <div class="flex full g-4 flex-wrap justify-space-between align-center">
+                                    <h6 class="no-margin">{"Banhammer"}</h6>
+                                    <button class="round bundles-primary" id="hammer-time" data-endpoint={format!("/api/auth/users/{}/ban", &user.username)}>{"Ban User"}</button>
+                                </div>
+                            </div>
+                        }
+                    } else {
+                        html! {}
+                    }}
+
+                    <script type="module">
+                        {"import \"/static/js/SDManageUser.js\";"}
+                    </script>
+
+                    <Footer auth_state={props.auth_state} />
+                </main>
+            </div>
+        </div>
+    };
+}
+
+fn build_users_dashboard_renderer_with_props(props: UsersProps) -> ServerRenderer<UsersDashboard> {
+    ServerRenderer::<UsersDashboard>::with_props(|| props)
+}
+
+#[get("/d/staff/users")]
+/// Available at "/d/staff/users"
+pub async fn staff_users_dashboard_request(
+    req: HttpRequest,
+    data: web::Data<db::bundlesdb::AppData>,
+    info: web::Query<UsersQueryProps>,
+) -> impl Responder {
+    // verify auth status
+    let token_cookie = req.cookie("__Secure-Token");
+    let mut set_cookie: &str = "";
+
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists, refresh token if not
+        if token_user.as_ref().unwrap().success == false {
+            set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+        }
+    } else {
+        // you must have an account to use the staff dashboard
+        return HttpResponse::NotFound().body(
+            "You must have an account to use the staff dashboard.
+You can login at: /d/auth/login
+You can create an account at: /d/auth/register",
+        );
+    }
+
+    // validate role
+    let user = token_user.unwrap().payload.unwrap();
+
+    if user.role != "staff" {
+        return HttpResponse::NotFound().body("You do not have permission to do this");
+    }
+
+    // get user
+    let user: bundlesdb::DefaultReturn<Option<UserState<String>>> = if info.username.is_some() {
+        data.db
+            .get_user_by_username(info.username.as_ref().unwrap().to_owned())
+            .await
+    } else {
+        DefaultReturn {
+            success: false,
+            message: String::new(),
+            payload: Option::None,
+        }
+    };
+
+    // ...
+    let renderer = build_users_dashboard_renderer_with_props(UsersProps {
+        username: if info.username.is_some() {
+            info.username.as_ref().unwrap().to_owned()
+        } else {
+            String::new()
+        },
+        user: user.payload,
         auth_state: if req.cookie("__Secure-Token").is_some() {
             Option::Some(true)
         } else {

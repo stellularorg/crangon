@@ -139,7 +139,7 @@ for (const heading of Array.from(headings) as HTMLHeadingElement[]) {
         id_element.removeAttribute("id");
         id_element.remove();
     } else {
-        heading.id = encodeURIComponent(heading.innerText);
+        heading.id = encodeURIComponent(heading.innerText.toLowerCase());
     }
 
     // check focus status

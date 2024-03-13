@@ -339,6 +339,7 @@ fn Dashboard(props: &DashboardProps) -> Html {
 
                     <div class="link-header-bottom">
                         <a href="/d" class="button active">{"Home"}</a>
+                        <a href="/d/pastes" class="button">{"Pastes"}</a>
                         <a href="/d/atomic" class="button">{"Atomic"}</a>
                         <a href="/d/boards" class="button">{"Boards"}</a>
                     </div>
@@ -355,11 +356,11 @@ fn Dashboard(props: &DashboardProps) -> Html {
                     </div>
 
                     <div class="card secondary round flex justify-space-between align-center g-4">
-                        <b>{"Normal Pastes"}</b>
+                        <b>{"Pastes"}</b>
 
-                        <a class="button bundles-primary round" href="/">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-square"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
-                            {"New"}
+                        <a class="button bundles-primary round" href="/d/pastes">
+                            {"Go"}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                         </a>
                     </div>
 

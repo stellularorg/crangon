@@ -973,6 +973,7 @@ fn SearchByTag(props: &SearchProps) -> Html {
 
                     <div class="link-header-bottom">
                         <a href="/d" class="button">{"Home"}</a>
+                        <a href="/d/pastes" class="button">{"Pastes"}</a>
                         <a href="/d/atomic" class="button">{"Atomic"}</a>
                         <a href="/d/boards" class="button active">{"Boards"}</a>
                     </div>
@@ -1135,6 +1136,7 @@ fn Dashboard(props: &DashboardProps) -> Html {
 
                     <div class="link-header-bottom">
                         <a href="/d" class="button">{"Home"}</a>
+                        <a href="/d/pastes" class="button">{"Pastes"}</a>
                         <a href="/d/atomic" class="button">{"Atomic"}</a>
                         <a href="/d/boards" class="button active">{"Boards"}</a>
                     </div>

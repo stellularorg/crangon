@@ -421,12 +421,21 @@ impl BundlesDB {
         let row = res.unwrap();
         let row = self.textify_row(row).data;
 
+        let role = row.get("role").unwrap().to_string();
+        if role == "banned" {
+            return DefaultReturn {
+                success: false,
+                message: String::from("User is banned"),
+                payload: Option::None,
+            };
+        }
+
         // store in cache
         let meta = row.get("metadata"); // for compatability - users did not have metadata until Bundlrs v0.10.6
         let user = UserState {
             username: row.get("username").unwrap().to_string(),
             id_hashed: row.get("id_hashed").unwrap().to_string(),
-            role: row.get("role").unwrap().to_string(),
+            role,
             timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
             metadata: if meta.is_some() {
                 meta.unwrap().to_string()
@@ -482,6 +491,17 @@ impl BundlesDB {
         let row = res.unwrap();
         let row = self.textify_row(row).data;
 
+        let role = row.get("role").unwrap().to_string();
+
+        if role == "banned" {
+            // account banned - we're going to act like it simply does not exist
+            return DefaultReturn {
+                success: false,
+                message: String::from("User is banned"),
+                payload: Option::None,
+            };
+        }
+
         // return
         let meta = row.get("metadata");
         return DefaultReturn {
@@ -490,7 +510,7 @@ impl BundlesDB {
             payload: Option::Some(UserState {
                 username: row.get("username").unwrap().to_string(),
                 id_hashed: row.get("id_hashed").unwrap().to_string(),
-                role: row.get("role").unwrap().to_string(),
+                role,
                 timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
                 metadata: if meta.is_some() {
                     meta.unwrap().to_string()
@@ -624,6 +644,96 @@ impl BundlesDB {
         return DefaultReturn {
             success: true,
             message: String::from("User updated!"),
+            payload: Option::Some(name),
+        };
+    }
+
+    /// Ban a [`UserState`] by its `username`
+    pub async fn ban_user_by_name(&self, name: String) -> DefaultReturn<Option<String>> {
+        // make sure user exists
+        let existing = &self.get_user_by_username(name.clone()).await;
+        if !existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("User does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // make sure user role is "member"
+        let user = existing.payload.as_ref().unwrap();
+        if user.role != "member" {
+            return DefaultReturn {
+                success: false,
+                message: String::from("User must be of role \"member\""),
+                payload: Option::None,
+            };
+        }
+
+        // update user
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "UPDATE \"Users\" SET \"role\" = ? WHERE \"username\" = ?"
+        } else {
+            "UPDATE \"Users\" SET (\"role\") = ($1) WHERE \"username\" = $2"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&str>("banned")
+            .bind::<&String>(&name)
+            .execute(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // lock user assets
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "UPDATE \"Pastes\" SET \"metadata\" = ? WHERE \"metadata\" LIKE ?"
+        } else {
+            "UPDATE \"Pastes\" SET (\"metadata\") = ($1) WHERE \"metadata\" LIKE $2"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(
+                &serde_json::to_string::<PasteMetadata>(&PasteMetadata {
+                    // lock editors out
+                    owner: String::new(),
+                    private_source: String::from("on"),
+                    // optionals
+                    title: Option::Some(String::new()),
+                    description: Option::Some(String::new()),
+                    favicon: Option::None,
+                    embed_color: Option::None,
+                    view_password: Option::Some(format!(
+                        "LOCKED(USER_BANNED)-{}",
+                        crate::utility::random_id()
+                    )),
+                })
+                .unwrap(),
+            )
+            .bind::<&String>(&format!("%\"owner\":\"{name}\"%"))
+            .execute(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("User banned!"),
             payload: Option::Some(name),
         };
     }
@@ -966,6 +1076,56 @@ impl BundlesDB {
         let c = &self.db.client;
         let res = sqlx::query(query)
             .bind::<&String>(&format!("%\"owner\":\"{}\"%", &owner))
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // build res
+        let mut full_res: Vec<PasteIdentifier> = Vec::new();
+
+        for row in res.unwrap() {
+            let row = self.textify_row(row).data;
+            full_res.push(PasteIdentifier {
+                custom_url: row.get("custom_url").unwrap().to_string(),
+                id: row.get("id").unwrap().to_string(),
+            });
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: owner,
+            payload: Option::Some(full_res),
+        };
+    }
+
+    /// Get all [pastes](Paste) owned by a specific user (limited)
+    ///
+    /// # Arguments:
+    /// * `owner` - `String` of the owner's `username`
+    /// * `offset` - optional value representing the SQL fetch offset
+    pub async fn get_pastes_by_owner_limited(
+        &self,
+        owner: String,
+        offset: Option<i32>,
+    ) -> DefaultReturn<Option<Vec<PasteIdentifier>>> {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE ? ORDER BY \"pub_date\" DESC LIMIT 50 OFFSET ?"
+        } else {
+            "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE $1 ORDER BY \"pub_date\" DESC LIMIT 50 OFFSET $2"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&format!("%\"owner\":\"{}\"%", &owner))
+            .bind(if offset.is_some() { offset.unwrap() } else { 0 })
             .fetch_all(c)
             .await;
 

@@ -21,6 +21,13 @@ pub struct PasteViewProps {
     pub view: Option<String>,
 }
 
+#[derive(Default, Properties, PartialEq, serde::Deserialize)]
+struct DashboardProps {
+    pub pastes: Vec<bundlesdb::PasteIdentifier>,
+    pub auth_state: Option<bool>,
+    pub offset: i32,
+}
+
 #[function_component]
 fn PasteView(props: &Props) -> Html {
     let content = Html::from_html_unchecked(AttrValue::from(props.paste.content_html.clone()));
@@ -157,6 +164,15 @@ pub async fn paste_view_request(
         && info.view.is_none()
         && metadata.view_password.as_ref().unwrap() != "off"
     {
+        if metadata
+            .view_password
+            .as_ref()
+            .unwrap()
+            .starts_with("LOCKED(USER_BANNED)-")
+        {
+            return HttpResponse::NotFound().body("Failed to view paste (LOCKED: OWNER BANNED)");
+        }
+
         let renderer = build_password_ask_renderer_with_props(Props {
             paste: unwrap.clone(),
             auth_state: if req.cookie("__Secure-Token").is_some() {
@@ -357,4 +373,148 @@ pub async fn atomic_paste_view_request(
     } else {
         return HttpResponse::NotAcceptable().body("Paste is not atomic (cannot select HTML file)");
     }
+}
+
+#[function_component]
+fn Dashboard(props: &DashboardProps) -> Html {
+    return html! {
+        <div class="flex flex-column" style="height: 100dvh;">
+            <div class="toolbar flex justify-space-between">
+                // left
+                <div class="flex">
+                    <a class="button" href="/" style="border-left: 0">
+                        <b>{"::SITE_NAME::"}</b>
+                    </a>
+
+                    <a class="button" href="/d" style="border-left: 0">
+                        {"Dashboard"}
+                    </a>
+                </div>
+            </div>
+
+            <div class="toolbar-layout-wrapper">
+                <div id="link-header" style="display: flex;" class="flex-column bg-1">
+                    <div class="link-header-top"></div>
+
+                    <div class="link-header-middle">
+                        <h1 class="no-margin">{"Dashboard"}</h1>
+                    </div>
+
+                    <div class="link-header-bottom">
+                        <a href="/d" class="button">{"Home"}</a>
+                        <a href="/d/pastes" class="button active">{"Pastes"}</a>
+                        <a href="/d/atomic" class="button">{"Atomic"}</a>
+                        <a href="/d/boards" class="button">{"Boards"}</a>
+                    </div>
+                </div>
+
+                <main class="small flex flex-column g-4">
+                    <div class="flex justify-space-between align-center">
+                        <b>{"Pastes"}</b>
+
+                        <a class="button bundles-primary round" href="/">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-square"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                            {"New"}
+                        </a>
+                    </div>
+
+                    <div class="card round secondary flex g-4 flex-column justify-center" id="pastes_list">
+                        {for props.pastes.iter().map(|p| html! {
+                            <a class="button secondary round full justify-start" href={format!("/?editing={}", &p.custom_url)}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-pen"><path d="M12 22h6a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v10"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10.4 12.6a2 2 0 1 1 3 3L8 21l-4 1 1-4Z"/></svg>
+                                {&p.custom_url}
+                            </a>
+                        })}
+                    </div>
+
+                    <div class="full flex justify-space-between" id="pages">
+                        <a class="button round" href={format!("?offset={}", props.offset - 50)} disabled={props.offset <= 0}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                            {"Back"}
+                        </a>
+
+                        <a class="button round" href={format!("?offset={}", props.offset + 50)} disabled={props.pastes.len() == 0}>
+                            {"Next"}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        </a>
+                    </div>
+
+                    <Footer auth_state={props.auth_state} />
+                </main>
+            </div>
+        </div>
+    };
+}
+
+fn build_dashboard_renderer_with_props(props: DashboardProps) -> ServerRenderer<Dashboard> {
+    ServerRenderer::<Dashboard>::with_props(|| props)
+}
+
+#[get("/d/pastes")]
+/// Available at "/d/pastes"
+pub async fn dashboard_request(
+    req: HttpRequest,
+    data: web::Data<bundlesdb::AppData>,
+    info: web::Query<super::boards::ViewBoardQueryProps>,
+) -> impl Responder {
+    // verify auth status
+    let token_cookie = req.cookie("__Secure-Token");
+    let mut set_cookie: &str = "";
+
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists, refresh token if not
+        if token_user.as_ref().unwrap().success == false {
+            set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+        }
+    } else {
+        // you must have an account to use atomic pastes
+        // we'll likely track bandwidth used by atomic pastes and limit it in the future
+        return HttpResponse::NotFound().body(
+            "You must have an account to use atomic pastes.
+You can login at: /d/auth/login
+You can create an account at: /d/auth/register",
+        );
+    }
+
+    // fetch pastes
+    let pastes = data
+        .db
+        .get_pastes_by_owner_limited(
+            token_user.clone().unwrap().payload.unwrap().username,
+            info.offset,
+        )
+        .await;
+
+    // ...
+    let renderer = build_dashboard_renderer_with_props(DashboardProps {
+        pastes: pastes.payload.unwrap(),
+        auth_state: if req.cookie("__Secure-Token").is_some() {
+            Option::Some(true)
+        } else {
+            Option::Some(false)
+        },
+        offset: if info.offset.is_some() {
+            info.offset.unwrap()
+        } else {
+            0
+        },
+    });
+
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
+        .body(format_html(
+            renderer.render().await,
+            "<title>Atomic Dashboard - ::SITE_NAME::</title>",
+        ));
 }

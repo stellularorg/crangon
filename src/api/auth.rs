@@ -1,7 +1,7 @@
 use actix_web::{get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 
 use crate::{
-    db::bundlesdb::{AppData, DefaultReturn, UserFollow, UserMetadata, UserState},
+    db::bundlesdb::{self, AppData, DefaultReturn, UserFollow, UserMetadata, UserState},
     utility,
 };
 
@@ -104,7 +104,7 @@ pub async fn edit_about_request(
 ) -> impl Responder {
     let name: String = req.match_info().get("name").unwrap().to_string();
 
-    // get owner
+    // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
@@ -187,7 +187,7 @@ pub async fn edit_about_request(
 pub async fn follow_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
     let name: String = req.match_info().get("name").unwrap().to_string();
 
-    // get owner
+    // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
@@ -233,7 +233,7 @@ pub async fn update_request(
 ) -> impl Responder {
     let name: String = req.match_info().get("name").unwrap().to_string();
 
-    // get owner
+    // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = if token_cookie.is_some() {
         Option::Some(
@@ -299,6 +299,86 @@ pub async fn update_request(
         .body(serde_json::to_string(&res).unwrap());
 }
 
+#[post("/api/auth/users/{name:.*?}/ban")]
+/// Ban user
+pub async fn ban_request(req: HttpRequest, data: web::Data<bundlesdb::AppData>) -> impl Responder {
+    let name: String = req.match_info().get("name").unwrap().to_string();
+
+    // get token user
+    let token_cookie = req.cookie("__Secure-Token");
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists
+        if token_user.as_ref().unwrap().success == false {
+            return HttpResponse::NotFound().body("Invalid token");
+        }
+    } else {
+        return HttpResponse::NotAcceptable().body("An account is required to do this");
+    }
+
+    // make sure token_user is of role "staff"
+    if token_user.unwrap().payload.unwrap().role != "staff" {
+        return HttpResponse::NotAcceptable().body("Only staff can do this");
+    }
+
+    // ban user
+    let res: bundlesdb::DefaultReturn<Option<String>> = data.db.ban_user_by_name(name).await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string::<bundlesdb::DefaultReturn<Option<String>>>(&res).unwrap());
+}
+
+#[get("/api/auth/users/{name:.*}/followers")]
+pub async fn followers_request(
+    req: HttpRequest,
+    data: web::Data<AppData>,
+    info: web::Query<crate::pages::boards::ViewBoardQueryProps>,
+) -> impl Responder {
+    let name: String = req.match_info().get("name").unwrap().to_string();
+
+    // get followers
+    let res: DefaultReturn<Option<Vec<bundlesdb::Log>>> = data
+        .db
+        .get_user_followers(name.to_owned(), info.offset)
+        .await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string::<DefaultReturn<Option<Vec<bundlesdb::Log>>>>(&res).unwrap());
+}
+
+#[get("/api/auth/users/{name:.*}/following")]
+pub async fn following_request(
+    req: HttpRequest,
+    data: web::Data<AppData>,
+    info: web::Query<crate::pages::boards::ViewBoardQueryProps>,
+) -> impl Responder {
+    let name: String = req.match_info().get("name").unwrap().to_string();
+
+    // get following
+    let res: DefaultReturn<Option<Vec<bundlesdb::Log>>> = data
+        .db
+        .get_user_following(name.to_owned(), info.offset)
+        .await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string::<DefaultReturn<Option<Vec<bundlesdb::Log>>>>(&res).unwrap());
+}
+
 #[get("/api/auth/users/{name:.*}/avatar")]
 pub async fn avatar_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
     let name: String = req.match_info().get("name").unwrap().to_string();
@@ -344,11 +424,12 @@ pub async fn avatar_request(req: HttpRequest, data: web::Data<AppData>) -> impl 
 
     // ...
     let mut res = res.unwrap();
-    let body = res.body().limit(20_000_000).await;
+    let body = res.body().limit(10_000_000).await;
 
     if body.is_err() {
-        return HttpResponse::NotFound()
-            .body("Failed to fetch avatar on server (image likely too large)");
+        return HttpResponse::NotFound().body(
+            "Failed to fetch avatar on server (image likely too large, please keep under 10 MB)",
+        );
     }
 
     let body = body.unwrap();
@@ -357,4 +438,28 @@ pub async fn avatar_request(req: HttpRequest, data: web::Data<AppData>) -> impl 
     return HttpResponse::Ok()
         .append_header(("Content-Type", res.content_type()))
         .body(body);
+}
+
+#[get("/api/auth/users/{name:.*?}/pastes")]
+/// Get all pastes by owner
+pub async fn get_from_owner_request(
+    req: HttpRequest,
+    data: web::Data<bundlesdb::AppData>,
+    info: web::Query<crate::pages::boards::ViewBoardQueryProps>,
+) -> impl Responder {
+    let name: String = req.match_info().get("name").unwrap().to_string();
+
+    // get pastes
+    let res: bundlesdb::DefaultReturn<Option<Vec<bundlesdb::PasteIdentifier>>> =
+        data.db.get_pastes_by_owner_limited(name, info.offset).await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(
+            serde_json::to_string::<
+                bundlesdb::DefaultReturn<Option<Vec<bundlesdb::PasteIdentifier>>>,
+            >(&res)
+            .unwrap(),
+        );
 }

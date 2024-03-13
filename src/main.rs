@@ -114,6 +114,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::auth::edit_about_request)
             .service(crate::api::auth::update_request)
             .service(crate::api::auth::follow_request)
+            .service(crate::api::auth::ban_request)
             // POST api::pastes
             .service(crate::api::pastes::render_request)
             .service(crate::api::pastes::create_request)
@@ -125,7 +126,6 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::pastes::render_ssm_request)
             .service(crate::api::pastes::render_paste_ssm_request)
             // GET api
-            .service(crate::api::pastes::get_from_owner_request)
             .service(crate::api::pastes::get_from_url_request)
             .service(crate::api::pastes::get_from_id_request)
             .service(crate::api::pastes::exists_request)
@@ -136,6 +136,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::pages::auth::login_request)
             .service(crate::pages::settings::user_settings_request)
             .service(crate::pages::settings::paste_settings_request)
+            .service(crate::pages::paste_view::dashboard_request)
             // GET dashboard (atomic pastes)
             .service(crate::pages::atomic_editor::dashboard_request)
             .service(crate::pages::atomic_editor::new_request)
@@ -163,12 +164,16 @@ async fn main() -> std::io::Result<()> {
             // GET staff
             .service(crate::pages::staff::dashboard_request)
             .service(crate::pages::staff::staff_boards_dashboard_request)
+            .service(crate::pages::staff::staff_users_dashboard_request)
             // GET users
             .service(crate::pages::auth::followers_request)
             .service(crate::pages::auth::following_request)
             .service(crate::pages::auth::user_settings_request)
             .service(crate::pages::auth::profile_view_request)
             .service(crate::api::auth::avatar_request)
+            .service(crate::api::auth::followers_request)
+            .service(crate::api::auth::following_request)
+            .service(crate::api::auth::get_from_owner_request)
             // GET root
             .service(crate::pages::home::home_request)
             .service(crate::pages::home::robotstxt)
