@@ -132,6 +132,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::auth::logout)
             // GET dashboard
             .service(crate::pages::home::dashboard_request)
+            .service(crate::pages::home::notifications_request)
             .service(crate::pages::auth::register_request)
             .service(crate::pages::auth::login_request)
             .service(crate::pages::settings::user_settings_request)

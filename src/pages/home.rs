@@ -19,6 +19,14 @@ struct Props {
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 struct DashboardProps {
     pub user: bundlesdb::UserState<String>,
+    pub has_unread_notification: bool,
+    pub auth_state: Option<bool>,
+}
+
+#[derive(Default, Properties, PartialEq, serde::Deserialize)]
+struct NotificationsProps {
+    pub notifications: Vec<bundlesdb::Log>,
+    pub offset: i32,
     pub auth_state: Option<bool>,
 }
 
@@ -355,6 +363,17 @@ fn Dashboard(props: &DashboardProps) -> Html {
                         <p>{"Please verify that you have access to your account login code."}</p>
                     </div>
 
+                    {if props.has_unread_notification == true {
+                        html! {
+                            <>
+                                <a href="/d/notifications" class="button round bundles-primary">{"View Unread Notifications"}</a>
+                                <hr />
+                            </>
+                        }
+                    } else {
+                        html! {}
+                    }}
+
                     <div class="card secondary round flex justify-space-between align-center g-4">
                         <b>{"Pastes"}</b>
 
@@ -456,9 +475,14 @@ You can create an account at: /d/auth/register",
         );
     }
 
+    // check for unread notification
+    let user = token_user.unwrap().payload.unwrap();
+    let notification_res = data.db.user_has_notification(user.username.clone()).await;
+
     // ...
     let renderer = build_dashboard_renderer_with_props(DashboardProps {
-        user: token_user.unwrap().payload.unwrap(),
+        user,
+        has_unread_notification: notification_res.message == "Yes",
         auth_state: if req.cookie("__Secure-Token").is_some() {
             Option::Some(true)
         } else {
@@ -472,5 +496,138 @@ You can create an account at: /d/auth/register",
         .body(format_html(
             renderer.render().await,
             "<title>User Dashboard - ::SITE_NAME::</title>",
+        ));
+}
+
+#[function_component]
+fn Notifications(props: &NotificationsProps) -> Html {
+    return html! {
+        <div class="flex flex-column" style="height: 100dvh;">
+            <div class="toolbar flex justify-space-between">
+                // left
+                <div class="flex">
+                    <a class="button" href="/" style="border-left: 0">
+                        <b>{"::SITE_NAME::"}</b>
+                    </a>
+
+                    <a class="button" href="/d" style="border-left: 0">
+                        {"Dashboard"}
+                    </a>
+                </div>
+            </div>
+
+            <div class="toolbar-layout-wrapper">
+                <div id="link-header" style="display: flex;" class="flex-column bg-1">
+                    <div class="link-header-top"></div>
+
+                    <div class="link-header-middle">
+                        <h1 class="no-margin">{"Dashboard"}</h1>
+                    </div>
+
+                    <div class="link-header-bottom">
+                        <a href="/d" class="button">{"Home"}</a>
+                        <a href="/d/pastes" class="button">{"Pastes"}</a>
+                        <a href="/d/atomic" class="button">{"Atomic"}</a>
+                        <a href="/d/boards" class="button">{"Boards"}</a>
+                    </div>
+                </div>
+
+                <main class="small flex flex-column g-4">
+                    <div class="flex justify-space-between align-center">
+                        <b>{"Unread Notifications"}</b>
+
+                        <div class="flex g-4 flex-wrap">
+                            {"Coming soon!"}
+                        </div>
+                    </div>
+
+                    <div class="full flex justify-space-between" id="pages">
+                        <a class="button round" href={format!("?offset={}", props.offset - 50)} disabled={props.offset <= 0}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                            {"Back"}
+                        </a>
+
+                        <a class="button round" href={format!("?offset={}", props.offset + 50)} disabled={props.notifications.len() == 0}>
+                            {"Next"}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        </a>
+                    </div>
+
+                    <Footer auth_state={props.auth_state} />
+                </main>
+            </div>
+        </div>
+    };
+}
+
+fn build_notifications_renderer_with_props(
+    props: NotificationsProps,
+) -> ServerRenderer<Notifications> {
+    ServerRenderer::<Notifications>::with_props(|| props)
+}
+
+#[get("/d/notifications")]
+/// Available at "/d/notifications"
+pub async fn notifications_request(
+    req: HttpRequest,
+    data: web::Data<db::bundlesdb::AppData>,
+    info: web::Query<super::boards::ViewBoardQueryProps>,
+) -> impl Responder {
+    // verify auth status
+    let token_cookie = req.cookie("__Secure-Token");
+    let mut set_cookie: &str = "";
+
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists, refresh token if not
+        if token_user.as_ref().unwrap().success == false {
+            set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+        }
+    } else {
+        // you must have an account to use the user dashboard
+        return HttpResponse::NotFound().body(
+            "You must have an account to use the user dashboard.
+You can login at: /d/auth/login
+You can create an account at: /d/auth/register",
+        );
+    }
+
+    // check for unread notification
+    let user = token_user.unwrap().payload.unwrap();
+    let notifications_res = data
+        .db
+        .get_user_notifications(user.username.clone(), info.offset)
+        .await;
+
+    // ...
+    let renderer = build_notifications_renderer_with_props(NotificationsProps {
+        notifications: notifications_res.payload.unwrap(),
+        offset: if info.offset.is_some() {
+            info.offset.unwrap()
+        } else {
+            0
+        },
+        auth_state: if req.cookie("__Secure-Token").is_some() {
+            Option::Some(true)
+        } else {
+            Option::Some(false)
+        },
+    });
+
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
+        .body(format_html(
+            renderer.render().await,
+            "<title>Notifications - ::SITE_NAME::</title>",
         ));
 }

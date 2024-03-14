@@ -9,6 +9,13 @@ const ban_button: HTMLButtonElement | null = document.getElementById(
 if (ban_button) {
     // ban user
     ban_button.addEventListener("click", async (e) => {
+        if (
+            !confirm(
+                "Are you sure you would like to do this? It cannot be undone."
+            )
+        )
+            return;
+
         e.preventDefault();
         const res = await fetch(ban_button.getAttribute("data-endpoint")!, {
             method: "POST",
