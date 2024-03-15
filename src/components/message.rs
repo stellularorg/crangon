@@ -25,40 +25,55 @@ pub fn Message(props: &MessageProps) -> Html {
 
     // ...
     return html! {
-        <div class={format!(
-            "message {} {} round full flex g-4",
-            if post.reply.is_some() { "reply" } else { "" },
-            if pinned == true { "pinned" } else { "" }
-        )} title={if post.tags.is_some() {
-            post.tags.unwrap()
-        } else {
-            String::new()
-        }}>
-            {if post.author != "Anonymous" {
-                html! {<AvatarDisplay size={65} username={post.author.clone()} />}
-            } else {
-                html! {}
-            }}
+        <div class="flex mobile:flex-column g-4 full message-box">
+            // info box
+            <div class="card secondary round flex flex-column g-4 mobile:max" style="width: 250px;">
+                <div class="full flex justify-center">
+                    {if post.author != "Anonymous" {
+                        html! {<AvatarDisplay size={100} username={post.author.clone()} />}
+                    } else {
+                        html! {}
+                    }}
+                </div>
 
-            <div class="flex flex-column g-4 full">
-                <div class="flex justify-space-between align-center g-4">
-                    <div class="flex g-4 flex-wrap">
-                        <span class="chip mention round" style="width: max-content;">
-                            {if post.author != "Anonymous" {
-                                html! {<a href={format!("/~{}", &post.author)} style="color: inherit;">{&post.author}</a>}
-                            } else {
-                                html! {<span>{"Anonymous"}</span>}
-                            }}
-                        </span>
+                <span class="chip mention round" style="width: max-content;">
+                    {if post.author != "Anonymous" {
+                        html! {<a href={format!("/~{}", &post.author)} style="color: inherit;">{&post.author}</a>}
+                    } else {
+                        html! {<span>{"Anonymous"}</span>}
+                    }}
+                </span>
 
-                        <span class="date-time-to-localize" style="opacity: 75%;">{&p.timestamp}</span>
-                    </div>
+                <span>
+                    {"Posted: "}
+                    <span class="date-time-to-localize" style="opacity: 75%;">{&p.timestamp}</span>
+                </span>
+            </div>
 
-                    <div class="flex g-4 flex-wrap align-center">
+            // message content
+            <div class={format!(
+                    "card message {} {} round full flex g-4",
+                    if post.reply.is_some() { "reply" } else { "" },
+                    if pinned == true { "pinned" } else { "" }
+                    )
+                }
+                title={if post.tags.is_some() {
+                    post.tags.unwrap()
+                } else {
+                    String::new()
+                }}
+                style="background: var(--background-surface0-5)"
+            >
+                <div class="flex g-4 full justify-space-between">
+                    <div class="full">{content}</div>
+
+                    <div class="flex g-4 flex-wrap align-center flex-column">
                         {if post.replies.is_some() && post.replies.unwrap() > 0 {
                             html! { <>
-                                <span title="Reply Count">{&post.replies.unwrap()}</span>
-                                <span>{"·"}</span>
+                                <div class="flex align-center g-4">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-messages-square"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg>
+                                    <span title="Reply Count">{&post.replies.unwrap()}</span>
+                                </div>
                             </> }
                         } else {
                             html! {}
@@ -78,7 +93,7 @@ pub fn Message(props: &MessageProps) -> Html {
                             html! {
                                 <div class="flex g-4 flex-wrap">
                                     <a
-                                        class="button border round"
+                                        class="button invisible round"
                                         href={format!("/b/{}/posts/{}", post.board, p.id)}
                                         style="color: var(--text-color);"
                                         target="_blank"
@@ -93,8 +108,6 @@ pub fn Message(props: &MessageProps) -> Html {
                         }}
                     </div>
                 </div>
-
-                <div>{content}</div>
             </div>
         </div>
     };

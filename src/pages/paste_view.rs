@@ -285,7 +285,11 @@ pub async fn paste_view_request(
                 <meta property=\"og:description\" content=\"{}\" />
                 <meta name=\"theme-color\" content=\"{}\" />
                 <link rel=\"icon\" href=\"{}\" />",
-                &url_c,
+                if metadata.title.is_none() | title_unwrap.unwrap().is_empty() {
+                    &url_c
+                } else {
+                    &title_unwrap.unwrap()
+                },
                 &format!(
                     "{}{}",
                     req.headers().get("Host").unwrap().to_str().unwrap(),

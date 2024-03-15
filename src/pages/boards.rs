@@ -203,7 +203,7 @@ fn ViewBoard(props: &Props) -> Html {
             </div>
 
             <div class="toolbar-layout-wrapper">
-                <main class="small flex flex-column g-4 align-center">
+                <main class="flex flex-column g-4 align-center">
                     <div class="full" id="about">
                         {if board_m.about.is_some() {
                             let content = Html::from_html_unchecked(AttrValue::from(
@@ -529,7 +529,7 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
             </div>
 
             <div class="toolbar-layout-wrapper">
-                <main class="small flex flex-column g-4">
+                <main class="flex flex-column g-4">
                     <div id="error" class="mdnote note-error full" style="display: none;" />
                     <div id="success" class="mdnote note-note full" style="display: none;" />
 
@@ -597,7 +597,7 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                         {if can_manage {
                             html! {
                                 <>
-                                    <button class="bundles-primary round" id="delete-post" data-endpoint={format!("/api/board/{}/posts/{}", &post.board, &p.id)}>{"Delete"}</button>
+                                    <button class="border round" id="delete-post" data-endpoint={format!("/api/board/{}/posts/{}", &post.board, &p.id)}>{"Delete"}</button>
                                     <a class="button border round" href="?edit_tags=true">{"Edit Tags"}</a>
                                 </>
                             }
@@ -629,7 +629,7 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                                 <hr style="var(--u-04) 0 var(--u-08) 0" />
 
                                 <div class="full flex flex-column g-4">
-                                    <details class="full round">
+                                    <details class="full round" style="display: none;">
                                         <summary>{"About this board"}</summary>
 
                                         <div class="card secondary full" id="about">
@@ -669,7 +669,7 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                                         </form>
                                     </div>
 
-                                    <hr style="var(--u-08) 0 var(--u-04) 0" />
+                                    // <hr style="var(--u-08) 0 var(--u-04) 0" />
                                 </div>
                             </>
                     }} else {

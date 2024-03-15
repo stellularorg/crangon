@@ -269,6 +269,10 @@ select:focus {
     .sidebar {
         width: 100%;
     }
+
+    .message-box {
+        background: var(--background-surface0-5);
+    }
 }
 
 /* toolbar */
@@ -350,10 +354,8 @@ select:focus {
     border-left: solid 5px transparent;
     border-right: solid 5px transparent;
     padding: var(--u-08);
-    background: var(--background-surface0-5);
-    transition:
-        background 0.15s,
-        border-left-color 0.1s;
+    /* background: var(--background-surface0-5); */
+    transition: border-left-color 0.1s;
 }
 
 .message p {

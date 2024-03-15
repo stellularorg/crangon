@@ -537,7 +537,15 @@ fn Notifications(props: &NotificationsProps) -> Html {
                         <b>{"Unread Notifications"}</b>
 
                         <div class="flex g-4 flex-wrap">
-                            {"Coming soon!"}
+                            {for props.notifications.iter().map(|n| {
+                                let notif = serde_json::from_str::<bundlesdb::Notification>(&n.content).unwrap();
+
+                                html! {
+                                    <a class="button secondary round full justify-start" href={notif.address} title={notif.content.clone()}>
+                                        <b>{notif.content}</b>
+                                    </a>
+                                }
+                            })}
                         </div>
                     </div>
 
