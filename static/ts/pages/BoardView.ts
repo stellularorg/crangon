@@ -15,6 +15,7 @@ if (create_form) {
             method: "POST",
             body: JSON.stringify({
                 content: create_form.content.value,
+                topic: create_form.topic.value || null,
             }),
             headers: {
                 "Content-Type": "application/json",

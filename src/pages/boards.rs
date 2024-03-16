@@ -299,6 +299,15 @@ fn ViewBoard(props: &Props) -> Html {
                                             maxlength={1_000}
                                             required={true}
                                         ></textarea>
+
+                                        <input
+                                            type="text"
+                                            name="topic"
+                                            id="topic"
+                                            placeholder="Topic (optional)"
+                                            class="round"
+                                            maxlength={250}
+                                        />
                                     </form>
                                 </div>
 
@@ -534,7 +543,15 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                     <div id="success" class="mdnote note-note full" style="display: none;" />
 
                     {if (props.edit == false && props.edit_tags == false) | (can_edit == false) {
-                        html! { <Message post={p.clone()} show_open={false} pinned={false} /> }
+                        html! { <>
+                            {if post.topic.is_some() {
+                                html! { <h1 style="margin-top: 0; margin-bottom: 1rem;">{post.topic.unwrap()}</h1> }
+                            } else {
+                                html! {}
+                            }}
+
+                            <Message post={p.clone()} show_open={false} pinned={false} />
+                        </> }
                     } else if props.edit_tags == true {
                         // edit tags
                         html! { <div class="card round secondary" id="post">
@@ -589,6 +606,20 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                                     maxlength={1_000}
                                     required={true}
                                 ></textarea>
+
+                                <input
+                                    type="text"
+                                    name="topic"
+                                    id="topic"
+                                    placeholder="Topic (optional)"
+                                    class="round"
+                                    value={if post.topic.is_some() {
+                                        post.topic.unwrap()
+                                    } else {
+                                        String::new()
+                                    }}
+                                    maxlength={250}
+                                />
                             </form>
                         </div> }
                     }}

@@ -14,11 +14,13 @@ struct CreateInfo {
 struct CreatePostInfo {
     content: String,
     reply: Option<String>,
+    topic: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
 struct UpdatePostInfo {
     content: String,
+    topic: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
@@ -226,6 +228,7 @@ pub async fn create_post_request(
                 author: String::new(),
                 content: body.content.clone(), // use given content
                 content_html: String::new(),
+                topic: body.topic.clone(),
                 board: name,
                 is_hidden: false,
                 reply: if body.reply.is_some() {
@@ -408,6 +411,8 @@ pub async fn update_post_request(
         crate::markdown::render::parse_markdown(&body.content),
         crate::utility::unix_epoch_timestamp()
     );
+
+    post.topic = body.topic.clone();
 
     // ...
     let res = data

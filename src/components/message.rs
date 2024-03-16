@@ -65,7 +65,24 @@ pub fn Message(props: &MessageProps) -> Html {
                 style="background: var(--background-surface0-5)"
             >
                 <div class="flex g-4 full justify-space-between">
-                    <div class="full">{content}</div>
+                    <div class="full">
+                        {if props.show_open == true && post.topic.is_some() {
+                            // show topic if the post has one and the post is not expanded
+                            html! {
+                                <a
+                                    class="button round"
+                                    href={format!("/b/{}/posts/{}", post.board, p.id)}
+                                    title="Expand Topic"
+                                >
+                                    <b>{post.topic.unwrap()}</b>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                                </a>
+                            }
+                        } else {
+                            // show content if the post doesn't have a topic or the post is expanded
+                            html! {{content}}
+                        }}
+                    </div>
 
                     <div class="flex g-4 flex-wrap align-center flex-column">
                         {if post.replies.is_some() && post.replies.unwrap() > 0 {

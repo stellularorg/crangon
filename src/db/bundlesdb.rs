@@ -168,10 +168,11 @@ pub struct BoardPostLog {
     pub author: String, // username of owner
     pub content: String,
     pub content_html: String,
-    pub board: String, // name of board the post is located in
-    pub is_hidden: bool,
-    pub reply: Option<String>,  // the ID of the post we're replying to
-    pub pinned: Option<bool>,   // pin the post to the top of the board feed
+    pub topic: Option<String>, // post topic, content is hidden unless expanded if provided
+    pub board: String,         // name of board the post is located in
+    pub is_hidden: bool,       // if the post is hidden in the feed (does nothing right now)
+    pub reply: Option<String>, // the ID of the post we're replying to
+    pub pinned: Option<bool>,  // pin the post to the top of the board feed
     pub replies: Option<usize>, // not really managed in the log, just used to show the number of replies this post has
     pub tags: Option<String>,   // same as board tags, just for posts specifically
 }
@@ -2686,6 +2687,7 @@ impl BundlesDB {
             },
             content: p.content.clone(),
             content_html: crate::markdown::render::parse_markdown(&p.content),
+            topic: p.topic.clone(),
             board: p.board.clone(),
             is_hidden: false,
             reply: p.reply.clone(),

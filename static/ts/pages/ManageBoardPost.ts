@@ -64,6 +64,7 @@ if (edit_form) {
             },
             body: JSON.stringify({
                 content: edit_form.content.value,
+                topic: edit_form.topic.value || null,
             }),
         });
 
