@@ -40,12 +40,14 @@ struct ViewPostProps {
     pub user: Option<UserState<String>>,
     pub edit: bool,
     pub edit_tags: bool,
+    pub offset: i32,
 }
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 pub struct ViewBoardPostQueryProps {
     pub edit: Option<bool>,
     pub edit_tags: Option<bool>,
+    pub offset: Option<i32>,
 }
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
@@ -175,7 +177,10 @@ fn ViewBoard(props: &Props) -> Html {
     let board_m = serde_json::from_str::<BoardMetadata>(&props.board.metadata).unwrap();
 
     let can_post_from_anonymous =
-        board_m.allow_anonymous.is_none() || board_m.allow_anonymous.unwrap() != String::from("no");
+        board_m.allow_anonymous.is_none() || board_m.allow_anonymous.unwrap() != "no";
+
+    let topic_required =
+        board_m.topic_required.is_some() && board_m.topic_required.unwrap() == "yes";
 
     // ...
     return html! {
@@ -304,9 +309,14 @@ fn ViewBoard(props: &Props) -> Html {
                                             type="text"
                                             name="topic"
                                             id="topic"
-                                            placeholder="Topic (optional)"
+                                            placeholder={format!("Topic{}", if !topic_required {
+                                                " (Optional)"
+                                            } else {
+                                                ""
+                                            })}
                                             class="round"
                                             maxlength={250}
+                                            required={topic_required}
                                         />
                                     </form>
                                 </div>
@@ -518,6 +528,8 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
     let can_post_from_anonymous =
         board.allow_anonymous.is_none() || board.allow_anonymous.unwrap() != String::from("no");
 
+    let topic_required = board.topic_required.is_some() && board.topic_required.unwrap() == "yes";
+
     // ...
     return html! {
         <div class="flex flex-column" style="height: 100dvh;">
@@ -545,7 +557,7 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                     {if (props.edit == false && props.edit_tags == false) | (can_edit == false) {
                         html! { <>
                             {if post.topic.is_some() {
-                                html! { <h1 style="margin-top: 0; margin-bottom: 1rem;">{post.topic.unwrap()}</h1> }
+                                html! { <h1 style="margin-top: 0; margin-bottom: 1rem; max-width: 100%;">{post.topic.unwrap()}</h1> }
                             } else {
                                 html! {}
                             }}
@@ -611,7 +623,11 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                                     type="text"
                                     name="topic"
                                     id="topic"
-                                    placeholder="Topic (optional)"
+                                    placeholder={format!("Topic{}", if !topic_required {
+                                        " (Optional)"
+                                    } else {
+                                        ""
+                                    })}
                                     class="round"
                                     value={if post.topic.is_some() {
                                         post.topic.unwrap()
@@ -619,6 +635,7 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                                         String::new()
                                     }}
                                     maxlength={250}
+                                    required={topic_required}
                                 />
                             </form>
                         </div> }
@@ -711,6 +728,18 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                         html! { <Message post={p.clone()} show_open={true} pinned={false} /> }
                     })}
 
+                    <div class="full flex justify-space-between" id="pages">
+                        <a class="button round" href={format!("?offset={}", props.offset - 50)} disabled={props.offset <= 0}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                            {"Back"}
+                        </a>
+
+                        <a class="button round" href={format!("?offset={}", props.offset + 50)} disabled={props.replies.len() == 0}>
+                            {"Next"}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                        </a>
+                    </div>
+
                     <Footer auth_state={props.auth_state} />
                 </main>
             </div>
@@ -787,8 +816,10 @@ pub async fn view_board_post_request(
     }
 
     // get replies
-    let replies: bundlesdb::DefaultReturn<Option<Vec<Log>>> =
-        data.db.get_post_replies(id.clone(), false).await;
+    let replies: bundlesdb::DefaultReturn<Option<Vec<Log>>> = data
+        .db
+        .get_post_replies(id.clone(), false, info.offset)
+        .await;
 
     // ...
     let renderer = build_view_post_renderer_with_props(ViewPostProps {
@@ -814,6 +845,11 @@ pub async fn view_board_post_request(
             info.edit_tags.unwrap()
         } else {
             false
+        },
+        offset: if info.offset.is_some() {
+            info.offset.unwrap()
+        } else {
+            0
         },
     });
 

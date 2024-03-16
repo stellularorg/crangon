@@ -242,7 +242,7 @@ fn ProfileView(props: &Props) -> Html {
 
                     <div class="card secondary round">
                         <ul>
-                            <li>{"Role: "}<span class="chip badge">{&props.user.role}</span></li>
+                            <li>{"Role: "}<span class={format!("chip badge role-{}", props.user.role)}>{&props.user.role}</span></li>
                             <li>{"Joined: "}<span class="date-time-to-localize">{&props.user.timestamp}</span></li>
                             <li>{"Paste count: "}{&props.paste_count}</li>
                             <li>{"Board count: "}{&props.board_count}</li>

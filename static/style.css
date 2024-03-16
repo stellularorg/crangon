@@ -209,6 +209,18 @@ select:focus {
     color: var(--text-color);
 }
 
+.chip.badge.role-member {
+    color: var(--text-color);
+}
+
+.chip.badge.role-staff {
+    color: var(--yellow);
+}
+
+.chip.badge.role-banned {
+    color: var(--red);
+}
+
 /* context menu */
 .context-menu .flex.flex-column.g-4 hr {
     margin: 0 !important;

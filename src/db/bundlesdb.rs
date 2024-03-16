@@ -158,6 +158,7 @@ pub struct BoardMetadata {
     pub is_private: String, // if the homepage of the board is shown to other users (not owner)
     pub allow_anonymous: Option<String>, // if anonymous users can post
     pub allow_open_posting: Option<String>, // if all users can post on the board (not just owner)
+    pub topic_required: Option<String>, // if posts are required to include a topic value
     pub about: Option<String>, // welcome message
     pub tags: Option<String>, // SPACE separated list of tags that identify the board for searches
                             // TODO: we could likely export a list of "valid" tags at some point in the future
@@ -2277,6 +2278,7 @@ impl BundlesDB {
         &self,
         id: String,
         run_existing_check: bool,
+        offset: Option<i32>,
     ) -> DefaultReturn<Option<Vec<Log>>> {
         // make sure message exists
         if run_existing_check != false {
@@ -2293,14 +2295,15 @@ impl BundlesDB {
 
         // ...
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? ORDER BY \"timestamp\" DESC LIMIT 50"
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
         } else {
-            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 ORDER BY \"timestamp\" DESC LIMIT 50"
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $2"
         };
 
         let c = &self.db.client;
         let res = sqlx::query(query)
             .bind::<&String>(&format!("%\"reply\":\"{}\"%", id))
+            .bind(if offset.is_some() { offset.unwrap() } else { 0 })
             .fetch_all(c)
             .await;
 
@@ -2536,6 +2539,7 @@ impl BundlesDB {
             is_private: String::from("no"),
             allow_anonymous: Option::Some(String::from("yes")),
             allow_open_posting: Option::Some(String::from("yes")),
+            topic_required: Option::Some(String::from("no")),
             about: Option::None,
             tags: Option::None,
         };
@@ -2650,9 +2654,23 @@ impl BundlesDB {
         let board =
             serde_json::from_str::<BoardMetadata>(&existing.payload.unwrap().metadata).unwrap();
 
+        // check board "topic_required" setting
+        // if it is set to "yes", make sure we provided a topic AND this is not a reply (replies to not count)
+        if board.topic_required.is_some()
+            && board.topic_required.unwrap() == "yes"
+            && p.reply.is_none()
+            && p.topic.is_none()
+        {
+            return DefaultReturn {
+                success: false,
+                message: String::from("This board requires a topic to be set before posting"),
+                payload: Option::None,
+            };
+        }
+
         // check board "allow_anonymous" setting
         if board.allow_anonymous.is_some()
-            && board.allow_anonymous.unwrap() == String::from("no")
+            && board.allow_anonymous.unwrap() == "no"
             && as_user.is_none()
         {
             return DefaultReturn {

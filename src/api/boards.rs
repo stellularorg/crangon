@@ -387,9 +387,30 @@ pub async fn update_post_request(
             );
     }
 
+    let board = serde_json::from_str::<BoardMetadata>(&board.payload.unwrap().metadata).unwrap();
+
     // get post
     let p = data.db.get_log_by_id(id.to_owned()).await;
     let mut post = serde_json::from_str::<BoardPostLog>(&p.payload.unwrap().content).unwrap();
+
+    // check board "topic_required" setting (make sure we can't edit to remove topic)
+    // if it is set to "yes", make sure we provided a topic AND this is not a reply (replies to not count)
+    if board.topic_required.is_some()
+        && board.topic_required.unwrap() == "yes"
+        && post.reply.is_none()
+        && body.topic.is_none()
+    {
+        return HttpResponse::NotFound()
+            .append_header(("Content-Type", "application/json"))
+            .body(
+                serde_json::to_string::<DefaultReturn<Option<String>>>(&DefaultReturn {
+                    success: false,
+                    message: String::from("This board requires a topic to be set before posting"),
+                    payload: Option::None,
+                })
+                .unwrap(),
+            );
+    }
 
     // check if we can update this post
     // must be authenticated AND post author OR staff
