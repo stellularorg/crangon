@@ -65,7 +65,7 @@ pub async fn create_request(
                 metadata: String::new(),
             },
             if token_user.is_some() {
-                Option::Some(token_user.unwrap().payload.unwrap().username)
+                Option::Some(token_user.unwrap().payload.unwrap().user.username)
             } else {
                 Option::None
             },
@@ -118,7 +118,12 @@ pub async fn get_posts_request(
             // not owner
             let user = token_user.unwrap().payload.unwrap();
 
-            if (user.username != metadata.owner) && (user.role != String::from("staff")) {
+            if (user.user.username != metadata.owner)
+                && (user
+                    .level
+                    .permissions
+                    .contains(&String::from("ManageBoards")))
+            {
                 return HttpResponse::NotFound()
                     .body("You do not have permission to view this board's contents.");
             }
@@ -171,7 +176,12 @@ pub async fn get_post_request(req: HttpRequest, data: web::Data<AppData>) -> imp
             // not owner
             let user = token_user.unwrap().payload.unwrap();
 
-            if (user.username != metadata.owner) && (user.role != String::from("staff")) {
+            if (user.user.username != metadata.owner)
+                && (user
+                    .level
+                    .permissions
+                    .contains(&String::from("ManageBoards")))
+            {
                 return HttpResponse::NotFound()
                     .body("You do not have permission to view this board's contents.");
             }
@@ -241,12 +251,12 @@ pub async fn create_post_request(
                 tags: Option::None,
             },
             if token_user.is_some() {
-                Option::Some(token_user.clone().unwrap().username)
+                Option::Some(token_user.clone().unwrap().user.username)
             } else {
                 Option::None
             },
             if token_user.is_some() {
-                Option::Some(token_user.clone().unwrap().role)
+                Option::Some(token_user.clone().unwrap().user.role)
             } else {
                 Option::None
             },
@@ -312,8 +322,12 @@ pub async fn pin_post_request(req: HttpRequest, data: web::Data<AppData>) -> imp
     // must be authenticated AND board owner OR staff
     let user = token_user.unwrap().payload.unwrap();
 
-    let can_pin: bool = (user.username != String::from("Anonymous"))
-        && ((user.username == board.owner) | (user.role == String::from("staff")));
+    let can_pin: bool = (user.user.username != String::from("Anonymous"))
+        && ((user.user.username == board.owner)
+            | (user
+                .level
+                .permissions
+                .contains(&String::from("ManageBoards"))));
 
     if can_pin == false {
         return HttpResponse::NotFound()
@@ -416,8 +430,12 @@ pub async fn update_post_request(
     // must be authenticated AND post author OR staff
     let user = token_user.unwrap().payload.unwrap();
 
-    let can_update: bool = (user.username != String::from("Anonymous"))
-        && ((user.username == post.author) | (user.role == String::from("staff")));
+    let can_update: bool = (user.user.username != String::from("Anonymous"))
+        && ((user.user.username == post.author)
+            | (user
+                .level
+                .permissions
+                .contains(&String::from("ManageBoards"))));
 
     if can_update == false {
         return HttpResponse::NotFound()
@@ -504,10 +522,13 @@ pub async fn update_post_tags_request(
     // must be authenticated AND post author OR staff OR board owner
     let user = token_user.unwrap().payload.unwrap();
 
-    let can_update: bool = (user.username != String::from("Anonymous"))
-        && ((user.username == board.owner)
-            | (user.username == post.author)
-            | (user.role == String::from("staff")));
+    let can_update: bool = (user.user.username != String::from("Anonymous"))
+        && ((user.user.username == board.owner)
+            | (user.user.username == post.author)
+            | (user
+                .level
+                .permissions
+                .contains(&String::from("ManageBoards"))));
 
     if can_update == false {
         return HttpResponse::NotFound()
@@ -589,10 +610,13 @@ pub async fn delete_post_request(req: HttpRequest, data: web::Data<AppData>) -> 
     // must be authenticated AND board owner OR staff OR post author
     let user = token_user.unwrap().payload.unwrap();
 
-    let can_delete: bool = (user.username != String::from("Anonymous"))
-        && ((user.username == board.owner)
-            | (user.role == String::from("staff"))
-            | (user.username == post.author));
+    let can_delete: bool = (user.user.username != String::from("Anonymous"))
+        && ((user.user.username == board.owner)
+            | (user
+                .level
+                .permissions
+                .contains(&String::from("ManageBoards")))
+            | (user.user.username == post.author));
 
     if can_delete == false {
         return HttpResponse::NotFound()
@@ -649,7 +673,11 @@ pub async fn metadata_request(
         serde_json::from_str::<BoardMetadata>(&board.payload.as_ref().unwrap().metadata).unwrap();
 
     let user = token_user.as_ref().unwrap().payload.as_ref().unwrap();
-    let can_edit: bool = (user.username == metadata.owner) | (user.role == String::from("staff"));
+    let can_edit: bool = (user.user.username == metadata.owner)
+        | (user
+            .level
+            .permissions
+            .contains(&String::from("ManageBoards")));
 
     if can_edit == false {
         return HttpResponse::NotFound()
@@ -663,7 +691,7 @@ pub async fn metadata_request(
             name,            // select board
             body.to_owned(), // new metadata
             if token_user.is_some() {
-                Option::Some(token_user.unwrap().payload.unwrap().username)
+                Option::Some(token_user.unwrap().payload.unwrap().user.username)
             } else {
                 Option::None
             },
@@ -700,8 +728,12 @@ pub async fn delete_board_request(req: HttpRequest, data: web::Data<AppData>) ->
     // must be authenticated AND board owner OR staff
     let user = token_user.unwrap().payload.unwrap();
 
-    let can_delete: bool = (user.username != String::from("Anonymous"))
-        && ((user.username == board.owner) | (user.role == String::from("staff")));
+    let can_delete: bool = (user.user.username != String::from("Anonymous"))
+        && ((user.user.username == board.owner)
+            | (user
+                .level
+                .permissions
+                .contains(&String::from("ManageBoards"))));
 
     if can_delete == false {
         return HttpResponse::NotFound().body("You do not have permission to manage this board.");

@@ -244,7 +244,7 @@ pub async fn paste_view_request(
         let payload = &token_user.as_ref().unwrap().payload;
         if payload.as_ref().is_some() {
             data.db
-                .add_view_to_url(&url_c, &payload.as_ref().unwrap().username)
+                .add_view_to_url(&url_c, &payload.as_ref().unwrap().user.username)
                 .await;
         }
     }
@@ -494,7 +494,7 @@ You can create an account at: /d/auth/register",
     let pastes = data
         .db
         .get_pastes_by_owner_limited(
-            token_user.clone().unwrap().payload.unwrap().username,
+            token_user.clone().unwrap().payload.unwrap().user.username,
             info.offset,
         )
         .await;

@@ -174,6 +174,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::auth::avatar_request)
             .service(crate::api::auth::followers_request)
             .service(crate::api::auth::following_request)
+            .service(crate::api::auth::level_request)
             .service(crate::api::auth::get_from_owner_request)
             // GET root
             .service(crate::pages::home::home_request)

@@ -432,7 +432,12 @@ pub async fn view_board_request(
         // not owner
         let user = token_user.unwrap().payload.unwrap();
 
-        if (user.username != metadata.owner) && (user.role != String::from("staff")) {
+        if (user.user.username != metadata.owner)
+            && (user
+                .level
+                .permissions
+                .contains(&String::from("ManageBoards")))
+        {
             return HttpResponse::NotFound()
                 .body("You do not have permission to view this board's contents.");
         }
@@ -832,7 +837,7 @@ pub async fn view_board_post_request(
             Option::Some(false)
         },
         user: if token_user.is_some() {
-            Option::Some(token_user.unwrap().payload.unwrap())
+            Option::Some(token_user.unwrap().payload.unwrap().user)
         } else {
             Option::None
         },
@@ -982,7 +987,11 @@ pub async fn board_settings_request(
             .unwrap();
 
     let user = token_user.unwrap().payload.unwrap();
-    let can_view: bool = (user.username == metadata.owner) | (user.role == String::from("staff"));
+    let can_view: bool = (user.user.username == metadata.owner)
+        | (user
+            .level
+            .permissions
+            .contains(&String::from("ManageBoards")));
 
     if can_view == false {
         return HttpResponse::NotFound()
@@ -1284,7 +1293,7 @@ You can create an account at: /d/auth/register",
     // fetch boards
     let boards = data
         .db
-        .get_boards_by_owner(token_user.clone().unwrap().payload.unwrap().username)
+        .get_boards_by_owner(token_user.clone().unwrap().payload.unwrap().user.username)
         .await;
 
     // ...

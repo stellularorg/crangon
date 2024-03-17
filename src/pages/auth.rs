@@ -5,7 +5,7 @@ use yew::prelude::*;
 use yew::ServerRenderer;
 
 use crate::components::avatar::AvatarDisplay;
-use crate::db::bundlesdb::{self, AppData, UserFollow, UserMetadata, UserState};
+use crate::db::bundlesdb::{self, AppData, FullUser, UserFollow, UserMetadata, UserState};
 use crate::utility;
 use crate::utility::format_html;
 
@@ -323,7 +323,7 @@ pub async fn profile_view_request(
     let username: String = req.match_info().get("username").unwrap().to_string();
     let username_c = username.clone();
 
-    let user: bundlesdb::DefaultReturn<Option<UserState<String>>> =
+    let user: bundlesdb::DefaultReturn<Option<FullUser<String>>> =
         data.db.get_user_by_username(username).await;
 
     if user.success == false {
@@ -383,6 +383,7 @@ pub async fn profile_view_request(
                             .payload
                             .as_ref()
                             .unwrap()
+                            .user
                             .username
                             .clone(),
                         username_c.clone(),
@@ -394,7 +395,7 @@ pub async fn profile_view_request(
         };
 
     let renderer = build_renderer_with_props(Props {
-        user: unwrap.clone(),
+        user: unwrap.clone().user,
         paste_count: if pastes_res.success {
             pastes_res.payload.unwrap().len()
         } else {
@@ -411,7 +412,7 @@ pub async fn profile_view_request(
             Option::Some(false)
         },
         active_user: if token_user.is_some() {
-            Option::Some(token_user.unwrap().payload.unwrap())
+            Option::Some(token_user.unwrap().payload.unwrap().user)
         } else {
             Option::None
         },
@@ -535,7 +536,7 @@ pub async fn followers_request(
     let username: String = req.match_info().get("username").unwrap().to_string();
     let username_c = username.clone();
 
-    let user: bundlesdb::DefaultReturn<Option<UserState<String>>> =
+    let user: bundlesdb::DefaultReturn<Option<FullUser<String>>> =
         data.db.get_user_by_username(username).await;
 
     if user.success == false {
@@ -578,7 +579,7 @@ pub async fn followers_request(
         .await;
 
     let renderer = build_followers_renderer_with_props(FollowersProps {
-        user: unwrap.clone(),
+        user: unwrap.clone().user,
         followers: followers_res.payload.unwrap(),
         offset: if info.offset.is_some() {
             info.offset.unwrap()
@@ -698,7 +699,7 @@ pub async fn following_request(
     let username: String = req.match_info().get("username").unwrap().to_string();
     let username_c = username.clone();
 
-    let user: bundlesdb::DefaultReturn<Option<UserState<String>>> =
+    let user: bundlesdb::DefaultReturn<Option<FullUser<String>>> =
         data.db.get_user_by_username(username).await;
 
     if user.success == false {
@@ -741,7 +742,7 @@ pub async fn following_request(
         .await;
 
     let renderer = build_following_renderer_with_props(FollowingProps {
-        user: unwrap.clone(),
+        user: unwrap.clone().user,
         following: following_res.payload.unwrap(),
         offset: if info.offset.is_some() {
             info.offset.unwrap()
@@ -850,7 +851,7 @@ pub async fn user_settings_request(
     let name: String = req.match_info().get("name").unwrap().to_string();
     let name_c = name.clone();
 
-    let profile: bundlesdb::DefaultReturn<Option<UserState<String>>> =
+    let profile: bundlesdb::DefaultReturn<Option<FullUser<String>>> =
         data.db.get_user_by_username(name).await;
 
     if profile.success == false {
@@ -884,7 +885,11 @@ pub async fn user_settings_request(
 
     // ...
     let user = token_user.unwrap().payload.unwrap();
-    let can_view: bool = (user.username == profile.username) | (user.role == String::from("staff"));
+    let can_view: bool = (user.user.username == profile.user.username)
+        | (user
+            .level
+            .permissions
+            .contains(&String::from("ManageUsers")));
 
     if can_view == false {
         return HttpResponse::NotFound()
@@ -893,7 +898,7 @@ pub async fn user_settings_request(
 
     // ...
     let renderer = build_settings_with_props(SettingsProps {
-        profile,
+        profile: profile.clone().user,
         auth_state: if req.cookie("__Secure-Token").is_some() {
             Option::Some(req.cookie("__Secure-Token").is_some())
         } else {

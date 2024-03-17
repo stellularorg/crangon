@@ -139,7 +139,7 @@ You can create an account at: /d/auth/register",
     // fetch pastes
     let pastes = data
         .db
-        .get_atomic_pastes_by_owner(token_user.clone().unwrap().payload.unwrap().username)
+        .get_atomic_pastes_by_owner(token_user.clone().unwrap().payload.unwrap().user.username)
         .await;
 
     // ...
@@ -282,7 +282,7 @@ fn EditPaste(props: &EditProps) -> Html {
             <script type="module">
                 {format!("import {{ create_editor }} from \"/static/js/AtomicEditor.js\";
                 create_editor(document.getElementById('_doc'), '{}', '{}');
-                globalThis.AtomicEditor.Update(`{}`)", &props.custom_url, &props.file.path, &props.file.content.replace("`", "\\`").replace("$", "\\$"))}
+                globalThis.AtomicEditor.Update(`{}`)", &props.custom_url, &props.file.path, &props.file.content.replace("`", "\\`").replace("$", "\\$").replace("\\", "\\\\"))}
             </script>
 
             <style>

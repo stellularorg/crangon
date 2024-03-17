@@ -5,7 +5,7 @@ use yew::prelude::*;
 use yew::ServerRenderer;
 
 use crate::components::navigation::Footer;
-use crate::db::bundlesdb::{DefaultReturn, UserState};
+use crate::db::bundlesdb::{DefaultReturn, FullUser};
 use crate::db::{self, bundlesdb};
 use crate::utility::format_html;
 
@@ -26,7 +26,7 @@ struct BoardsProps {
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 struct UsersProps {
     pub username: String,
-    pub user: Option<UserState<String>>,
+    pub user: Option<FullUser<String>>,
     pub auth_state: Option<bool>,
 }
 
@@ -116,8 +116,11 @@ You can create an account at: /d/auth/register",
 
     // validate role
     let user = token_user.unwrap().payload.unwrap();
-
-    if user.role != "staff" {
+    if !user
+        .level
+        .permissions
+        .contains(&String::from("StaffDashboard"))
+    {
         return HttpResponse::NotFound().body("You do not have permission to do this");
     }
 
@@ -254,7 +257,11 @@ You can create an account at: /d/auth/register",
     // validate role
     let user = token_user.unwrap().payload.unwrap();
 
-    if user.role != "staff" {
+    if !user
+        .level
+        .permissions
+        .contains(&String::from("StaffDashboard"))
+    {
         return HttpResponse::NotFound().body("You do not have permission to do this");
     }
 
@@ -344,19 +351,19 @@ fn UsersDashboard(props: &UsersProps) -> Html {
                     {if props.user.is_some() {
                         let user = props.user.as_ref().unwrap();
 
-                        if user.role == "staff" {
+                        if user.level.permissions.contains(&String::from("StaffDashboard")) {
                             return html! { <span>{"Cannot manage users of role \"staff\""}</span> };
                         }
 
                         html! {
                             <div class="card full round secondary flex flex-column g-4">
-                                <h4 class="no-margin">{&user.username}</h4>
+                                <h4 class="no-margin">{&user.user.username}</h4>
 
                                 <hr />
 
                                 <div class="flex full g-4 flex-wrap justify-space-between align-center">
                                     <h6 class="no-margin">{"Banhammer"}</h6>
-                                    <button class="round bundles-primary" id="hammer-time" data-endpoint={format!("/api/auth/users/{}/ban", &user.username)}>{"Ban User"}</button>
+                                    <button class="round bundles-primary" id="hammer-time" data-endpoint={format!("/api/auth/users/{}/ban", &user.user.username)}>{"Ban User"}</button>
                                 </div>
                             </div>
                         }
@@ -417,12 +424,16 @@ You can create an account at: /d/auth/register",
     // validate role
     let user = token_user.unwrap().payload.unwrap();
 
-    if user.role != "staff" {
+    if !user
+        .level
+        .permissions
+        .contains(&String::from("StaffDashboard"))
+    {
         return HttpResponse::NotFound().body("You do not have permission to do this");
     }
 
     // get user
-    let user: bundlesdb::DefaultReturn<Option<UserState<String>>> = if info.username.is_some() {
+    let user: bundlesdb::DefaultReturn<Option<FullUser<String>>> = if info.username.is_some() {
         data.db
             .get_user_by_username(info.username.as_ref().unwrap().to_owned())
             .await

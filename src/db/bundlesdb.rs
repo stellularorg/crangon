@@ -1,9 +1,6 @@
 //! # BundlesDB
 //! Database handler for all database types
-use super::{
-    cache::CacheStore,
-    sql::{self, Database, DatabaseOpts},
-};
+use super::sql::{self, Database, DatabaseOpts};
 
 use sqlx::{Column, Row};
 
@@ -11,9 +8,6 @@ use crate::utility;
 use serde::{Deserialize, Serialize};
 
 use std::collections::HashMap;
-
-use once_cell::sync::Lazy;
-use std::sync::Mutex;
 
 #[derive(Clone)]
 pub struct AppData {
@@ -121,6 +115,26 @@ pub struct UserState<M> {
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RoleLevel {
+    pub elevation: i32, // this marks the level of the role, 0 should always be member
+    // users cannot manage users of a higher elevation than them
+    pub name: String,             // role name, shown on user profiles
+    pub permissions: Vec<String>, // a vec of user permissions (ex: "ManagePastes")
+}
+
+#[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
+pub struct FullUser<M> {
+    pub user: UserState<M>,
+    pub level: RoleLevel,
+}
+
+#[derive(Default, Clone, sqlx::FromRow, Serialize, Deserialize, PartialEq)]
+pub struct RoleLevelLog {
+    pub id: String,
+    pub level: RoleLevel,
+}
+
+#[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
 pub struct UserMetadata {
     pub about: String,
     pub avatar_url: Option<String>,
@@ -218,11 +232,6 @@ pub struct BundlesDB {
     pub db: Database<sqlx::SqlitePool>,
     pub options: DatabaseOpts,
 }
-
-static PASTE_CACHE: Lazy<Mutex<CacheStore<Paste<String>>>> =
-    Lazy::new(|| Mutex::new(CacheStore::new()));
-static AUTH_CACHE: Lazy<Mutex<CacheStore<UserState<String>>>> =
-    Lazy::new(|| Mutex::new(CacheStore::new()));
 
 impl BundlesDB {
     pub async fn new(options: DatabaseOpts) -> BundlesDB {
@@ -375,36 +384,7 @@ impl BundlesDB {
     pub async fn get_user_by_hashed(
         &self,
         hashed: String,
-    ) -> DefaultReturn<Option<UserState<String>>> {
-        // ...
-        if (&self.options.cache_enabled.is_none())
-            | (&self.options.cache_enabled.as_ref().unwrap() != &"false")
-        {
-            let paste_cache = PASTE_CACHE.lock().unwrap();
-            let auth_cache = AUTH_CACHE.lock().unwrap();
-
-            let exists_in_cache = paste_cache.load(&hashed).is_some();
-
-            if exists_in_cache == true {
-                // get views
-                // if allow_cache is true, `selector` should ALWAYS be the custom_url since the cache stores by that, not ID
-                let user = auth_cache.load(&hashed).unwrap();
-
-                // return
-                return DefaultReturn {
-                    success: true,
-                    message: String::from("User exists"),
-                    payload: Option::Some(UserState {
-                        username: user.username.to_string(),
-                        id_hashed: user.id_hashed.to_string(),
-                        role: user.role.to_string(),
-                        timestamp: user.timestamp,
-                        metadata: user.metadata.to_string(),
-                    }),
-                };
-            }
-        }
-
+    ) -> DefaultReturn<Option<FullUser<String>>> {
         // fetch from database
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Users\" WHERE \"id_hashed\" = ?"
@@ -444,7 +424,7 @@ impl BundlesDB {
         let user = UserState {
             username: row.get("username").unwrap().to_string(),
             id_hashed: row.get("id_hashed").unwrap().to_string(),
-            role,
+            role: role.clone(),
             timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
             metadata: if meta.is_some() {
                 meta.unwrap().to_string()
@@ -453,18 +433,17 @@ impl BundlesDB {
             },
         };
 
-        if (&self.options.cache_enabled.is_none())
-            | (&self.options.cache_enabled.as_ref().unwrap() != &"false")
-        {
-            let mut auth_cache = AUTH_CACHE.lock().unwrap();
-            auth_cache.store(row.get("id_hashed").unwrap().to_string(), user.clone());
-        }
+        // fetch level from role
+        let level = self.get_level_by_role(role).await;
 
         // return
         return DefaultReturn {
             success: true,
             message: String::from("User exists"),
-            payload: Option::Some(user),
+            payload: Option::Some(FullUser {
+                user,
+                level: level.payload.level,
+            }),
         };
     }
 
@@ -475,7 +454,7 @@ impl BundlesDB {
     pub async fn get_user_by_username(
         &self,
         username: String,
-    ) -> DefaultReturn<Option<UserState<String>>> {
+    ) -> DefaultReturn<Option<FullUser<String>>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Users\" WHERE \"username\" = ?"
         } else {
@@ -501,7 +480,6 @@ impl BundlesDB {
         let row = self.textify_row(row).data;
 
         let role = row.get("role").unwrap().to_string();
-
         if role == "banned" {
             // account banned - we're going to act like it simply does not exist
             return DefaultReturn {
@@ -511,22 +489,75 @@ impl BundlesDB {
             };
         }
 
+        // fetch level from role
+        let level = self.get_level_by_role(role.clone()).await;
+
         // return
         let meta = row.get("metadata");
         return DefaultReturn {
             success: true,
             message: String::from("User exists"),
-            payload: Option::Some(UserState {
-                username: row.get("username").unwrap().to_string(),
-                id_hashed: row.get("id_hashed").unwrap().to_string(),
-                role,
-                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
-                metadata: if meta.is_some() {
-                    meta.unwrap().to_string()
-                } else {
-                    String::new()
+            payload: Option::Some(FullUser {
+                user: UserState {
+                    username: row.get("username").unwrap().to_string(),
+                    id_hashed: row.get("id_hashed").unwrap().to_string(),
+                    role,
+                    timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+                    metadata: if meta.is_some() {
+                        meta.unwrap().to_string()
+                    } else {
+                        String::new()
+                    },
                 },
+                level: level.payload.level,
             }),
+        };
+    }
+
+    /// Get a [`RoleLevel`] by its `name`
+    ///
+    /// # Arguments:
+    /// * `name` - `String` of the level's role name
+    pub async fn get_level_by_role(&self, name: String) -> DefaultReturn<RoleLevelLog> {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'level' AND \"content\" LIKE ?"
+        } else {
+            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'level' AND \"content\" LIKE $1"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&format!("%\"name\":\"{}\"%", name))
+            .fetch_one(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: true,
+                message: String::from("Level does not exist, using default"),
+                payload: RoleLevelLog {
+                    id: String::new(),
+                    level: RoleLevel {
+                        name: String::from("member"),
+                        elevation: 0,
+                        permissions: Vec::new(),
+                    },
+                },
+            };
+        }
+
+        // ...
+        let row = res.unwrap();
+        let row = self.textify_row(row).data;
+
+        // return
+        let id = row.get("id").unwrap().to_string();
+        let level = serde_json::from_str::<RoleLevel>(row.get("content").unwrap()).unwrap();
+
+        return DefaultReturn {
+            success: true,
+            message: String::from("Level exists"),
+            payload: RoleLevelLog { id, level },
         };
     }
 
@@ -670,7 +701,7 @@ impl BundlesDB {
         }
 
         // make sure user role is "member"
-        let user = existing.payload.as_ref().unwrap();
+        let user = &existing.payload.as_ref().unwrap().user;
         if user.role != "member" {
             return DefaultReturn {
                 success: false,
@@ -746,6 +777,74 @@ impl BundlesDB {
             payload: Option::Some(name),
         };
     }
+
+    /*
+    /// Create a new [`RoleLevel`] given various properties
+    ///
+    /// # Arguments:
+    /// * `props` - [`RoleLevel`]
+    pub async fn create_level(&self, props: &mut RoleLevel) -> DefaultReturn<RoleLevelLog> {
+        let p: &mut RoleLevel = props; // borrowed props
+
+        // make sure role does not exist
+        let existing: DefaultReturn<RoleLevelLog> = self.get_level_by_role(p.name.to_owned()).await;
+
+        if existing.success {
+            return existing;
+        }
+
+        // create role
+        let res = self
+            .create_log(
+                String::from("level"),
+                serde_json::to_string::<RoleLevel>(p).unwrap(),
+            )
+            .await;
+
+        // return
+        return DefaultReturn {
+            success: res.success,
+            message: res.message,
+            payload: RoleLevelLog {
+                id: if res.success {
+                    res.payload.unwrap()
+                } else {
+                    String::new()
+                },
+                level: p.to_owned(),
+            },
+        };
+    }
+
+    /// Delete an existing [`RoleLevel`] given its `name`
+    ///
+    /// # Arguments:
+    /// * `name` - [`RoleLevel`] `name` field
+    pub async fn delete_level(&self, props: &mut RoleLevel) -> DefaultReturn<Option<String>> {
+        let p: &mut RoleLevel = props; // borrowed props
+
+        // make sure role exists
+        let existing: DefaultReturn<RoleLevelLog> = self.get_level_by_role(p.name.to_owned()).await;
+
+        if !existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Level does not exist"),
+                payload: Option::None,
+            };
+        }
+
+        // delete role
+        let res = self.delete_log(existing.payload.id.clone()).await;
+
+        // return
+        return DefaultReturn {
+            success: res.success,
+            message: res.message,
+            payload: Option::Some(existing.payload.id),
+        };
+    }
+    */
 
     // logs
 
@@ -950,41 +1049,7 @@ impl BundlesDB {
         &self,
         query: &str,
         selector: &str,
-        allow_cache: bool,
     ) -> DefaultReturn<Option<Paste<String>>> {
-        // ...
-        if (&self.options.cache_enabled.is_none())
-            | (&self.options.cache_enabled.as_ref().unwrap() != &"false")
-        {
-            let paste_cache = PASTE_CACHE.lock().unwrap();
-            let exists_in_cache = paste_cache.load(selector).is_some();
-
-            if (exists_in_cache == true) && allow_cache {
-                // get views
-                // if allow_cache is true, `selector` should ALWAYS be the custom_url since the cache stores by that, not ID
-                let views = &self.count_paste_views(selector.to_owned()).await;
-                let paste = paste_cache.load(selector).unwrap();
-
-                // return
-                return DefaultReturn {
-                    success: true,
-                    message: String::from("Paste exists (cache)"),
-                    payload: Option::Some(Paste {
-                        custom_url: paste.custom_url.to_string(),
-                        id: paste.id.to_string(),
-                        group_name: paste.group_name.to_string(),
-                        edit_password: paste.edit_password.to_string(),
-                        pub_date: paste.pub_date,
-                        edit_date: paste.edit_date,
-                        content: paste.content.to_string(),
-                        content_html: paste.content_html.to_string(),
-                        metadata: paste.metadata.to_string(),
-                        views: views.to_owned(),
-                    }),
-                };
-            }
-        }
-
         // fetch from db
         let c = &self.db.client;
         let res = sqlx::query(query)
@@ -1023,14 +1088,6 @@ impl BundlesDB {
             views: views.to_owned(),
         };
 
-        if allow_cache
-            && (&self.options.cache_enabled.is_none())
-                | (&self.options.cache_enabled.as_ref().unwrap() != &"false")
-        {
-            let mut paste_cache = PASTE_CACHE.lock().unwrap();
-            paste_cache.store(row.get("custom_url").unwrap().to_string(), paste.clone());
-        }
-
         // return
         return DefaultReturn {
             success: true,
@@ -1051,7 +1108,7 @@ impl BundlesDB {
             "SELECT * FROM \"Pastes\" WHERE \"custom_url\" = $1"
         };
 
-        return self.build_result_from_query(query, &url, true).await;
+        return self.build_result_from_query(query, &url).await;
     }
 
     /// Get a [`Paste`] given its `id`
@@ -1065,7 +1122,7 @@ impl BundlesDB {
             "SELECT * FROM \"Pastes\" WHERE \"id\" = $1"
         };
 
-        return self.build_result_from_query(query, &id, false).await;
+        return self.build_result_from_query(query, &id).await;
     }
 
     /// Get all [pastes](Paste) owned by a specific user
@@ -1487,15 +1544,6 @@ impl BundlesDB {
             };
         }
 
-        // we're not even going to update the cache, just purge the paste from the cache
-        // this also means we don't have to handle any decisions on if the paste custom_url changed or not
-        if (&self.options.cache_enabled.is_none())
-            | (&self.options.cache_enabled.as_ref().unwrap() != &"false")
-        {
-            let mut paste_cache = PASTE_CACHE.lock().unwrap();
-            paste_cache.clear(&custom_url);
-        }
-
         // return
         return DefaultReturn {
             success: true,
@@ -1544,10 +1592,10 @@ impl BundlesDB {
         // ...skip password check IF the user is the paste owner!
         let skip_password_check = (edit_as.is_some()
             && edit_as.unwrap() == existing_metadata.unwrap().owner)
-            // OR if the user has the "staff" role
+            // OR if the user has the "ManagePastes" permission
             | (ua.as_ref().is_some()
                 && ua.as_ref().unwrap().is_some()
-                && ua.unwrap().unwrap().role == "staff");
+                && ua.unwrap().unwrap().level.permissions.contains(&String::from("ManagePastes")));
 
         if !skip_password_check && utility::hash(edit_password) != paste.edit_password {
             return DefaultReturn {
@@ -1577,15 +1625,6 @@ impl BundlesDB {
                 message: String::from(res.err().unwrap().to_string()),
                 payload: Option::None,
             };
-        }
-
-        // we're not even going to update the cache, just purge the paste from the cache
-        // this also means we don't have to handle any decisions on if the paste custom_url changed or not
-        if (&self.options.cache_enabled.is_none())
-            | (&self.options.cache_enabled.as_ref().unwrap() != &"false")
-        {
-            let mut paste_cache = PASTE_CACHE.lock().unwrap();
-            paste_cache.clear(&url);
         }
 
         // return
@@ -1702,10 +1741,10 @@ impl BundlesDB {
         // ...skip password check IF the user is the paste owner!
         let skip_password_check = (delete_as.is_some()
                 && delete_as.unwrap() == existing_metadata.unwrap().owner)
-                // OR if the user has the "staff" role
+                // OR if the user has the "ManagePastes" permission
                 | (ua.as_ref().is_some()
                     && ua.as_ref().unwrap().is_some()
-                    && ua.unwrap().unwrap().role == "staff");
+                    && ua.unwrap().unwrap().level.permissions.contains(&String::from("ManagePastes")));
 
         if !skip_password_check && utility::hash(edit_password) != paste.edit_password {
             return DefaultReturn {
@@ -1752,14 +1791,6 @@ impl BundlesDB {
                 message: String::from("Failed to delete paste"),
                 payload: Option::None,
             };
-        }
-
-        // remove from cache
-        if (&self.options.cache_enabled.is_none())
-            | (&self.options.cache_enabled.as_ref().unwrap() != &"false")
-        {
-            let mut paste_cache = PASTE_CACHE.lock().unwrap();
-            paste_cache.clear(&url);
         }
 
         // return
@@ -2762,7 +2793,7 @@ impl BundlesDB {
         let user = ua.unwrap().unwrap();
         let can_edit: bool =
             // using "metadata" here likely prohibits us from changing board owner
-            (user.username == metadata.owner) | (user.role == String::from("staff"));
+            (user.user.username == metadata.owner) | (user.level.permissions.contains(&String::from("ManageBoards")));
 
         if can_edit == false {
             return DefaultReturn {
@@ -3117,7 +3148,7 @@ impl BundlesDB {
         }
 
         // make sure both users exist
-        let existing: DefaultReturn<Option<UserState<String>>> =
+        let existing: DefaultReturn<Option<FullUser<String>>> =
             self.get_user_by_username(p.user.to_owned()).await;
 
         if !existing.success {
@@ -3129,7 +3160,7 @@ impl BundlesDB {
         }
 
         // make sure both users exist
-        let existing: DefaultReturn<Option<UserState<String>>> =
+        let existing: DefaultReturn<Option<FullUser<String>>> =
             self.get_user_by_username(p.is_following.to_owned()).await;
 
         if !existing.success {
@@ -3269,7 +3300,7 @@ impl BundlesDB {
         let p: &mut Notification = props; // borrowed props
 
         // make sure user exists
-        let existing: DefaultReturn<Option<UserState<String>>> =
+        let existing: DefaultReturn<Option<FullUser<String>>> =
             self.get_user_by_username(p.user.to_owned()).await;
 
         if !existing.success {

@@ -155,7 +155,7 @@ pub async fn create_request(
                 views: 0,
             },
             if token_user.is_some() {
-                Option::Some(token_user.unwrap().payload.unwrap().username)
+                Option::Some(token_user.unwrap().payload.unwrap().user.username)
             } else {
                 Option::None
             },
@@ -210,7 +210,7 @@ pub async fn edit_request(
             new_url,
             new_edit_password,
             if token_user.is_some() {
-                Option::Some(token_user.unwrap().payload.unwrap().username)
+                Option::Some(token_user.unwrap().payload.unwrap().user.username)
             } else {
                 Option::None
             },
@@ -306,7 +306,7 @@ pub async fn edit_atomic_request(
             Option::None,
             Option::None,
             if token_user.is_some() {
-                Option::Some(token_user.unwrap().payload.unwrap().username)
+                Option::Some(token_user.unwrap().payload.unwrap().user.username)
             } else {
                 Option::None
             },
@@ -355,7 +355,7 @@ pub async fn delete_request(
             custom_url,
             edit_password,
             if token_user.is_some() {
-                Option::Some(token_user.unwrap().payload.unwrap().username)
+                Option::Some(token_user.unwrap().payload.unwrap().user.username)
             } else {
                 Option::None
             },
@@ -408,7 +408,7 @@ pub async fn metadata_request(
             metadata,
             edit_password,
             if token_user.is_some() {
-                Option::Some(token_user.unwrap().payload.unwrap().username)
+                Option::Some(token_user.unwrap().payload.unwrap().user.username)
             } else {
                 Option::None
             },

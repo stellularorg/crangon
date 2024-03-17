@@ -264,7 +264,7 @@ pub async fn home_request(
             }
 
             let payload = &token_user.as_ref().unwrap().payload;
-            if owner.to_string() != payload.as_ref().unwrap().username {
+            if owner.to_string() != payload.as_ref().unwrap().user.username {
                 return HttpResponse::NotFound()
                     .body("You do not have permission to view this paste's contents.");
             }
@@ -284,7 +284,9 @@ pub async fn home_request(
             Option::None
         },
         password_not_needed: if metadata.is_some() && token_user.is_some() {
-            Option::Some(metadata.unwrap().owner == token_user.unwrap().payload.unwrap().username)
+            Option::Some(
+                metadata.unwrap().owner == token_user.unwrap().payload.unwrap().user.username,
+            )
         } else {
             Option::None
         },
@@ -477,11 +479,14 @@ You can create an account at: /d/auth/register",
 
     // check for unread notification
     let user = token_user.unwrap().payload.unwrap();
-    let notification_res = data.db.user_has_notification(user.username.clone()).await;
+    let notification_res = data
+        .db
+        .user_has_notification(user.user.username.clone())
+        .await;
 
     // ...
     let renderer = build_dashboard_renderer_with_props(DashboardProps {
-        user,
+        user: user.user,
         has_unread_notification: notification_res.message == "Yes",
         auth_state: if req.cookie("__Secure-Token").is_some() {
             Option::Some(true)
@@ -613,7 +618,7 @@ You can create an account at: /d/auth/register",
     let user = token_user.unwrap().payload.unwrap();
     let notifications_res = data
         .db
-        .get_user_notifications(user.username.clone(), info.offset)
+        .get_user_notifications(user.user.username.clone(), info.offset)
         .await;
 
     // ...

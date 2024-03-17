@@ -1,7 +1,7 @@
 use actix_web::{get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 
 use crate::{
-    db::bundlesdb::{self, AppData, DefaultReturn, UserFollow, UserMetadata, UserState},
+    db::bundlesdb::{self, AppData, DefaultReturn, FullUser, UserFollow, UserMetadata},
     utility,
 };
 
@@ -60,7 +60,7 @@ pub async fn login(body: web::Json<LoginInfo>, data: web::Data<AppData>) -> impl
 
     let c = res.clone();
     let set_cookie = if res.success && res.payload.is_some() {
-        format!("__Secure-Token={}; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age={}", c.payload.unwrap().id_hashed, 60 * 60 * 24 * 365)
+        format!("__Secure-Token={}; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age={}", c.payload.unwrap().user.id_hashed, 60 * 60 * 24 * 365)
     } else {
         String::new()
     };
@@ -128,7 +128,7 @@ pub async fn edit_about_request(
     let token_user = token_user.unwrap().payload.unwrap();
 
     // make sure profile exists
-    let profile: DefaultReturn<Option<UserState<String>>> =
+    let profile: DefaultReturn<Option<FullUser<String>>> =
         data.db.get_user_by_username(name.to_owned()).await;
 
     if !profile.success {
@@ -145,12 +145,15 @@ pub async fn edit_about_request(
     }
 
     let profile = profile.payload.unwrap();
-    let mut user = serde_json::from_str::<UserMetadata>(&profile.metadata).unwrap();
+    let mut user = serde_json::from_str::<UserMetadata>(&profile.user.metadata).unwrap();
 
     // check if we can update this user
     // must be authenticated AND same user OR staff
-    let can_update: bool =
-        (token_user.username == profile.username) | (token_user.role == String::from("staff"));
+    let can_update: bool = (token_user.user.username == profile.user.username)
+        | (token_user
+            .level
+            .permissions
+            .contains(&String::from("ManageUsers")));
 
     if can_update == false {
         return HttpResponse::NotFound()
@@ -214,7 +217,7 @@ pub async fn follow_request(req: HttpRequest, data: web::Data<AppData>) -> impl 
     let res = data
         .db
         .toggle_user_follow(&mut UserFollow {
-            user: token_user.username,
+            user: token_user.user.username,
             is_following: name,
         })
         .await;
@@ -255,7 +258,7 @@ pub async fn update_request(
     }
 
     // make sure profile exists
-    let profile: DefaultReturn<Option<UserState<String>>> =
+    let profile: DefaultReturn<Option<FullUser<String>>> =
         data.db.get_user_by_username(name.to_owned()).await;
 
     if !profile.success {
@@ -276,8 +279,11 @@ pub async fn update_request(
 
     // check if we can update this user
     // must be authenticated AND same user OR staff
-    let can_update: bool =
-        (token_user.username == profile.username) | (token_user.role == String::from("staff"));
+    let can_update: bool = (token_user.user.username == profile.user.username)
+        | (token_user
+            .level
+            .permissions
+            .contains(&String::from("ManageUsers")));
 
     if can_update == false {
         return HttpResponse::NotFound()
@@ -326,7 +332,14 @@ pub async fn ban_request(req: HttpRequest, data: web::Data<bundlesdb::AppData>) 
     }
 
     // make sure token_user is of role "staff"
-    if token_user.unwrap().payload.unwrap().role != "staff" {
+    if token_user
+        .unwrap()
+        .payload
+        .unwrap()
+        .level
+        .permissions
+        .contains(&String::from("ManageUsers"))
+    {
         return HttpResponse::NotAcceptable().body("Only staff can do this");
     }
 
@@ -384,7 +397,7 @@ pub async fn avatar_request(req: HttpRequest, data: web::Data<AppData>) -> impl 
     let name: String = req.match_info().get("name").unwrap().to_string();
 
     // make sure profile exists
-    let profile: DefaultReturn<Option<UserState<String>>> =
+    let profile: DefaultReturn<Option<FullUser<String>>> =
         data.db.get_user_by_username(name.to_owned()).await;
 
     if !profile.success {
@@ -401,7 +414,7 @@ pub async fn avatar_request(req: HttpRequest, data: web::Data<AppData>) -> impl 
     }
 
     let profile = profile.payload.unwrap();
-    let user = serde_json::from_str::<UserMetadata>(&profile.metadata).unwrap();
+    let user = serde_json::from_str::<UserMetadata>(&profile.user.metadata).unwrap();
 
     if user.avatar_url.is_none() {
         return HttpResponse::NotFound().body("User does not have an avatar set");
@@ -462,4 +475,31 @@ pub async fn get_from_owner_request(
             >(&res)
             .unwrap(),
         );
+}
+
+#[get("/api/auth/users/{name:.*}/level")]
+pub async fn level_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
+    let name: String = req.match_info().get("name").unwrap().to_string();
+
+    // get user
+    let res: DefaultReturn<Option<FullUser<String>>> =
+        data.db.get_user_by_username(name.to_owned()).await;
+
+    if res.success == false {
+        return HttpResponse::Ok()
+            .append_header(("Content-Type", "application/json"))
+            .body(
+                serde_json::to_string::<bundlesdb::RoleLevel>(&bundlesdb::RoleLevel {
+                    elevation: -1000,
+                    name: String::from("anonymous"),
+                    permissions: Vec::new(),
+                })
+                .unwrap(),
+            );
+    }
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string::<bundlesdb::RoleLevel>(&res.payload.unwrap().level).unwrap());
 }
