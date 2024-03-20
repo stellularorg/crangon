@@ -6,7 +6,7 @@ use yew::ServerRenderer;
 
 use crate::components::message::Message;
 use crate::components::navigation::Footer;
-use crate::db::bundlesdb::{Board, BoardMetadata, BoardPostLog, Log, UserState};
+use crate::db::bundlesdb::{Board, BoardMetadata, BoardPostLog, FullUser, Log};
 use crate::db::{self, bundlesdb};
 use crate::utility::{self, format_html};
 
@@ -16,11 +16,18 @@ struct NewProps {
 }
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
+pub struct PasswordProps {
+    pub board: Board<String>,
+    pub auth_state: Option<bool>,
+}
+
+#[derive(Default, Properties, PartialEq, serde::Deserialize)]
 struct Props {
     pub board: Board<String>,
     pub posts: Vec<Log>,
     pub pinned: Vec<Log>,
     pub offset: i32,
+    pub view: String,
     pub tags: String,
     pub auth_state: Option<bool>,
 }
@@ -29,6 +36,7 @@ struct Props {
 pub struct ViewBoardQueryProps {
     pub offset: Option<i32>,
     pub tags: Option<String>,
+    pub view: Option<String>,
 }
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
@@ -37,7 +45,7 @@ struct ViewPostProps {
     pub post: Log,
     pub replies: Vec<Log>,
     pub auth_state: Option<bool>,
-    pub user: Option<UserState<String>>,
+    pub user: Option<FullUser<String>>,
     pub edit: bool,
     pub edit_tags: bool,
     pub offset: i32,
@@ -170,6 +178,47 @@ You can create an account at: /d/auth/register",
             renderer.render().await,
             "<title>New Board - ::SITE_NAME::</title>",
         ));
+}
+
+#[function_component]
+pub fn PastePasswordAsk(props: &PasswordProps) -> Html {
+    // default return
+    return html! {
+        <div class="flex flex-column g-4" style="height: 100dvh;">
+            <main class="small flex flex-column g-4 align-center">
+                <div class="card secondary round border" style="width: 25rem;" id="forms">
+                    <h2 class="no-margin text-center full">{props.board.name.clone()}</h2>
+
+                    <hr />
+
+                    <form class="full flex flex-column g-4" id="login-to-board">
+                        <label for="view"><b>{"View Password"}</b></label>
+
+                        <input
+                            type="text"
+                            name="view"
+                            id="view"
+                            placeholder="Board View Password"
+                            class="full round"
+                            maxlength={256}
+                        />
+
+                        <hr />
+
+                        <button class="bundles-primary full round">
+                            {"Continue"}
+                        </button>
+                    </form>
+                </div>
+            </main>
+        </div>
+    };
+}
+
+pub fn build_password_ask_renderer_with_props(
+    props: PasswordProps,
+) -> ServerRenderer<PastePasswordAsk> {
+    ServerRenderer::<PastePasswordAsk>::with_props(|| props)
 }
 
 #[function_component]
@@ -346,12 +395,12 @@ fn ViewBoard(props: &Props) -> Html {
                     })}
 
                     <div class="full flex justify-space-between" id="pages">
-                        <a class="button round" href={format!("?tags={}&offset={}", props.tags, props.offset - 50)} disabled={props.offset <= 0}>
+                        <a class="button round" href={format!("?tags={}&offset={}&view={}", props.tags, props.offset - 50, props.view)} disabled={props.offset <= 0}>
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
                             {"Back"}
                         </a>
 
-                        <a class="button round" href={format!("?tags={}&offset={}", props.tags, props.offset + 50)} disabled={props.posts.len() == 0}>
+                        <a class="button round" href={format!("?tags={}&offset={}&view={}", props.tags, props.offset + 50, props.view)} disabled={props.posts.len() == 0}>
                             {"Next"}
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                         </a>
@@ -422,7 +471,7 @@ pub async fn view_board_request(
         serde_json::from_str::<bundlesdb::BoardMetadata>(&board.payload.as_ref().unwrap().metadata)
             .unwrap();
 
-    if metadata.is_private == String::from("yes") {
+    if metadata.is_private == "yes" {
         // anonymous
         if token_user.is_none() {
             return HttpResponse::NotFound()
@@ -438,6 +487,31 @@ pub async fn view_board_request(
                 .permissions
                 .contains(&String::from("ManageBoards")))
         {
+            return HttpResponse::NotFound()
+                .body("You do not have permission to view this board's contents.");
+        }
+    }
+
+    // handle view password
+    if metadata.is_private != "yes" && metadata.is_private != "no" {
+        // password prompt
+        if info.view.is_none() {
+            let renderer = build_password_ask_renderer_with_props(PasswordProps {
+                board: board.payload.clone().unwrap(),
+                auth_state: if req.cookie("__Secure-Token").is_some() {
+                    Option::Some(req.cookie("__Secure-Token").is_some())
+                } else {
+                    Option::Some(false)
+                },
+            });
+
+            let render = renderer.render();
+            return HttpResponse::Ok()
+                .append_header(("Set-Cookie", ""))
+                .append_header(("Content-Type", "text/html"))
+                .body(format_html(render.await, ""));
+        } else if info.view.as_ref().unwrap() != &metadata.is_private {
+            // check password
             return HttpResponse::NotFound()
                 .body("You do not have permission to view this board's contents.");
         }
@@ -476,6 +550,11 @@ pub async fn view_board_request(
         } else {
             String::new()
         },
+        view: if info.view.is_some() {
+            info.view.clone().unwrap()
+        } else {
+            String::new()
+        },
         auth_state: if req.cookie("__Secure-Token").is_some() {
             Option::Some(true)
         } else {
@@ -508,26 +587,44 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
     // must be authenticated AND board owner OR staff OR post author
     let can_manage: bool = props.auth_state.is_some()
         && props.user.is_some()
-        && props.user.as_ref().unwrap().username != String::from("Anonymous")
-        && ((props.user.as_ref().unwrap().username == board.owner)
-            | (props.user.as_ref().unwrap().role == String::from("staff"))
-            | (props.user.as_ref().unwrap().username == post.author));
+        && props.user.as_ref().unwrap().user.username != String::from("Anonymous")
+        && ((props.user.as_ref().unwrap().user.username == board.owner)
+            | (props
+                .user
+                .as_ref()
+                .unwrap()
+                .level
+                .permissions
+                .contains(&String::from("ManageBoardPosts")))
+            | (props.user.as_ref().unwrap().user.username == post.author));
 
     // check if we can manage this board (pin post)
     // must be authenticated AND board owner OR staff
     let can_manage_board: bool = props.auth_state.is_some()
         && props.user.is_some()
-        && props.user.as_ref().unwrap().username != String::from("Anonymous")
-        && ((props.user.as_ref().unwrap().username == board.owner)
-            | (props.user.as_ref().unwrap().role == String::from("staff")));
+        && props.user.as_ref().unwrap().user.username != String::from("Anonymous")
+        && ((props.user.as_ref().unwrap().user.username == board.owner)
+            | (props
+                .user
+                .as_ref()
+                .unwrap()
+                .level
+                .permissions
+                .contains(&String::from("ManageBoards"))));
 
     // check if we can edit this post (edit post)
     // must be authenticated AND post author OR staff
     let can_edit: bool = props.auth_state.is_some()
         && props.user.is_some()
-        && props.user.as_ref().unwrap().username != String::from("Anonymous")
-        && ((props.user.as_ref().unwrap().role == String::from("staff"))
-            | (props.user.as_ref().unwrap().username == post.author));
+        && props.user.as_ref().unwrap().user.username != String::from("Anonymous")
+        && ((props
+            .user
+            .as_ref()
+            .unwrap()
+            .level
+            .permissions
+            .contains(&String::from("EditBoardPosts")))
+            | (props.user.as_ref().unwrap().user.username == post.author));
 
     // ...
     let can_post_from_anonymous =
@@ -837,7 +934,7 @@ pub async fn view_board_post_request(
             Option::Some(false)
         },
         user: if token_user.is_some() {
-            Option::Some(token_user.unwrap().payload.unwrap().user)
+            Option::Some(token_user.unwrap().payload.unwrap())
         } else {
             Option::None
         },

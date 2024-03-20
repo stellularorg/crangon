@@ -435,7 +435,7 @@ pub async fn update_post_request(
             | (user
                 .level
                 .permissions
-                .contains(&String::from("ManageBoards"))));
+                .contains(&String::from("EditBoardPosts"))));
 
     if can_update == false {
         return HttpResponse::NotFound()
@@ -615,7 +615,7 @@ pub async fn delete_post_request(req: HttpRequest, data: web::Data<AppData>) -> 
             | (user
                 .level
                 .permissions
-                .contains(&String::from("ManageBoards")))
+                .contains(&String::from("ManageBoardPosts")))
             | (user.user.username == post.author));
 
     if can_delete == false {

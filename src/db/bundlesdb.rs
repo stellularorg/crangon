@@ -1910,7 +1910,10 @@ impl BundlesDB {
         };
 
         let c = &self.db.client;
-        let res = sqlx::query(query).bind::<&String>(&url).fetch_one(c).await;
+        let res = sqlx::query(query)
+            .bind::<&String>(&url.to_lowercase())
+            .fetch_one(c)
+            .await;
 
         if res.is_err() {
             return DefaultReturn {
@@ -2068,7 +2071,7 @@ impl BundlesDB {
     ) -> DefaultReturn<Option<Vec<Log>>> {
         // make sure board exists
         let existing: DefaultReturn<Option<Board<String>>> =
-            self.get_board_by_name(url.to_owned()).await;
+            self.get_board_by_name(url.to_owned().to_lowercase()).await;
 
         if existing.success == false {
             return DefaultReturn {
@@ -2156,7 +2159,7 @@ impl BundlesDB {
     ) -> DefaultReturn<Option<Vec<Log>>> {
         // make sure board exists
         let existing: DefaultReturn<Option<Board<String>>> =
-            self.get_board_by_name(url.to_owned()).await;
+            self.get_board_by_name(url.to_owned().to_lowercase()).await;
 
         if existing.success == false {
             return DefaultReturn {
@@ -2247,7 +2250,7 @@ impl BundlesDB {
     pub async fn get_pinned_board_posts(&self, url: String) -> DefaultReturn<Option<Vec<Log>>> {
         // make sure board exists
         let existing: DefaultReturn<Option<Board<String>>> =
-            self.get_board_by_name(url.to_owned()).await;
+            self.get_board_by_name(url.to_owned().to_lowercase()).await;
 
         if existing.success == false {
             return DefaultReturn {
@@ -2567,7 +2570,7 @@ impl BundlesDB {
         // create default metadata
         let metadata: BoardMetadata = BoardMetadata {
             owner: as_user.clone().unwrap(),
-            is_private: String::from("no"),
+            is_private: String::from("no"), // values other than no/yes will show the view password prompt
             allow_anonymous: Option::Some(String::from("yes")),
             allow_open_posting: Option::Some(String::from("yes")),
             topic_required: Option::Some(String::from("no")),
@@ -2601,8 +2604,9 @@ impl BundlesDB {
         }
 
         // make sure board does not exist
-        let existing: DefaultReturn<Option<Board<String>>> =
-            self.get_board_by_name(p.name.to_owned()).await;
+        let existing: DefaultReturn<Option<Board<String>>> = self
+            .get_board_by_name(p.name.to_owned().to_lowercase())
+            .await;
 
         if existing.success {
             return DefaultReturn {
@@ -2671,8 +2675,9 @@ impl BundlesDB {
         }
 
         // make sure this board exists
-        let existing: DefaultReturn<Option<Board<String>>> =
-            self.get_board_by_name(p.board.to_owned()).await;
+        let existing: DefaultReturn<Option<Board<String>>> = self
+            .get_board_by_name(p.board.to_owned().to_lowercase())
+            .await;
 
         if !existing.success {
             return DefaultReturn {
@@ -2737,7 +2742,7 @@ impl BundlesDB {
             content: p.content.clone(),
             content_html: crate::markdown::render::parse_markdown(&p.content),
             topic: p.topic.clone(),
-            board: p.board.clone(),
+            board: p.board.clone().to_lowercase(),
             is_hidden: false,
             reply: p.reply.clone(),
             pinned: Option::Some(false),
