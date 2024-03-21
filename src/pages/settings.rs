@@ -116,6 +116,7 @@ pub async fn user_settings_request(req: HttpRequest, data: web::Data<AppData>) -
         // make sure user exists, refresh token if not
         if token_user.as_ref().unwrap().success == false {
             set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+            // token_user = Option::None;
         }
     }
 
@@ -175,6 +176,7 @@ pub async fn paste_settings_request(
         // make sure user exists, refresh token if not
         if token_user.as_ref().unwrap().success == false {
             set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+            // token_user = Option::None;
         }
     }
 

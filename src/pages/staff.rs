@@ -90,7 +90,7 @@ pub async fn dashboard_request(
     let token_cookie = req.cookie("__Secure-Token");
     let mut set_cookie: &str = "";
 
-    let token_user = if token_cookie.is_some() {
+    let mut token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
                 .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
@@ -104,6 +104,7 @@ pub async fn dashboard_request(
         // make sure user exists, refresh token if not
         if token_user.as_ref().unwrap().success == false {
             set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+            token_user = Option::None;
         }
     } else {
         // you must have an account to use the staff dashboard
@@ -230,7 +231,7 @@ pub async fn staff_boards_dashboard_request(
     let token_cookie = req.cookie("__Secure-Token");
     let mut set_cookie: &str = "";
 
-    let token_user = if token_cookie.is_some() {
+    let mut token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
                 .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
@@ -244,6 +245,7 @@ pub async fn staff_boards_dashboard_request(
         // make sure user exists, refresh token if not
         if token_user.as_ref().unwrap().success == false {
             set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+            token_user = Option::None;
         }
     } else {
         // you must have an account to use the staff dashboard
@@ -397,7 +399,7 @@ pub async fn staff_users_dashboard_request(
     let token_cookie = req.cookie("__Secure-Token");
     let mut set_cookie: &str = "";
 
-    let token_user = if token_cookie.is_some() {
+    let mut token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
                 .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
@@ -411,6 +413,7 @@ pub async fn staff_users_dashboard_request(
         // make sure user exists, refresh token if not
         if token_user.as_ref().unwrap().success == false {
             set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+            token_user = Option::None;
         }
     } else {
         // you must have an account to use the staff dashboard
