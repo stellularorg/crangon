@@ -100,7 +100,7 @@ pub struct GroupMetadata {
     pub owner: String, // username of owner
 }
 
-#[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
 /// A user object
 pub struct UserState<M> {
     // selectors
@@ -114,7 +114,7 @@ pub struct UserState<M> {
     pub metadata: M,
 }
 
-#[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 pub struct RoleLevel {
     pub elevation: i32, // this marks the level of the role, 0 should always be member
     // users cannot manage users of a higher elevation than them
@@ -122,7 +122,7 @@ pub struct RoleLevel {
     pub permissions: Vec<String>, // a vec of user permissions (ex: "ManagePastes")
 }
 
-#[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FullUser<M> {
     pub user: UserState<M>,
     pub level: RoleLevel,

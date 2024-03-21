@@ -36,7 +36,7 @@ pub async fn register(body: web::Json<RegisterInfo>, data: web::Data<AppData>) -
 
     let c = res.clone();
     let set_cookie = if res.success && res.payload.is_some() {
-        format!("__Secure-Token={}; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age={}", c.payload.unwrap(), 60 * 60 * 24 * 365)
+        format!("__Secure-Token={}; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age={}", c.message, 60 * 60 * 24 * 365)
     } else {
         String::new()
     };
@@ -331,7 +331,7 @@ pub async fn ban_request(req: HttpRequest, data: web::Data<bundlesdb::AppData>) 
     }
 
     // make sure token_user is of role "staff"
-    if token_user
+    if !token_user
         .unwrap()
         .payload
         .unwrap()
