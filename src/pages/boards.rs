@@ -141,7 +141,7 @@ pub async fn new_request(
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -435,7 +435,7 @@ pub async fn view_board_request(
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -873,7 +873,7 @@ pub async fn view_board_post_request(
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -1062,7 +1062,7 @@ pub async fn board_settings_request(
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -1218,7 +1218,7 @@ pub async fn search_by_tags_request(
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -1365,7 +1365,7 @@ pub async fn dashboard_request(
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {

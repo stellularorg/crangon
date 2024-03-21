@@ -58,9 +58,8 @@ pub async fn login(body: web::Json<LoginInfo>, data: web::Data<AppData>) -> impl
         .get_user_by_hashed(id_hashed) // if the user is returned, that means the ID is valid
         .await;
 
-    let c = res.clone();
     let set_cookie = if res.success && res.payload.is_some() {
-        format!("__Secure-Token={}; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age={}", c.payload.unwrap().user.id_hashed, 60 * 60 * 24 * 365)
+        format!("__Secure-Token={}; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age={}", body.uid, 60 * 60 * 24 * 365)
     } else {
         String::new()
     };
@@ -109,7 +108,7 @@ pub async fn edit_about_request(
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -195,7 +194,7 @@ pub async fn follow_request(req: HttpRequest, data: web::Data<AppData>) -> impl 
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -241,7 +240,7 @@ pub async fn update_request(
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -315,7 +314,7 @@ pub async fn ban_request(req: HttpRequest, data: web::Data<bundlesdb::AppData>) 
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {

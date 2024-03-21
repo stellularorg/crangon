@@ -21,6 +21,7 @@ struct Props {
     pub edit_mode: bool,
     pub follower_count: usize,
     pub following_count: usize,
+    pub post_count: usize,
     pub is_following: bool,
 }
 
@@ -241,14 +242,42 @@ fn ProfileView(props: &Props) -> Html {
                     </div>
 
                     <div class="card secondary round">
-                        <ul>
-                            <li>{"Role: "}<span class={format!("chip badge role-{}", props.user.role)}>{&props.user.role}</span></li>
-                            <li>{"Joined: "}<span class="date-time-to-localize">{&props.user.timestamp}</span></li>
-                            <li>{"Paste count: "}{&props.paste_count}</li>
-                            <li>{"Board count: "}{&props.board_count}</li>
-                            <li>{"Followers: "}<a href={format!("/~{}/followers", props.user.username)}>{&props.follower_count}</a></li>
-                            <li>{"Following: "}<a href={format!("/~{}/following", props.user.username)}>{&props.following_count}</a></li>
-                        </ul>
+                        <div id="stats-or-info" class="flex flex-column g-4">
+                            <details class="round border" open={true}>
+                                <summary>{"Info"}</summary>
+
+                                <table class="full" style="margin: 0;">
+                                    <thead>
+                                        <th>{"Key"}</th>
+                                        <th>{"Value"}</th>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr><td>{"Level"}</td><td><span class={format!("chip badge role-{}", props.user.role)}>{&props.user.role}</span></td></tr>
+                                        <tr><td>{"Joined"}</td><td><span class="date-time-to-localize">{&props.user.timestamp}</span></td></tr>
+                                    </tbody>
+                                </table>
+                            </details>
+
+                            <details class="round border" open={false}>
+                                <summary>{"Statistics"}</summary>
+
+                                <table class="full" style="margin: 0;">
+                                    <thead>
+                                        <th>{"Key"}</th>
+                                        <th>{"Value"}</th>
+                                    </thead>
+
+                                    <tbody>
+                                        <tr><td>{"Pastes"}</td><td>{&props.paste_count}</td></tr>
+                                        <tr><td>{"Boards"}</td><td>{&props.board_count}</td></tr>
+                                        <tr><td>{"Posts"}</td><td>{&props.post_count}</td></tr>
+                                        <tr><td>{"Followers"}</td><td><a href={format!("/~{}/followers", props.user.username)}>{&props.follower_count}</a></td></tr>
+                                        <tr><td>{"Following"}</td><td><a href={format!("/~{}/following", props.user.username)}>{&props.following_count}</a></td></tr>
+                                    </tbody>
+                                </table>
+                            </details>
+                        </div>
 
                         <hr />
 
@@ -345,7 +374,7 @@ pub async fn profile_view_request(
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -372,8 +401,11 @@ pub async fn profile_view_request(
     let following_res: bundlesdb::DefaultReturn<usize> =
         data.db.get_user_following_count(username_c.clone()).await;
 
+    let posts_res: bundlesdb::DefaultReturn<usize> =
+        data.db.get_user_posts_count(username_c.clone()).await;
+
     let is_following_res: Option<bundlesdb::DefaultReturn<Option<bundlesdb::Log>>> =
-        if token_user.is_some() {
+        if token_user.is_some() && token_user.as_ref().unwrap().success {
             Option::Some(
                 data.db
                     .get_follow_by_user(
@@ -411,7 +443,7 @@ pub async fn profile_view_request(
         } else {
             Option::Some(false)
         },
-        active_user: if token_user.is_some() {
+        active_user: if token_user.is_some() && token_user.as_ref().unwrap().success {
             Option::Some(token_user.unwrap().payload.unwrap().user)
         } else {
             Option::None
@@ -423,6 +455,7 @@ pub async fn profile_view_request(
         },
         follower_count: followers_res.payload,
         following_count: following_res.payload,
+        post_count: posts_res.payload,
         is_following: if is_following_res.is_some() {
             is_following_res.unwrap().payload.is_some()
         } else {
@@ -558,7 +591,7 @@ pub async fn followers_request(
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -721,7 +754,7 @@ pub async fn following_request(
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -867,7 +900,7 @@ pub async fn user_settings_request(
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {

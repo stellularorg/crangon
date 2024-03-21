@@ -39,7 +39,7 @@ pub async fn create_request(
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -94,7 +94,7 @@ pub async fn get_posts_request(
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -152,7 +152,7 @@ pub async fn get_post_request(req: HttpRequest, data: web::Data<AppData>) -> imp
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -210,7 +210,7 @@ pub async fn create_post_request(
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -279,7 +279,7 @@ pub async fn pin_post_request(req: HttpRequest, data: web::Data<AppData>) -> imp
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -368,7 +368,7 @@ pub async fn update_post_request(
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -479,7 +479,7 @@ pub async fn update_post_tags_request(
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -560,7 +560,7 @@ pub async fn delete_post_request(req: HttpRequest, data: web::Data<AppData>) -> 
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -652,7 +652,7 @@ pub async fn metadata_request(
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {
@@ -717,7 +717,7 @@ pub async fn delete_board_request(req: HttpRequest, data: web::Data<AppData>) ->
     let token_user = if token_cookie.is_some() {
         Option::Some(
             data.db
-                .get_user_by_hashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
                 .await,
         )
     } else {

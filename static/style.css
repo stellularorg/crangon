@@ -134,6 +134,7 @@ details summary {
     background: transparent;
     border: none;
     border-radius: var(--u-02) !important;
+    transition: none !important;
 }
 
 details.border {
@@ -213,7 +214,8 @@ select:focus {
     color: var(--text-color);
 }
 
-.chip.badge.role-staff {
+.chip.badge.role-staff,
+.chip.badge.role-admin {
     color: var(--yellow);
 }
 
@@ -432,6 +434,11 @@ select:focus {
 pre {
     padding: var(--u-08);
     border-radius: var(--u-04);
+}
+
+pre,
+pre code {
+    overflow-x: auto;
 }
 
 /* heading anchors */

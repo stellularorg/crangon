@@ -33,14 +33,12 @@ if (register_form) {
             success.style.display = "block";
             success.innerHTML = `<p>Account created! You can login using this code:</p>
 
-            <p class="card border round flex justify-center align-center">
-                ${json.message}
-            </p>
+            <p class="card border round flex justify-center align-center">${json.message}</p>
 
-            <p><b>Do not lose it!</b> This code is required for you to sign into your account, it cannot be reset!</p>
+            <p><b>Do not lose it!</b> This code is required for you to sign into your account, <b>it cannot be reset!</b></p>
             
             <hr />
-            <a href="/" class="button round bundles-primary">Continue</a>`;
+            <a href="/d" class="button round bundles-primary">Continue</a>`;
             forms.style.display = "none";
         }
     });
@@ -68,7 +66,7 @@ if (register_form) {
             success.innerHTML = `<p>Successfully logged into account.</p>
                 
                 <hr />
-                <a href="/" class="button round bundles-primary">Continue</a>`;
+                <a href="/d" class="button round bundles-primary">Continue</a>`;
             forms.style.display = "none";
         }
     });

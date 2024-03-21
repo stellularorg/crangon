@@ -447,6 +447,17 @@ impl BundlesDB {
         };
     }
 
+    /// Get a user by their unhashed ID (hashes ID and then runs [`BundlesDB::get_user_by_hashed()`])
+    ///
+    /// # Arguments:
+    /// * `unhashed` - `String` of the user's unhashed ID
+    pub async fn get_user_by_unhashed(
+        &self,
+        hashed: String,
+    ) -> DefaultReturn<Option<FullUser<String>>> {
+        self.get_user_by_hashed(utility::hash(hashed)).await
+    }
+
     /// Get a user by their username
     ///
     /// # Arguments:
@@ -2554,6 +2565,42 @@ impl BundlesDB {
         };
     }
 
+    /// Get the amount of posts a user has created in all boards
+    ///
+    /// # Arguments:
+    /// * `user` - username of user to check
+    pub async fn get_user_posts_count(&self, user: String) -> DefaultReturn<usize> {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? AND \"logtype\" = 'board_post'"
+        } else {
+            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 AND \"logtype\" = 'board_post'"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&format!("%\"author\":\"{user}\"%"))
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to fetch posts"),
+                payload: 0,
+            };
+        }
+
+        // ...
+        let rows = res.unwrap();
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Posts exist"),
+            payload: rows.len(),
+        };
+    }
+
     // SET
     /// Create a new [`Board`] given various properties
     ///
@@ -3096,7 +3143,7 @@ impl BundlesDB {
         };
     }
 
-    /// Get the amount of user a user is following
+    /// Get the amount of users a user is following
     ///
     /// # Arguments:
     /// * `user` - username of user to check
