@@ -41,7 +41,7 @@ pub fn Message(props: &MessageProps) -> Html {
                         style="background: var(--background-surface0-5)"
                     >
                         <a
-                            class="button round"
+                            class="flex align-center g-4"
                             href={format!("/b/{}/posts/{}", post.board, p.id)}
                             title="Expand Topic"
                         >
@@ -55,7 +55,7 @@ pub fn Message(props: &MessageProps) -> Html {
                                 html! {}
                             }}
 
-                            <b>{post.topic.unwrap()}</b>
+                            <span>{post.topic.unwrap()}</span>
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                         </a>
 
@@ -163,5 +163,86 @@ pub fn Message(props: &MessageProps) -> Html {
                 }
             }}
         </div>
+    };
+}
+
+#[function_component]
+pub fn TopicForumMessage(props: &MessageProps) -> Html {
+    let p = &props.post;
+
+    let post = serde_json::from_str::<BoardPostLog>(&p.content).unwrap();
+    let pinned = (props.pinned == true) | (post.pinned.is_some() && post.pinned.unwrap() == true); // show pin icon even when post is not in pinned section
+
+    if post.topic.is_none() {
+        return html! { <tr><td>
+            <a
+                class="flex align-center g-4"
+                href={format!("/b/{}/posts/{}", post.board, p.id)}
+                title="Expand Topic"
+            >
+                {if pinned == true {
+                    html! {
+                        <div class="flex align-center" style="color: var(--primary);" title="Pinned Post">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pin"><line x1="12" x2="12" y1="17" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+                        </div>
+                    }
+                } else {
+                    html! {}
+                }}
+
+                <span>{"Invalid post"}</span>
+            </a>
+        </td></tr> };
+    }
+
+    // ...
+    return html! {
+        <tr
+            title={if post.tags.is_some() {
+                post.tags.unwrap()
+            } else {
+                String::new()
+            }}
+        >
+            <td>
+                <a
+                    class="flex align-center g-4"
+                    href={format!("/b/{}/posts/{}", post.board, p.id)}
+                    title="Expand Topic"
+                >
+                    {if pinned == true {
+                        html! {
+                            <div class="flex align-center" style="color: var(--primary);" title="Pinned Post">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pin"><line x1="12" x2="12" y1="17" y2="22"/><path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/></svg>
+                            </div>
+                        }
+                    } else {
+                        html! {}
+                    }}
+
+                    <span>{post.topic.unwrap()}</span>
+                </a>
+            </td>
+
+            <td class="flex align-center g-4">
+                {if post.author != "Anonymous" {
+                    html! { <AvatarDisplay size={25} username={post.author.clone()} /> }
+                } else {
+                    html! {}
+                }}
+
+                <span class="chip mention round" style="width: max-content;">
+                    {if post.author != "Anonymous" {
+                        html! {<a href={format!("/~{}", &post.author)} style="color: inherit;">{&post.author}</a>}
+                    } else {
+                        html! {<span>{"Anonymous"}</span>}
+                    }}
+                </span>
+            </td>
+
+            <td class="device:desktop">
+                <span class="date-time-to-localize" style="opacity: 75%;">{&p.timestamp}</span>
+            </td>
+        </tr>
     };
 }

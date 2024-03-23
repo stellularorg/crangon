@@ -431,7 +431,10 @@ pub async fn avatar_request(req: HttpRequest, data: web::Data<AppData>) -> impl 
         .await;
 
     if res.is_err() {
-        return HttpResponse::NotFound().body("Failed to fetch avatar on server");
+        return HttpResponse::NotFound().body(format!(
+            "Failed to fetch avatar on server: {}",
+            res.err().unwrap()
+        ));
     }
 
     // ...

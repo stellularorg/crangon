@@ -494,3 +494,19 @@ pre code {
     width: var(--size);
     height: var(--size);
 }
+
+/* table */
+table.stripped thead tr {
+    background: transparent;
+    border-bottom: solid 5px var(--background-surface1-5);
+}
+
+table.stripped thead tr th {
+    padding: 6px 8px;
+    text-align: left;
+    background: transparent;
+}
+
+table.stripped tbody tr td {
+    padding: 6px 8px;
+}

@@ -4,7 +4,7 @@ use actix_web::{get, web, HttpResponse, Responder};
 use yew::prelude::*;
 use yew::ServerRenderer;
 
-use crate::components::message::Message;
+use crate::components::message::{Message, TopicForumMessage};
 use crate::components::navigation::Footer;
 use crate::db::bundlesdb::{Board, BoardMetadata, BoardPostLog, FullUser, Log};
 use crate::db::{self, bundlesdb};
@@ -29,6 +29,12 @@ struct Props {
     pub offset: i32,
     pub view: String,
     pub tags: String,
+    pub auth_state: Option<bool>,
+}
+
+#[derive(Default, Properties, PartialEq, serde::Deserialize)]
+struct PostProps {
+    pub board: Board<String>,
     pub auth_state: Option<bool>,
 }
 
@@ -226,9 +232,6 @@ pub fn build_password_ask_renderer_with_props(
 fn ViewBoard(props: &Props) -> Html {
     let board_m = serde_json::from_str::<BoardMetadata>(&props.board.metadata).unwrap();
 
-    let can_post_from_anonymous =
-        board_m.allow_anonymous.is_none() || board_m.allow_anonymous.unwrap() != "no";
-
     let topic_required =
         board_m.topic_required.is_some() && board_m.topic_required.unwrap() == "yes";
 
@@ -260,19 +263,12 @@ fn ViewBoard(props: &Props) -> Html {
             <div class="toolbar-layout-wrapper">
                 <main class="flex flex-column g-4 align-center">
                     <div class="full" id="about">
-                        {if board_m.about.is_some() {
-                            let content = Html::from_html_unchecked(AttrValue::from(
-                                crate::markdown::render::parse_markdown(&board_m.about.unwrap())
-                            ));
-
-                            html! {{content}}
-                        } else {
-                            html! {}
-                        }}
-
-                        <hr />
-
                         <div class="flex flex-column g-4">
+                            <div class="full flex justify-space-between align-center g-4">
+                                <h5 class="no-margin">{&props.board.name}</h5>
+                                <a class="button bundles-primary round" href={format!("/b/{}/new", props.board.name)}>{"New Post"}</a>
+                            </div>
+
                             <details class="full round">
                                 <summary>{"Board Information"}</summary>
 
@@ -287,7 +283,6 @@ fn ViewBoard(props: &Props) -> Html {
 
                                             html! { <li>
                                                 {"Tags: "}
-
                                                 <span class="g-4 flex-wrap" style="display: inline-flex;">
                                                     {for tags.into_iter().map(|t| {
                                                         html! { <a href={format!("/d/boards/browse?tags={}", t.replace("+", "%2B"))}>{&t}</a> }
@@ -306,6 +301,7 @@ fn ViewBoard(props: &Props) -> Html {
 
                                 <div class="card secondary flex flex-column g-4">
                                     <b>{"By Tags"}</b>
+
                                     <form class="flex g-4 full">
                                         <input
                                             type="text"
@@ -324,58 +320,23 @@ fn ViewBoard(props: &Props) -> Html {
                             </details>
                         </div>
 
+                        {if board_m.about.is_some() && board_m.about.as_ref().unwrap().len() > 0 {
+                            let content = Html::from_html_unchecked(AttrValue::from(
+                                crate::markdown::render::parse_markdown(&board_m.about.unwrap())
+                            ));
+
+                            html! {
+                                <>
+                                    <hr />
+                                    {content}
+                                </>
+                            }
+                        } else {
+                            html! {}
+                        }}
+
                         <hr />
                     </div>
-
-                    {if (props.auth_state.is_some() && props.auth_state.unwrap() == true) || (can_post_from_anonymous == true) {
-                        // ^ signed in OR can_post_from_anonymous is true
-                        html! {
-                            <div class="full">
-                                <div class="card round secondary flex flex-column g-4" id="post">
-                                    <div id="error" class="mdnote note-error full" style="display: none;" />
-
-                                    <form id="create-post" class="flex flex-column g-4">
-                                        <div class="full flex justify-space-between align-center g-4">
-                                            <b>{"Create Post"}</b>
-
-                                            <button class="bundles-primary round">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                                                {"Send"}
-                                            </button>
-                                        </div>
-
-                                        <textarea
-                                            type="text"
-                                            name="content"
-                                            id="content"
-                                            placeholder="Content"
-                                            class="full round"
-                                            minlength={2}
-                                            maxlength={1_000}
-                                            required={true}
-                                        ></textarea>
-
-                                        <input
-                                            type="text"
-                                            name="topic"
-                                            id="topic"
-                                            placeholder={format!("Topic{}", if !topic_required {
-                                                " (Optional)"
-                                            } else {
-                                                ""
-                                            })}
-                                            class="round"
-                                            maxlength={250}
-                                            required={topic_required}
-                                        />
-                                    </form>
-                                </div>
-
-                                <hr style="var(--u-08) 0 var(--u-04) 0" />
-                            </div>
-                    }} else {
-                        html! {}
-                    }}
 
                     {if props.pinned.len() > 0 {
                         html! {
@@ -391,9 +352,27 @@ fn ViewBoard(props: &Props) -> Html {
                         html! {}
                     }}
 
-                    {for props.posts.iter().map(|p| {
-                        html! { <Message post={p.clone()} show_open={true} pinned={false} /> }
-                    })}
+                    {if !topic_required {
+                        html! {{for props.posts.iter().map(|p| {
+                            html! { <Message post={p.clone()} show_open={true} pinned={false} /> }
+                        })}}
+                    } else {
+                        html! {
+                            <table class="full stripped">
+                                <thead>
+                                    <th>{"Title"}</th>
+                                    <th>{"Author"}</th>
+                                    <th class="device:desktop">{"Created"}</th>
+                                </thead>
+
+                                <tbody>
+                                    {for props.posts.iter().map(|p| {
+                                        html! { <TopicForumMessage post={p.clone()} show_open={true} pinned={false} /> }
+                                    })}
+                                </tbody>
+                            </table>
+                        }
+                    }}
 
                     <div class="full flex justify-space-between" id="pages">
                         <a class="button round" href={format!("?tags={}&offset={}&view={}", props.tags, props.offset - 50, props.view)} disabled={props.offset <= 0}>
@@ -575,6 +554,246 @@ pub async fn view_board_request(
                 <meta property=\"og:title\" content=\"{}\" />
                 <meta property=\"og:description\" content=\"{}\" />",
                 &name, &name, "View board posts on ::SITE_NAME::"
+            ),
+        ));
+}
+
+#[function_component]
+fn CreateBoardPost(props: &PostProps) -> Html {
+    let board_m = serde_json::from_str::<BoardMetadata>(&props.board.metadata).unwrap();
+
+    let can_post_from_anonymous =
+        board_m.allow_anonymous.is_none() || board_m.allow_anonymous.unwrap() != "no";
+
+    let topic_required =
+        board_m.topic_required.is_some() && board_m.topic_required.unwrap() == "yes";
+
+    // ...
+    return html! {
+        <div class="flex flex-column" style="height: 100dvh;">
+            <div style="display: none;" id="board-name">{&props.board.name}</div>
+
+            <div class="toolbar flex justify-space-between">
+                // left
+                <div class="flex">
+                    <a class="button" href="/" style="border-left: 0">
+                        <b>{"::SITE_NAME::"}</b>
+                    </a>
+
+                    <a class="button" href={format!("/b/{}", props.board.name)} style="border-left: 0">
+                        {props.board.name.clone()}
+                    </a>
+                </div>
+
+                // right
+                <div class="flex">
+                    <a class="button" href={format!("/b/{}/manage", props.board.name)} title="Manage Board">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-cog"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v2"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><circle cx="6" cy="14" r="3"/><path d="M6 10v1"/><path d="M6 17v1"/><path d="M10 14H9"/><path d="M3 14H2"/><path d="m9 11-.88.88"/><path d="M3.88 16.12 3 17"/><path d="m9 17-.88-.88"/><path d="M3.88 11.88 3 11"/></svg>
+                    </a>
+                </div>
+            </div>
+
+            <div class="toolbar-layout-wrapper">
+                <main class="flex flex-column g-4 align-center">
+                    {if (props.auth_state.is_some() && props.auth_state.unwrap() == true) || (can_post_from_anonymous == true) {
+                        // ^ signed in OR can_post_from_anonymous is true
+                        html! {
+                            <div class="full">
+                                <div class="card round secondary flex flex-column g-4" id="post">
+                                    <div id="error" class="mdnote note-error full" style="display: none;" />
+
+                                    <form id="create-post" class="flex flex-column g-4">
+                                        <div class="full flex justify-space-between align-center g-4">
+                                            <b>{"Create Post"}</b>
+
+                                            <button class="bundles-primary round">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                                {"Send"}
+                                            </button>
+                                        </div>
+
+                                        <textarea
+                                            type="text"
+                                            name="content"
+                                            id="content"
+                                            placeholder="Content"
+                                            class="full round"
+                                            minlength={2}
+                                            maxlength={1_000}
+                                            required={true}
+                                        ></textarea>
+
+                                        <input
+                                            type="text"
+                                            name="topic"
+                                            id="topic"
+                                            placeholder={format!("Topic{}", if !topic_required {
+                                                " (Optional)"
+                                            } else {
+                                                ""
+                                            })}
+                                            class="round"
+                                            maxlength={250}
+                                            required={topic_required}
+                                        />
+                                    </form>
+                                </div>
+
+                                <hr style="var(--u-08) 0 var(--u-04) 0" />
+                            </div>
+                    }} else {
+                        html! {}
+                    }}
+
+                    <details class="full round">
+                        <summary>{"About this board"}</summary>
+
+                        <div class="card secondary full" id="about">
+                            {if board_m.about.is_some() {
+                                let content = Html::from_html_unchecked(AttrValue::from(
+                                    crate::markdown::render::parse_markdown(&board_m.about.unwrap())
+                                ));
+
+                                html! {{content}}
+                            } else {
+                                html! {}
+                            }}
+                        </div>
+                    </details>
+
+                    <script type="module">
+                        {"import \"/static/js/BoardView.js\";"}
+                    </script>
+
+                    <Footer auth_state={props.auth_state} />
+                </main>
+            </div>
+        </div>
+    };
+}
+
+fn build_post_renderer_with_props(props: PostProps) -> ServerRenderer<CreateBoardPost> {
+    ServerRenderer::<CreateBoardPost>::with_props(|| props)
+}
+
+#[get("/b/{name:.*}/new")]
+/// Available at "/b/{name}/new"
+pub async fn create_board_post_request(
+    req: HttpRequest,
+    data: web::Data<db::bundlesdb::AppData>,
+    info: web::Query<ViewBoardQueryProps>,
+) -> impl Responder {
+    // verify auth status
+    let token_cookie = req.cookie("__Secure-Token");
+    let mut set_cookie: &str = "";
+
+    let mut token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists, refresh token if not
+        if token_user.as_ref().unwrap().success == false {
+            set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+            token_user = Option::None;
+        }
+    }
+
+    // get board
+    let name: String = req.match_info().get("name").unwrap().to_string();
+
+    let board: bundlesdb::DefaultReturn<Option<Board<String>>> =
+        data.db.get_board_by_name(name.clone()).await;
+
+    if board.success == false {
+        let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();
+        return HttpResponse::NotFound()
+            .append_header(("Content-Type", "text/html"))
+            .body(utility::format_html(
+                renderer.render().await,
+                "<title>404: Not Found</title>",
+            ));
+    }
+
+    // check if board is private
+    // if it is, only the owner and users with the "staff" role can view it
+    let metadata =
+        serde_json::from_str::<bundlesdb::BoardMetadata>(&board.payload.as_ref().unwrap().metadata)
+            .unwrap();
+
+    if metadata.is_private == "yes" {
+        // anonymous
+        if token_user.is_none() {
+            return HttpResponse::NotFound()
+                .body("You do not have permission to view this board's contents.");
+        }
+
+        // not owner
+        let user = token_user.unwrap().payload.unwrap();
+
+        if (user.user.username != metadata.owner)
+            && (user
+                .level
+                .permissions
+                .contains(&String::from("ManageBoards")))
+        {
+            return HttpResponse::NotFound()
+                .body("You do not have permission to view this board's contents.");
+        }
+    }
+
+    // handle view password
+    if metadata.is_private != "yes" && metadata.is_private != "no" {
+        // password prompt
+        if info.view.is_none() {
+            let renderer = build_password_ask_renderer_with_props(PasswordProps {
+                board: board.payload.clone().unwrap(),
+                auth_state: if req.cookie("__Secure-Token").is_some() {
+                    Option::Some(req.cookie("__Secure-Token").is_some())
+                } else {
+                    Option::Some(false)
+                },
+            });
+
+            let render = renderer.render();
+            return HttpResponse::Ok()
+                .append_header(("Set-Cookie", ""))
+                .append_header(("Content-Type", "text/html"))
+                .body(format_html(render.await, ""));
+        } else if info.view.as_ref().unwrap() != &metadata.is_private {
+            // check password
+            return HttpResponse::NotFound()
+                .body("You do not have permission to view this board's contents.");
+        }
+    }
+
+    // ...
+    let renderer = build_post_renderer_with_props(PostProps {
+        board: board.payload.unwrap(),
+        auth_state: if req.cookie("__Secure-Token").is_some() {
+            Option::Some(true)
+        } else {
+            Option::Some(false)
+        },
+    });
+
+    let render = renderer.render();
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
+        .body(format_html(
+            render.await,
+            &format!(
+                "<title>{}</title>
+                <meta property=\"og:title\" content=\"{}\" />
+                <meta property=\"og:description\" content=\"{}\" />",
+                &name, &name, "Create new board post on ::SITE_NAME::"
             ),
         ));
 }

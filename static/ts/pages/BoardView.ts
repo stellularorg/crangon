@@ -29,7 +29,7 @@ if (create_form) {
             error.innerHTML = `<div class="mdnote-title">${json.message}</div>`;
         } else {
             create_form.reset();
-            window.location.reload();
+            window.location.href = `/b/${board_name}`;
         }
     });
 }
