@@ -138,6 +138,7 @@ pub struct RoleLevelLog {
 pub struct UserMetadata {
     pub about: String,
     pub avatar_url: Option<String>,
+    pub secondary_token: Option<String>,
 }
 
 #[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
@@ -419,7 +420,7 @@ impl BundlesDB {
             };
         }
 
-        // store in cache
+        // ...
         let meta = row.get("metadata"); // for compatability - users did not have metadata until Bundlrs v0.10.6
         let user = UserState {
             username: row.get("username").unwrap().to_string(),
@@ -447,15 +448,99 @@ impl BundlesDB {
         };
     }
 
-    /// Get a user by their unhashed ID (hashes ID and then runs [`BundlesDB::get_user_by_hashed()`])
+    /// Get a user by their unhashed ID (hashes ID and then calls [`BundlesDB::get_user_by_hashed()`])
+    ///
+    /// Calls [`BundlesDB::get_user_by_unhashed_st()`] if user is invalid.
     ///
     /// # Arguments:
     /// * `unhashed` - `String` of the user's unhashed ID
     pub async fn get_user_by_unhashed(
         &self,
-        hashed: String,
+        unhashed: String,
     ) -> DefaultReturn<Option<FullUser<String>>> {
-        self.get_user_by_hashed(utility::hash(hashed)).await
+        let res = self
+            .get_user_by_hashed(utility::hash(unhashed.clone()))
+            .await;
+
+        if res.success == false {
+            // treat unhashed as a secondary token and try again
+            return self.get_user_by_unhashed_st(unhashed).await;
+        }
+
+        res
+    }
+
+    /// Get a user by their unhashed secondary token
+    ///
+    /// # Arguments:
+    /// * `unhashed` - `String` of the user's unhashed secondary token
+    pub async fn get_user_by_unhashed_st(
+        &self,
+        unhashed: String,
+    ) -> DefaultReturn<Option<FullUser<String>>> {
+        // fetch from database
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Users\" WHERE \"metadata\" LIKE ?"
+        } else {
+            "SELECT * FROM \"Users\" WHERE \"metadata\" LIKE $1"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&format!(
+                "%\"secondary_token\":\"{}\"%",
+                crate::utility::hash(unhashed)
+            ))
+            .fetch_one(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("User does not exist"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let row = res.unwrap();
+        let row = self.textify_row(row).data;
+
+        let role = row.get("role").unwrap().to_string();
+        if role == "banned" {
+            return DefaultReturn {
+                success: false,
+                message: String::from("User is banned"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let meta = row.get("metadata"); // for compatability - users did not have metadata until Bundlrs v0.10.6
+        let user = UserState {
+            username: row.get("username").unwrap().to_string(),
+            id_hashed: row.get("id_hashed").unwrap().to_string(),
+            role: role.clone(),
+            timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+            metadata: if meta.is_some() {
+                meta.unwrap().to_string()
+            } else {
+                String::new()
+            },
+        };
+
+        // fetch level from role
+        let level = self.get_level_by_role(role).await;
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("User exists"),
+            payload: Option::Some(FullUser {
+                user,
+                level: level.payload.level,
+            }),
+        };
     }
 
     /// Get a user by their username
@@ -631,6 +716,7 @@ impl BundlesDB {
                 &serde_json::to_string::<UserMetadata>(&UserMetadata {
                     about: String::new(),
                     avatar_url: Option::None,
+                    secondary_token: Option::None,
                 })
                 .unwrap(),
             )

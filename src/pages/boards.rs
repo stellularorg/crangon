@@ -1297,7 +1297,9 @@ pub async fn board_settings_request(
             set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
             token_user = Option::None;
         }
-    } else {
+    }
+
+    if token_user.is_none() {
         return HttpResponse::NotAcceptable().body("An account is required to do this");
     }
 

@@ -111,7 +111,9 @@ async fn main() -> std::io::Result<()> {
             // POST auth
             .service(crate::api::auth::register)
             .service(crate::api::auth::login)
+            .service(crate::api::auth::login_secondary_token)
             .service(crate::api::auth::edit_about_request)
+            .service(crate::api::auth::refresh_secondary_token_request)
             .service(crate::api::auth::update_request)
             .service(crate::api::auth::follow_request)
             .service(crate::api::auth::ban_request)
@@ -135,6 +137,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::pages::home::notifications_request)
             .service(crate::pages::auth::register_request)
             .service(crate::pages::auth::login_request)
+            .service(crate::pages::auth::login_secondary_token_request)
             .service(crate::pages::settings::user_settings_request)
             .service(crate::pages::settings::paste_settings_request)
             .service(crate::pages::paste_view::dashboard_request)

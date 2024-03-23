@@ -1,6 +1,7 @@
 const error: HTMLElement = document.getElementById("error")!;
 const success: HTMLElement = document.getElementById("success")!;
 const forms: HTMLElement = document.getElementById("forms")!;
+const switch_button: HTMLElement = document.getElementById("switch-button")!;
 
 const register_form: HTMLFormElement | null = document.getElementById(
     "register-user"
@@ -8,6 +9,10 @@ const register_form: HTMLFormElement | null = document.getElementById(
 
 const login_form: HTMLFormElement | null = document.getElementById(
     "login-user"
+) as HTMLFormElement | null;
+
+const login_st_form: HTMLFormElement | null = document.getElementById(
+    "login-user-st"
 ) as HTMLFormElement | null;
 
 if (register_form) {
@@ -43,7 +48,7 @@ if (register_form) {
         }
     });
 } else if (login_form) {
-    // register
+    // login
     login_form.addEventListener("submit", async (e) => {
         e.preventDefault();
         const res = await fetch("/api/auth/login", {
@@ -68,6 +73,42 @@ if (register_form) {
                 <hr />
                 <a href="/d" class="button round bundles-primary">Continue</a>`;
             forms.style.display = "none";
+
+            if (switch_button) {
+                switch_button.remove();
+            }
+        }
+    });
+} else if (login_st_form) {
+    // login (secondary token)
+    login_st_form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const res = await fetch("/api/auth/login-st", {
+            method: "POST",
+            body: JSON.stringify({
+                uid: login_st_form.uid.value,
+            }),
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        const json = await res.json();
+
+        if (json.success === false) {
+            error.style.display = "block";
+            error.innerHTML = `<div class="mdnote-title">${json.message}</div>`;
+        } else {
+            success.style.display = "block";
+            success.innerHTML = `<p>Successfully logged into account.</p>
+                
+                <hr />
+                <a href="/d" class="button round bundles-primary">Continue</a>`;
+            forms.style.display = "none";
+
+            if (switch_button) {
+                switch_button.remove();
+            }
         }
     });
 }

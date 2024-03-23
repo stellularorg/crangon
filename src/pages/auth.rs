@@ -136,6 +136,8 @@ fn Login() -> Html {
                     </form>
                 </div>
 
+                <a class="button round border" href="/d/auth/login-st" style="width: 25rem;" id="switch-button">{"Use Secondary Token"}</a>
+
                 <script type="module">
                     {"import AuthPages from \"/static/js/AuthPages.js\";"}
                 </script>
@@ -164,6 +166,50 @@ pub async fn register_request(req: HttpRequest) -> impl Responder {
         ));
 }
 
+#[function_component]
+fn LoginSecondaryToken() -> Html {
+    return html! {
+        <div class="flex flex-column g-4" style="height: 100dvh;">
+            <main class="small flex flex-column align-center g-8">
+                <div id="success" class="card border round" style="display: none;" />
+
+                <div class="card secondary round border" style="width: 25rem;" id="forms">
+                    <div id="error" class="mdnote note-error full" style="display: none;" />
+                    <form class="full flex flex-column g-4" action="/api/auth/login-st" id="login-user-st">
+                        <label for="uid"><b>{"Secondary Token"}</b></label>
+
+                        <input
+                            type="text"
+                            name="uid"
+                            id="uid"
+                            placeholder="00000000-0000-0000-0000-000000000000"
+                            class="full round"
+                            required={true}
+                            minlength={36}
+                            maxlength={36}
+                        />
+
+                        <hr />
+
+                        <button class="bundles-primary full round">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-key-round"><path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z"/><circle cx="16.5" cy="7.5" r=".5"/></svg>
+                            {"Login"}
+                        </button>
+                    </form>
+                </div>
+
+                <a class="button round border" href="/d/auth/login" style="width: 25rem;" id="switch-button">{"Use Account ID"}</a>
+
+                <script type="module">
+                    {"import AuthPages from \"/static/js/AuthPages.js\";"}
+                </script>
+
+                <Footer auth_state={Option::None} />
+            </main>
+        </div>
+    };
+}
+
 #[get("/d/auth/login")]
 /// Available at "/d/auth/login"
 pub async fn login_request(req: HttpRequest) -> impl Responder {
@@ -173,6 +219,23 @@ pub async fn login_request(req: HttpRequest) -> impl Responder {
 
     // ...
     let renderer = ServerRenderer::<Login>::new();
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "text/html"))
+        .body(format_html(
+            renderer.render().await,
+            "<title>Login - ::SITE_NAME::</title>",
+        ));
+}
+
+#[get("/d/auth/login-st")]
+/// Available at "/d/auth/login-st"
+pub async fn login_secondary_token_request(req: HttpRequest) -> impl Responder {
+    if req.cookie("__Secure-Token").is_some() {
+        return HttpResponse::NotFound().body("You're already signed in.");
+    }
+
+    // ...
+    let renderer = ServerRenderer::<LoginSecondaryToken>::new();
     return HttpResponse::Ok()
         .append_header(("Content-Type", "text/html"))
         .body(format_html(
@@ -916,7 +979,9 @@ pub async fn user_settings_request(
             set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
             token_user = Option::None;
         }
-    } else {
+    }
+
+    if token_user.is_none() {
         return HttpResponse::NotAcceptable().body("An account is required to do this");
     }
 

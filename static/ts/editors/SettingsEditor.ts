@@ -24,6 +24,27 @@ export function paste_settings(
         if (selected) {
             current_property = selected.value;
 
+            // USER ONLY - secondary token
+            if (_type === "user" && current_property === "secondary_token") {
+                option_render = `<button class="button round bundles-primary" onclick="window.send_token_refresh_request();">Refresh Token</button>`;
+
+                (window as any).send_token_refresh_request = async () => {
+                    const res = await fetch(
+                        `/api/auth/users/${paste}/secondary-token`,
+                        {
+                            method: "POST",
+                        }
+                    );
+
+                    const res_ = await res.json();
+                    alert(res_.payload);
+                };
+
+                options = build_options(metadata, current_property);
+                render_paste_settings_fields(field, options, option_render); // rerender
+                return;
+            }
+
             // ...
             let meta_value = metadata[current_property];
             if (typeof meta_value === "string" || meta_value === null) {
