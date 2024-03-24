@@ -254,10 +254,14 @@ pub async fn home_request(
 
     let metadata = if paste.is_some() && paste.as_ref().unwrap().payload.is_some() {
         Option::Some(
-            serde_json::from_str::<bundlesdb::PasteMetadata>(
-                &paste.as_ref().unwrap().payload.as_ref().unwrap().metadata,
-            )
-            .unwrap(),
+            &paste
+                .as_ref()
+                .unwrap()
+                .payload
+                .as_ref()
+                .unwrap()
+                .paste
+                .metadata,
         )
     } else {
         Option::None
@@ -285,7 +289,17 @@ pub async fn home_request(
         editing: str.to_owned(),
         starting_content: if paste.is_some() {
             if paste.as_ref().unwrap().success {
-                Option::Some(paste.unwrap().payload.unwrap().content.replace(r"`", "\\`"))
+                Option::Some(
+                    paste
+                        .as_ref()
+                        .unwrap()
+                        .payload
+                        .as_ref()
+                        .unwrap()
+                        .paste
+                        .content
+                        .replace(r"`", "\\`"),
+                )
             } else {
                 Option::None
             }

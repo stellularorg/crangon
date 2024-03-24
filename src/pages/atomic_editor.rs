@@ -5,7 +5,7 @@ use yew::prelude::*;
 use yew::ServerRenderer;
 
 use crate::components::navigation::Footer;
-use crate::db::bundlesdb::{AtomicPasteFSFile, Paste};
+use crate::db::bundlesdb::{AtomicPasteFSFile, FullPaste, PasteMetadata};
 use crate::db::{self, bundlesdb};
 use crate::utility::{self, format_html};
 
@@ -365,7 +365,8 @@ You can create an account at: /d/auth/register",
 
     // get paste
     let id: String = req.match_info().get("id").unwrap().to_string();
-    let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> = data.db.get_paste_by_id(id).await;
+    let paste: bundlesdb::DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
+        data.db.get_paste_by_id(id).await;
 
     if paste.success == false {
         let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();
@@ -378,7 +379,7 @@ You can create an account at: /d/auth/register",
     }
 
     // make sure paste is an atomic paste
-    let unwrap = paste.payload.unwrap();
+    let unwrap = paste.payload.unwrap().paste;
     let is_atomic = unwrap.content.contains("\"_is_atomic\":true");
 
     if is_atomic == false {

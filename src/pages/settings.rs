@@ -4,7 +4,7 @@ use actix_web::{get, web, HttpRequest, Responder};
 use yew::prelude::*;
 use yew::ServerRenderer;
 
-use crate::db::bundlesdb::{self, AppData, Paste};
+use crate::db::bundlesdb::{self, AppData, FullPaste, Paste, PasteMetadata};
 use crate::utility::format_html;
 
 use crate::components::navigation::Footer;
@@ -12,7 +12,7 @@ use crate::pages::paste_view;
 
 #[derive(Default, Properties, PartialEq)]
 struct Props {
-    pub paste: Paste<String>,
+    pub paste: Paste<PasteMetadata>,
     pub auth_state: Option<bool>,
 }
 
@@ -23,7 +23,7 @@ struct UserSettingsProps {
 
 #[function_component]
 fn PasteSettings(props: &Props) -> Html {
-    let metadata = serde_json::from_str::<bundlesdb::PasteMetadata>(&props.paste.metadata).unwrap();
+    let metadata = &props.paste.metadata;
 
     return html! {
         <main class="flex flex-column g-4 small">
@@ -151,7 +151,7 @@ pub async fn paste_settings_request(
     let url: String = req.match_info().get("url").unwrap().to_string();
     let url_c = url.clone();
 
-    let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> =
+    let paste: bundlesdb::DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
         data.db.get_paste_by_url(url).await;
 
     if paste.success == false {
@@ -182,7 +182,7 @@ pub async fn paste_settings_request(
 
     // ...
     let unwrap = paste.payload.clone().unwrap();
-    let metadata = serde_json::from_str::<bundlesdb::PasteMetadata>(&unwrap.metadata).unwrap();
+    let metadata = &unwrap.paste.metadata;
 
     // handle view password
     if metadata.view_password.is_some()
@@ -190,7 +190,8 @@ pub async fn paste_settings_request(
         && metadata.view_password.as_ref().unwrap() != "off"
     {
         let renderer = paste_view::build_password_ask_renderer_with_props(paste_view::Props {
-            paste: unwrap,
+            paste: unwrap.paste.clone(),
+            user: unwrap.user.clone(),
             auth_state: if req.cookie("__Secure-Token").is_some() {
                 Option::Some(req.cookie("__Secure-Token").is_some())
             } else {
@@ -209,7 +210,7 @@ pub async fn paste_settings_request(
     if info.view.is_some()
         && metadata.view_password.is_some()
         && metadata.view_password.as_ref().unwrap() != "off"
-        && info.view.as_ref().unwrap() != &metadata.view_password.unwrap()
+        && &info.view.as_ref().unwrap() != &metadata.view_password.as_ref().unwrap()
     {
         return HttpResponse::NotFound()
             .body("You do not have permission to view this paste's contents.");
@@ -217,7 +218,7 @@ pub async fn paste_settings_request(
 
     // ...
     let renderer = build_paste_settings_with_props(Props {
-        paste: paste.payload.clone().unwrap(),
+        paste: paste.payload.clone().unwrap().paste,
         auth_state: if req.cookie("__Secure-Token").is_some() {
             Option::Some(req.cookie("__Secure-Token").is_some())
         } else {

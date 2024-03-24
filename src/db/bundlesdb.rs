@@ -56,7 +56,7 @@ pub struct PasteIdentifier {
     pub id: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PasteMetadata {
     pub owner: String,
     pub private_source: String,
@@ -66,6 +66,12 @@ pub struct PasteMetadata {
     pub favicon: Option<String>,
     pub embed_color: Option<String>,
     pub view_password: Option<String>,
+}
+
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+pub struct FullPaste<M, U> {
+    pub paste: Paste<M>,
+    pub user: Option<FullUser<U>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -140,6 +146,7 @@ pub struct UserMetadata {
     pub avatar_url: Option<String>,
     pub secondary_token: Option<String>,
     pub allow_mail: Option<String>, // yes/no
+    pub nickname: Option<String>,   // user display name
 }
 
 #[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
@@ -727,6 +734,7 @@ impl BundlesDB {
                     avatar_url: Option::None,
                     secondary_token: Option::None,
                     allow_mail: Option::Some(String::from("yes")),
+                    nickname: Option::Some(username.clone()),
                 })
                 .unwrap(),
             )
@@ -1156,7 +1164,7 @@ impl BundlesDB {
         &self,
         query: &str,
         selector: &str,
-    ) -> DefaultReturn<Option<Paste<String>>> {
+    ) -> DefaultReturn<Option<FullPaste<PasteMetadata, String>>> {
         // fetch from db
         let c = &self.db.client;
         let res = sqlx::query(query)
@@ -1181,7 +1189,9 @@ impl BundlesDB {
             .count_paste_views(row.get("custom_url").unwrap().to_owned())
             .await;
 
-        // add to cache
+        // ...
+        let metadata = serde_json::from_str::<PasteMetadata>(row.get("metadata").unwrap()).unwrap();
+
         let paste = Paste {
             custom_url: row.get("custom_url").unwrap().to_string(),
             id: row.get("id").unwrap().to_string(),
@@ -1191,15 +1201,26 @@ impl BundlesDB {
             edit_date: row.get("edit_date").unwrap().parse::<u128>().unwrap(),
             content: row.get("content").unwrap().to_string(),
             content_html: row.get("content_html").unwrap().to_string(),
-            metadata: row.get("metadata").unwrap().to_string(),
+            metadata,
             views: views.to_owned(),
+        };
+
+        // get user
+        let user = if paste.metadata.owner.len() > 0 {
+            // TODO: maybe don't clone here
+            (self
+                .get_user_by_username(paste.clone().metadata.owner)
+                .await)
+                .payload
+        } else {
+            Option::None
         };
 
         // return
         return DefaultReturn {
             success: true,
             message: String::from("Paste exists (new)"),
-            payload: Option::Some(paste),
+            payload: Option::Some(FullPaste { paste, user }),
         };
     }
 
@@ -1208,7 +1229,10 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `url` - `String` of the paste's `custom_url`
-    pub async fn get_paste_by_url(&self, url: String) -> DefaultReturn<Option<Paste<String>>> {
+    pub async fn get_paste_by_url(
+        &self,
+        url: String,
+    ) -> DefaultReturn<Option<FullPaste<PasteMetadata, String>>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"custom_url\" = ?"
         } else {
@@ -1222,7 +1246,10 @@ impl BundlesDB {
     ///
     /// # Arguments:
     /// * `id` - `String` of the paste's `id`
-    pub async fn get_paste_by_id(&self, id: String) -> DefaultReturn<Option<Paste<String>>> {
+    pub async fn get_paste_by_id(
+        &self,
+        id: String,
+    ) -> DefaultReturn<Option<FullPaste<PasteMetadata, String>>> {
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"id\" = ?"
         } else {
@@ -1500,7 +1527,7 @@ impl BundlesDB {
         }
 
         // make sure paste does not exist
-        let existing: DefaultReturn<Option<Paste<String>>> =
+        let existing: DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
             self.get_paste_by_url(p.custom_url.to_owned()).await;
 
         if existing.success {
@@ -1579,15 +1606,13 @@ impl BundlesDB {
         }
 
         // (parse metadata from existing)
-        let existing_metadata =
-            serde_json::from_str::<PasteMetadata>(&existing.payload.as_ref().unwrap().metadata);
+        let existing_metadata = &existing.payload.as_ref().unwrap().paste.metadata;
 
         // verify password
         // if password hash doesn't match AND edit_as is none OR edit_as != existing_metadata's owner value
-        let paste = &existing.payload.clone().unwrap();
+        let paste = &existing.payload.clone().unwrap().paste;
 
-        let skip_password_check =
-            edit_as.is_some() && edit_as.unwrap() == existing_metadata.unwrap().owner;
+        let skip_password_check = edit_as.is_some() && edit_as.unwrap() == existing_metadata.owner;
 
         if !skip_password_check && utility::hash(edit_password) != paste.edit_password {
             return DefaultReturn {
@@ -1678,8 +1703,7 @@ impl BundlesDB {
         }
 
         // (parse metadata from existing)
-        let existing_metadata =
-            serde_json::from_str::<PasteMetadata>(&existing.payload.as_ref().unwrap().metadata);
+        let existing_metadata = &existing.payload.as_ref().unwrap().paste.metadata;
 
         // get edit_as user account
         let ua = if edit_as.is_some() {
@@ -1694,11 +1718,11 @@ impl BundlesDB {
 
         // verify password
         // if password hash doesn't match AND edit_as is none OR edit_as != existing_metadata's owner value
-        let paste = &existing.payload.clone().unwrap();
+        let paste = &existing.payload.clone().unwrap().paste;
 
         // ...skip password check IF the user is the paste owner!
         let skip_password_check = (edit_as.is_some()
-            && edit_as.unwrap() == existing_metadata.unwrap().owner)
+            && edit_as.unwrap() == existing_metadata.owner)
             // OR if the user has the "ManagePastes" permission
             | (ua.as_ref().is_some()
                 && ua.as_ref().unwrap().is_some()
@@ -1828,8 +1852,7 @@ impl BundlesDB {
         }
 
         // (parse metadata from existing)
-        let existing_metadata =
-            serde_json::from_str::<PasteMetadata>(&existing.payload.as_ref().unwrap().metadata);
+        let existing_metadata = &existing.payload.as_ref().unwrap().paste.metadata;
 
         // get edit_as user account
         let ua = if delete_as.is_some() {
@@ -1843,11 +1866,11 @@ impl BundlesDB {
         };
 
         // verify password
-        let paste = &existing.payload.clone().unwrap();
+        let paste = &existing.payload.clone().unwrap().paste;
 
         // ...skip password check IF the user is the paste owner!
         let skip_password_check = (delete_as.is_some()
-                && delete_as.unwrap() == existing_metadata.unwrap().owner)
+                && delete_as.unwrap() == existing_metadata.owner)
                 // OR if the user has the "ManagePastes" permission
                 | (ua.as_ref().is_some()
                     && ua.as_ref().unwrap().is_some()

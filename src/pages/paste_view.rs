@@ -4,7 +4,9 @@ use actix_web::{get, web, HttpRequest, Responder};
 use yew::prelude::*;
 use yew::ServerRenderer;
 
-use crate::db::bundlesdb::{self, AppData, Paste};
+use crate::db::bundlesdb::{
+    self, AppData, FullPaste, FullUser, Paste, PasteMetadata, UserMetadata,
+};
 use crate::utility;
 use crate::utility::format_html;
 
@@ -12,7 +14,8 @@ use crate::components::navigation::Footer;
 
 #[derive(Default, Properties, PartialEq)]
 pub struct Props {
-    pub paste: Paste<String>,
+    pub paste: Paste<PasteMetadata>,
+    pub user: Option<FullUser<String>>,
     pub auth_state: Option<bool>,
 }
 
@@ -31,7 +34,16 @@ struct DashboardProps {
 #[function_component]
 fn PasteView(props: &Props) -> Html {
     let content = Html::from_html_unchecked(AttrValue::from(props.paste.content_html.clone()));
-    let metadata = serde_json::from_str::<bundlesdb::PasteMetadata>(&props.paste.metadata).unwrap();
+
+    let metadata = &props.paste.metadata;
+    let user_metadata = if props.user.is_some() {
+        Option::Some(
+            serde_json::from_str::<UserMetadata>(&props.user.as_ref().unwrap().user.metadata)
+                .unwrap(),
+        )
+    } else {
+        Option::None
+    };
 
     // default return
     return html! {
@@ -70,9 +82,24 @@ fn PasteView(props: &Props) -> Html {
                         {"Edit: "}<span class="date-time-to-localize">{&props.paste.edit_date}</span>
                     </span>
 
-                    if &metadata.owner.is_empty() == &false {
-                        <span id="paste-info-owner">{"Owner: "} <a href={format!("/~{}", &metadata.owner)}>{&metadata.owner}</a></span>
-                    }
+                    {if user_metadata.is_some() {
+                        let user_metadata = user_metadata.unwrap();
+
+                        html! {
+                            <span id="paste-info-owner">
+                                {"Owner: "}
+                                <a href={format!("/~{}", &metadata.owner)}>
+                                    {if user_metadata.nickname.is_some() {
+                                        user_metadata.nickname.unwrap()
+                                    } else {
+                                        metadata.owner.clone()
+                                    }}
+                                </a>
+                            </span>
+                        }
+                    } else {
+                        html! {}
+                    }}
 
                     <span id="paste-info-views">{"Views: "}{&props.paste.views}</span>
                 </div>
@@ -141,7 +168,7 @@ pub async fn paste_view_request(
     let url: String = req.match_info().get("url").unwrap().to_string();
     let url_c = url.clone();
 
-    let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> =
+    let paste: bundlesdb::DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
         data.db.get_paste_by_url(url).await;
 
     if paste.success == false {
@@ -157,7 +184,7 @@ pub async fn paste_view_request(
     let unwrap = paste.payload.as_ref().unwrap();
 
     // ...
-    let metadata = serde_json::from_str::<bundlesdb::PasteMetadata>(&unwrap.metadata).unwrap();
+    let metadata = &unwrap.paste.metadata;
 
     // handle view password
     if metadata.view_password.is_some()
@@ -174,7 +201,8 @@ pub async fn paste_view_request(
         }
 
         let renderer = build_password_ask_renderer_with_props(Props {
-            paste: unwrap.clone(),
+            paste: unwrap.clone().paste,
+            user: unwrap.clone().user,
             auth_state: if req.cookie("__Secure-Token").is_some() {
                 Option::Some(req.cookie("__Secure-Token").is_some())
             } else {
@@ -193,15 +221,15 @@ pub async fn paste_view_request(
     if info.view.is_some()
         && metadata.view_password.is_some()
         && metadata.view_password.as_ref().unwrap() != "off"
-        && info.view.as_ref().unwrap() != &metadata.view_password.unwrap()
+        && &info.view.as_ref().unwrap() != &metadata.view_password.as_ref().unwrap()
     {
         return HttpResponse::NotFound()
             .body("You do not have permission to view this paste's contents.");
     }
 
     // handle atomic pastes (just return index.html)
-    if unwrap.content.contains("\"_is_atomic\":true") {
-        let real_content = serde_json::from_str::<bundlesdb::AtomicPaste>(&unwrap.content);
+    if unwrap.paste.content.contains("\"_is_atomic\":true") {
+        let real_content = serde_json::from_str::<bundlesdb::AtomicPaste>(&unwrap.paste.content);
 
         if real_content.is_err() {
             return HttpResponse::NotAcceptable().body("Paste failed to deserialize");
@@ -251,6 +279,7 @@ pub async fn paste_view_request(
 
     // ...
     let paste_preview_text: String = unwrap
+        .paste
         .content
         .chars()
         .take(100)
@@ -264,7 +293,8 @@ pub async fn paste_view_request(
 
     // ...
     let renderer = build_renderer_with_props(Props {
-        paste: unwrap.clone(),
+        paste: unwrap.clone().paste,
+        user: unwrap.clone().user,
         auth_state: if req.cookie("__Secure-Token").is_some() {
             Option::Some(req.cookie("__Secure-Token").is_some())
         } else {
@@ -330,7 +360,7 @@ pub async fn atomic_paste_view_request(
     let url: String = req.match_info().get("url").unwrap().to_string();
     let path: String = req.match_info().get("path").unwrap().to_string();
 
-    let paste: bundlesdb::DefaultReturn<Option<Paste<String>>> =
+    let paste: bundlesdb::DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
         data.db.get_paste_by_url(url).await;
 
     if paste.success == false {
@@ -346,8 +376,8 @@ pub async fn atomic_paste_view_request(
     let unwrap = paste.payload.as_ref().unwrap();
 
     // handle atomic pastes (just return index.html)
-    if unwrap.content.contains("\"_is_atomic\":true") {
-        let real_content = serde_json::from_str::<bundlesdb::AtomicPaste>(&unwrap.content);
+    if unwrap.paste.content.contains("\"_is_atomic\":true") {
+        let real_content = serde_json::from_str::<bundlesdb::AtomicPaste>(&unwrap.paste.content);
 
         if real_content.is_err() {
             return HttpResponse::NotAcceptable().body("Paste failed to deserialize");

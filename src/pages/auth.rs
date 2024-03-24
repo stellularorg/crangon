@@ -278,10 +278,21 @@ fn ProfileView(props: &Props) -> Html {
                     <div id="error" class="mdnote note-error full" style="display: none;" />
                     <div id="success" class="mdnote note-note full" style="display: none;" />
 
-                    <div class="flex justify-space-between align-center">
+                    <div class="flex justify-space-between align-center mobile:flex-column g-4">
                         <div class="flex align-center g-4 flex-wrap">
-                            <AvatarDisplay size={50} username={props.user.username.clone()} />
-                            <h1 class="no-margin">{&props.user.username}</h1>
+                            <AvatarDisplay size={55} username={props.user.username.clone()} />
+
+                            <div class="flex flex-column mobile:align-center">
+                                <h2 class="no-margin" id="user-fake-name">
+                                    {if meta.nickname.is_some() {
+                                        meta.nickname.unwrap()
+                                    } else {
+                                        props.user.username.clone()
+                                    }}
+                                </h2>
+
+                                <span id="user-real-name">{&props.user.username}</span>
+                            </div>
                         </div>
 
                         // must not be receiver and must still be authenticated

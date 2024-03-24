@@ -1,6 +1,6 @@
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
 
-use crate::db::bundlesdb::{self, AtomicPasteFSFile};
+use crate::db::bundlesdb::{self, AtomicPasteFSFile, DefaultReturn, FullPaste, PasteMetadata};
 use crate::{markdown, ssm, utility};
 
 #[derive(serde::Deserialize)]
@@ -70,7 +70,12 @@ pub async fn render_paste_ssm_request(
     if !res.success {
         return HttpResponse::NotFound()
             .append_header(("Content-Type", "application/json"))
-            .body(serde_json::to_string::<bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>>>(&res).unwrap());
+            .body(
+                serde_json::to_string::<DefaultReturn<Option<FullPaste<PasteMetadata, String>>>>(
+                    &res,
+                )
+                .unwrap(),
+            );
     }
 
     // make sure the paste allows their SSM content to be public
@@ -78,6 +83,7 @@ pub async fn render_paste_ssm_request(
         .payload
         .as_ref()
         .unwrap()
+        .paste
         .content
         .contains("USE ssm::public")
     {
@@ -90,7 +96,7 @@ pub async fn render_paste_ssm_request(
     // TODO: check for "USE ssm::public" in the paste content before returning!
     return HttpResponse::Ok()
         .append_header(("Content-Type", "text/css"))
-        .body(ssm::parse_ssm_blocks(res.payload.unwrap().content));
+        .body(ssm::parse_ssm_blocks(res.payload.unwrap().paste.content));
 }
 
 #[post("/api/new")]
@@ -256,7 +262,7 @@ pub async fn edit_atomic_request(
     }
 
     // get paste
-    let paste: bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>> =
+    let paste: DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
         data.db.get_paste_by_url(custom_url.clone()).await;
 
     if paste.success == false {
@@ -267,14 +273,14 @@ pub async fn edit_atomic_request(
 
     // make sure paste is an atomic paste
     let unwrap = paste.payload.unwrap();
-    let is_atomic = unwrap.content.contains("\"_is_atomic\":true");
+    let is_atomic = unwrap.paste.content.contains("\"_is_atomic\":true");
 
     if is_atomic == false {
         return HttpResponse::NotFound().body("Paste is not atomic");
     }
 
     // get file from path
-    let real_content = serde_json::from_str::<bundlesdb::AtomicPaste>(&unwrap.content);
+    let real_content = serde_json::from_str::<bundlesdb::AtomicPaste>(&unwrap.paste.content);
 
     if real_content.is_err() {
         return HttpResponse::NotAcceptable().body("Paste failed to deserialize");
@@ -443,18 +449,11 @@ pub async fn get_from_url_request(
     data: web::Data<bundlesdb::AppData>,
 ) -> impl Responder {
     let custom_url: String = req.match_info().get("url").unwrap().to_string();
-    let res: bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>> =
+    let res: DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
         data.db.get_paste_by_url(custom_url).await;
 
     // if res.metadata contains '"private_source":"on"', return NotFound
-    if res.payload.is_some()
-        && res
-            .clone()
-            .payload
-            .unwrap()
-            .metadata
-            .contains("\"private_source\":\"on\",")
-    {
+    if res.payload.is_some() && res.clone().payload.unwrap().paste.metadata.private_source == "on" {
         return HttpResponse::NotFound()
             .body("You do not have permission to view this paste's contents.");
     }
@@ -465,8 +464,10 @@ pub async fn get_from_url_request(
             .clone()
             .payload
             .unwrap()
+            .paste
             .metadata
-            .contains("\"view_password\":\"")
+            .view_password
+            .is_some()
     {
         return HttpResponse::NotFound()
             .body("You do not have permission to view this paste's contents.");
@@ -476,10 +477,8 @@ pub async fn get_from_url_request(
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
         .body(
-            serde_json::to_string::<bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>>>(
-                &res,
-            )
-            .unwrap(),
+            serde_json::to_string::<DefaultReturn<Option<FullPaste<PasteMetadata, String>>>>(&res)
+                .unwrap(),
         );
 }
 
@@ -490,18 +489,11 @@ pub async fn get_from_id_request(
     data: web::Data<bundlesdb::AppData>,
 ) -> impl Responder {
     let id: String = req.match_info().get("id").unwrap().to_string();
-    let res: bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>> =
+    let res: DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
         data.db.get_paste_by_id(id).await;
 
     // if res.metadata contains '"private_source":"on"', return NotFound
-    if res.payload.is_some()
-        && res
-            .clone()
-            .payload
-            .unwrap()
-            .metadata
-            .contains("\"private_source\":\"on\",")
-    {
+    if res.payload.is_some() && res.clone().payload.unwrap().paste.metadata.private_source == "on" {
         return HttpResponse::NotFound()
             .body("You do not have permission to view this paste's contents.");
     }
@@ -512,8 +504,10 @@ pub async fn get_from_id_request(
             .clone()
             .payload
             .unwrap()
+            .paste
             .metadata
-            .contains("\"view_password\":\"")
+            .view_password
+            .is_some()
     {
         return HttpResponse::NotFound()
             .body("You do not have permission to view this paste's contents.");
@@ -523,9 +517,7 @@ pub async fn get_from_id_request(
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
         .body(
-            serde_json::to_string::<bundlesdb::DefaultReturn<Option<bundlesdb::Paste<String>>>>(
-                &res,
-            )
-            .unwrap(),
+            serde_json::to_string::<DefaultReturn<Option<FullPaste<PasteMetadata, String>>>>(&res)
+                .unwrap(),
         );
 }
