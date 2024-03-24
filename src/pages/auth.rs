@@ -278,12 +278,12 @@ fn ProfileView(props: &Props) -> Html {
                     <div id="error" class="mdnote note-error full" style="display: none;" />
                     <div id="success" class="mdnote note-note full" style="display: none;" />
 
-                    <div class="flex justify-space-between align-center mobile:flex-column g-4">
-                        <div class="flex align-center g-4 flex-wrap">
+                    <div class="flex justify-space-between align-center mobile:flex-column g-4 flex-wrap">
+                        <div class="flex align-center g-4 flex-wrap" style="max-width: 100%;">
                             <AvatarDisplay size={55} username={props.user.username.clone()} />
 
-                            <div class="flex flex-column mobile:align-center">
-                                <h2 class="no-margin" id="user-fake-name">
+                            <div class="flex flex-column" style="max-width: calc(100% - 55px - var(--u-04));">
+                                <h2 class="no-margin" id="user-fake-name" style="max-width: 100%;">
                                     {if meta.nickname.is_some() {
                                         meta.nickname.unwrap()
                                     } else {
