@@ -2065,9 +2065,15 @@ impl BundlesDB {
         let res = sqlx::query(query)
             .bind::<&String>(&format!(
                 "%\"about\":\"{}\"%",
-                serde_json::to_string::<UserMailStreamIdentifier>(&props)
-                    .unwrap()
-                    .replace("\"", "\\\"")
+                if &self.db._type == "mysql" {
+                    serde_json::to_string::<UserMailStreamIdentifier>(&props)
+                        .unwrap()
+                        .replace("\"", "\\\\\"")
+                } else {
+                    serde_json::to_string::<UserMailStreamIdentifier>(&props)
+                        .unwrap()
+                        .replace("\"", "\\\"")
+                }
             ))
             .fetch_one(c)
             .await;
@@ -2114,8 +2120,16 @@ impl BundlesDB {
 
         let c = &self.db.client;
         let res = sqlx::query(query)
-            .bind::<&String>(&format!("%\\\"user1\\\":\\\"{}\\\"%", user))
-            .bind::<&String>(&format!("%\\\"user2\\\":\\\"{}\\\"%", user))
+            .bind::<String>(if &self.db._type == "mysql" {
+                format!("%\\\\\"user1\\\\\":\\\\\"{}\\\\\"%", user)
+            } else {
+                format!("%\\\"user1\\\":\\\"{}\\\"%", user)
+            })
+            .bind::<String>(if &self.db._type == "mysql" {
+                format!("%\\\\\"user2\\\\\":\\\\\"{}\\\\\"%", user)
+            } else {
+                format!("%\\\"user2\\\":\\\"{}\\\"%", user)
+            })
             .bind(if offset.is_some() { offset.unwrap() } else { 0 })
             .fetch_all(c)
             .await;
@@ -3194,7 +3208,7 @@ impl BundlesDB {
         {
             return DefaultReturn {
                 success: false,
-                message: String::from("Cannot conver this board into a user mail stream."),
+                message: String::from("Cannot convert this board into a user mail stream."),
                 payload: Option::None,
             };
         }
