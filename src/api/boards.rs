@@ -1,7 +1,9 @@
 use actix_web::{delete, get, post, web, HttpRequest, HttpResponse, Responder};
 
 use crate::{
-    db::bundlesdb::{AppData, Board, BoardMetadata, BoardPostLog, DefaultReturn},
+    db::bundlesdb::{
+        AppData, Board, BoardMetadata, BoardPostLog, DefaultReturn, UserMailStreamIdentifier,
+    },
     pages::boards,
 };
 
@@ -70,6 +72,50 @@ pub async fn create_request(
                 Option::None
             },
         )
+        .await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string(&res).unwrap());
+}
+
+#[post("/api/auth/users/{name:.*}/mail")]
+pub async fn create_mail_stream_request(
+    req: HttpRequest,
+    data: web::Data<AppData>,
+) -> impl Responder {
+    let name: String = req.match_info().get("name").unwrap().to_string();
+
+    // get token user
+    let token_cookie = req.cookie("__Secure-Token");
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists
+        if token_user.as_ref().unwrap().success == false {
+            return HttpResponse::NotFound().body("Invalid token");
+        }
+    } else {
+        return HttpResponse::NotAcceptable().body("An account is required to do this");
+    }
+
+    // ...
+    let res = data
+        .db
+        .create_mail_stream(&mut UserMailStreamIdentifier {
+            _is_user_mail_stream: true,
+            user1: token_user.unwrap().payload.unwrap().user.username,
+            user2: name,
+        })
         .await;
 
     // return

@@ -288,6 +288,10 @@ fn ProfileView(props: &Props) -> Html {
                         {if (can_edit == false) && (props.auth_state.is_some()) && (props.auth_state.unwrap() == true) {
                             html! {
                                 <div class="flex flex-wrap g-4">
+                                    <button class="round bundles-primary" id="mail-user" data-endpoint={format!("/api/auth/users/{}/mail", &props.user.username)}>
+                                        {"Mail"}
+                                    </button>
+
                                     <button class="round bundles-primary" id="follow-user" data-endpoint={format!("/api/auth/users/{}/follow", &props.user.username)}>
                                         {if props.is_following == false {
                                             "Follow"

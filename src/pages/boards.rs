@@ -30,6 +30,7 @@ struct Props {
     pub view: String,
     pub tags: String,
     pub auth_state: Option<bool>,
+    pub me: String, // username of current user
 }
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
@@ -248,7 +249,11 @@ fn ViewBoard(props: &Props) -> Html {
                     </a>
 
                     <a class="button" href={format!("/b/{}", props.board.name)} style="border-left: 0">
-                        {props.board.name.clone()}
+                        {if props.board.name.starts_with("inbox-") {
+                            "inbox"
+                        } else {
+                            &props.board.name
+                        }}
                     </a>
                 </div>
 
@@ -262,13 +267,32 @@ fn ViewBoard(props: &Props) -> Html {
 
             <div class="toolbar-layout-wrapper">
                 <main class="flex flex-column g-4 align-center">
-                    <div class="full" id="about">
-                        <div class="flex flex-column g-4">
-                            <div class="full flex justify-space-between align-center g-4">
-                                <h5 class="no-margin">{&props.board.name}</h5>
-                                <a class="button bundles-primary round" href={format!("/b/{}/new", props.board.name)}>{"New Post"}</a>
-                            </div>
+                    <div class="full flex justify-space-between align-center g-4">
+                        <h5 class="no-margin">{if props.board.name.starts_with("inbox-") {
+                            // show OTHER USER's username if we're in an inbox
+                            let mailstream = serde_json::from_str::<bundlesdb::UserMailStreamIdentifier>(&board_m.about.as_ref().unwrap()).unwrap();
 
+                            if props.me == mailstream.user1 {
+                                mailstream.user2
+                            } else {
+                                mailstream.user1
+                            }
+                        } else {
+                            props.board.name.clone()
+                        }}</h5>
+                        <a class="button bundles-primary round" href={format!("/b/{}/new", props.board.name)}>{"New Post"}</a>
+                    </div>
+
+                    <div
+                        class="full"
+                        id="about"
+                        style={if props.board.name.starts_with("inbox-") {
+                            "display: none;"
+                        } else {
+                            ""
+                        }}
+                    >
+                        <div class="flex flex-column g-4">
                             <details class="full round">
                                 <summary>{"Board Information"}</summary>
 
@@ -459,10 +483,16 @@ pub async fn view_board_request(
                 .body("You do not have permission to view this board's contents.");
         }
 
-        // not owner
-        let user = token_user.unwrap().payload.unwrap();
+        // not owner and not included in UserMailStreamIdentifier content (and not staff)
+        let user = token_user.as_ref().unwrap().payload.as_ref().unwrap();
 
         if (user.user.username != metadata.owner)
+            && (metadata.about.is_some()
+                && !metadata
+                    .about
+                    .as_ref()
+                    .unwrap()
+                    .contains(&format!(":\"{}\"", user.user.username)))
             && (user
                 .level
                 .permissions
@@ -541,6 +571,11 @@ pub async fn view_board_request(
         } else {
             Option::Some(false)
         },
+        me: if token_user.as_ref().is_some() && token_user.as_ref().unwrap().success {
+            token_user.unwrap().payload.unwrap().user.username
+        } else {
+            String::new()
+        },
     });
 
     let render = renderer.render();
@@ -581,7 +616,11 @@ fn CreateBoardPost(props: &PostProps) -> Html {
                     </a>
 
                     <a class="button" href={format!("/b/{}", props.board.name)} style="border-left: 0">
-                        {props.board.name.clone()}
+                        {if props.board.name.starts_with("inbox-") {
+                            "inbox"
+                        } else {
+                            &props.board.name
+                        }}
                     </a>
                 </div>
 
@@ -734,10 +773,16 @@ pub async fn create_board_post_request(
                 .body("You do not have permission to view this board's contents.");
         }
 
-        // not owner
+        // not owner and not included in UserMailStreamIdentifier content (and not staff)
         let user = token_user.unwrap().payload.unwrap();
 
         if (user.user.username != metadata.owner)
+            && (metadata.about.is_some()
+                && !metadata
+                    .about
+                    .as_ref()
+                    .unwrap()
+                    .contains(&format!(":\"{}\"", user.user.username)))
             && (user
                 .level
                 .permissions
@@ -867,7 +912,11 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                     </a>
 
                     <a class="button" href={format!("/b/{}", props.board.name)} style="border-left: 0">
-                        {props.board.name.clone()}
+                        {if props.board.name.starts_with("inbox-") {
+                            "inbox"
+                        } else {
+                            &props.board.name
+                        }}
                     </a>
                 </div>
             </div>
@@ -880,7 +929,7 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
                     {if (props.edit == false && props.edit_tags == false) | (can_edit == false) {
                         html! { <>
                             {if post.topic.is_some() {
-                                html! { <h1 style="margin-top: 0; margin-bottom: 1rem; max-width: 100%;">{post.topic.unwrap()}</h1> }
+                                html! { <h3 style="margin-top: 0; margin-bottom: 1rem; max-width: 100%;">{post.topic.unwrap()}</h3> }
                             } else {
                                 html! {}
                             }}

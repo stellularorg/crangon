@@ -60,5 +60,32 @@ if (follow_button) {
     });
 }
 
+// mail
+const mail_button: HTMLButtonElement | null = document.getElementById(
+    "mail-user"
+) as HTMLButtonElement | null;
+
+if (mail_button) {
+    // mail user
+    mail_button.addEventListener("click", async (e) => {
+        e.preventDefault();
+        const res = await fetch(mail_button.getAttribute("data-endpoint")!, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
+
+        const json = await res.json();
+
+        if (json.success === false) {
+            error.style.display = "block";
+            error.innerHTML = `<div class="mdnote-title">${json.message}</div>`;
+        } else {
+            window.location.href = `/b/${json.payload.name}`;
+        }
+    });
+}
+
 // default export
 export default {};

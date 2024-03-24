@@ -139,6 +139,7 @@ pub struct UserMetadata {
     pub about: String,
     pub avatar_url: Option<String>,
     pub secondary_token: Option<String>,
+    pub allow_mail: Option<String>, // yes/no
 }
 
 #[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
@@ -197,6 +198,14 @@ pub struct BoardPostLog {
 pub struct BoardIdentifier {
     pub name: String,
     pub tags: String,
+}
+
+#[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
+// Takes the place of "about" in BoardMetadata, identifies a board as a user mail stream
+pub struct UserMailStreamIdentifier {
+    pub _is_user_mail_stream: bool, // always going to be true ... cannot be edited into board about ANYWHERE
+    pub user1: String,              // username of first user
+    pub user2: String,              // username of second user
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
@@ -717,6 +726,7 @@ impl BundlesDB {
                     about: String::new(),
                     avatar_url: Option::None,
                     secondary_token: Option::None,
+                    allow_mail: Option::Some(String::from("yes")),
                 })
                 .unwrap(),
             )
@@ -2036,6 +2046,120 @@ impl BundlesDB {
         };
     }
 
+    /// Get a [`UserMailStreamIdentifier`] [`Board`] by its users
+    ///
+    /// # Arguments:
+    /// * `props` - [`UserMailStreamIdentifier`]
+    #[allow(dead_code)]
+    pub async fn get_mail_stream_by_users(
+        &self,
+        props: UserMailStreamIdentifier,
+    ) -> DefaultReturn<Option<Board<String>>> {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Boards\" WHERE \"metadata\" LIKE ?"
+        } else {
+            "SELECT * FROM \"Boards\" WHERE \"metadata\" LIKE $1"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&format!(
+                "%\"about\":\"{}\"%",
+                serde_json::to_string::<UserMailStreamIdentifier>(&props)
+                    .unwrap()
+                    .replace("\"", "\\\"")
+            ))
+            .fetch_one(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Board does not exist"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let row = res.unwrap();
+        let row = self.textify_row(row).data;
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Board exists"),
+            payload: Option::Some(Board {
+                name: row.get("name").unwrap().to_string(),
+                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+                metadata: row.get("metadata").unwrap().to_string(),
+            }),
+        };
+    }
+
+    /// Get all [`UserMailStreamIdentifier`] [`Board`] by a single participating user
+    ///
+    /// # Arguments:
+    /// * `user` - username of the user
+    /// * `offset` - optional value representing the SQL fetch offset
+    pub async fn get_user_mail_streams(
+        &self,
+        user: String,
+        offset: Option<i32>,
+    ) -> DefaultReturn<Vec<BoardIdentifier>> {
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "SELECT * FROM \"Boards\" WHERE \"metadata\" LIKE ? OR \"metadata\" LIKE ? ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
+        } else {
+            "SELECT * FROM \"Boards\" WHERE \"metadata\" LIKE $1 OR \"metadata\" LIKE $2 ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $3"
+        };
+
+        let c = &self.db.client;
+        let res = sqlx::query(query)
+            .bind::<&String>(&format!("%\\\"user1\\\":\\\"{}\\\"%", user))
+            .bind::<&String>(&format!("%\\\"user2\\\":\\\"{}\\\"%", user))
+            .bind(if offset.is_some() { offset.unwrap() } else { 0 })
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Boards do not exist"),
+                payload: Vec::new(),
+            };
+        }
+
+        // ...
+        let rows = res.unwrap();
+        let mut output: Vec<BoardIdentifier> = Vec::new();
+
+        for row in rows {
+            let row = self.textify_row(row).data;
+
+            let metadata =
+                serde_json::from_str::<BoardMetadata>(row.get("metadata").unwrap()).unwrap();
+
+            let mailstream =
+                serde_json::from_str::<UserMailStreamIdentifier>(&metadata.about.unwrap()).unwrap();
+
+            output.push(BoardIdentifier {
+                name: row.get("name").unwrap().to_string(),
+                // we're going to use tags to store the name of the other user
+                tags: if user == mailstream.user1 {
+                    mailstream.user2
+                } else {
+                    mailstream.user1
+                },
+            });
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Boards exists"),
+            payload: output,
+        };
+    }
+
     /// Get public [`Board`]s
     ///
     /// # Arguments:
@@ -2783,6 +2907,123 @@ impl BundlesDB {
         };
     }
 
+    /// Create a new [`Board`] given various [properties](UserMailStreamIdentifier)
+    ///
+    /// # Arguments:
+    /// * `props` - [`UserMailStreamIdentifier`]
+    pub async fn create_mail_stream(
+        &self,
+        props: &mut UserMailStreamIdentifier,
+    ) -> DefaultReturn<Option<Board<String>>> {
+        let p: &mut UserMailStreamIdentifier = props; // borrowed props
+
+        // create default metadata
+        let metadata: BoardMetadata = BoardMetadata {
+            owner: String::new(),
+            is_private: String::from("yes"),
+            allow_anonymous: Option::Some(String::from("no")),
+            allow_open_posting: Option::Some(String::from("yes")),
+            topic_required: Option::Some(String::from("no")), // change to "yes" for a more inbox-like thing
+            about: Option::Some(
+                serde_json::to_string::<UserMailStreamIdentifier>(&p.clone()).unwrap(),
+            ),
+            tags: Option::None,
+        };
+
+        // check values
+
+        // make sure board does not exist
+        let existing: DefaultReturn<Option<Board<String>>> =
+            self.get_mail_stream_by_users(props.to_owned()).await;
+
+        if existing.success {
+            return DefaultReturn {
+                success: true, // return true so client still redirects
+                message: String::from("Board already exists!"),
+                payload: existing.payload, // return existing board if it does
+            };
+        }
+
+        // make sure board does not exist
+        let existing: DefaultReturn<Option<Board<String>>> = self
+            .get_mail_stream_by_users(UserMailStreamIdentifier {
+                _is_user_mail_stream: true,
+                user1: props.user2.clone(),
+                user2: props.user1.clone(),
+            })
+            .await;
+
+        if existing.success {
+            return DefaultReturn {
+                success: true, // return true so client still redirects
+                message: String::from("Board already exists!"),
+                payload: existing.payload, // return existing board if it does
+            };
+        }
+
+        // make sure other user exists (user1 should be the current user)
+        let existing: DefaultReturn<Option<FullUser<String>>> =
+            self.get_user_by_username(props.user2.clone()).await;
+
+        if !existing.success {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Other user is invalid"),
+                payload: Option::None,
+            };
+        }
+
+        // check user permissions
+        let user2_metadata =
+            serde_json::from_str::<UserMetadata>(&existing.payload.unwrap().user.metadata).unwrap();
+
+        if user2_metadata.allow_mail.is_some()
+            && user2_metadata.allow_mail.as_ref().unwrap() == "no"
+        {
+            return DefaultReturn {
+                success: false,
+                message: String::from("User is not accepting mail"),
+                payload: Option::None,
+            };
+        }
+
+        // create board
+        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+            "INSERT INTO \"Boards\" VALUES (?, ?, ?)"
+        } else {
+            "INSERT INTO \"Boards\" VALUES ($1, $2, $3)"
+        };
+
+        let c = &self.db.client;
+        let p: &mut Board<String> = &mut Board {
+            name: format!("inbox-{}", utility::random_id()),
+            timestamp: utility::unix_epoch_timestamp(),
+            metadata: String::new(),
+        };
+
+        let res = sqlx::query(query)
+            .bind::<&String>(&p.name)
+            .bind::<&String>(&p.timestamp.to_string())
+            .bind::<&String>(&serde_json::to_string(&metadata).unwrap())
+            .execute(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: res.err().unwrap().to_string(),
+                payload: Option::None,
+            };
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Created board"),
+            payload: Option::Some(p.to_owned()),
+        };
+    }
+
     /// Create a new post in a given [`Board`]
     ///
     /// # Arguments:
@@ -2939,6 +3180,21 @@ impl BundlesDB {
                 message: String::from(
                     "You do not have permission to manage this board's contents.",
                 ),
+                payload: Option::None,
+            };
+        }
+
+        // make sure we're not trying to convert this to a mail stream
+        if metadata.about.is_some()
+            && metadata
+                .about
+                .as_ref()
+                .unwrap()
+                .contains("\"_is_user_mail_stream\":true")
+        {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Cannot conver this board into a user mail stream."),
                 payload: Option::None,
             };
         }
