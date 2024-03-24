@@ -280,10 +280,10 @@ fn ProfileView(props: &Props) -> Html {
 
                     <div class="flex justify-space-between align-center mobile:flex-column g-4 flex-wrap">
                         <div class="flex align-center g-4 flex-wrap" style="max-width: 100%;">
-                            <AvatarDisplay size={55} username={props.user.username.clone()} />
+                            <AvatarDisplay size={60} username={props.user.username.clone()} />
 
-                            <div class="flex flex-column" style="max-width: calc(100% - 55px - var(--u-04));">
-                                <h2 class="no-margin" id="user-fake-name" style="max-width: 100%;">
+                            <div class="flex flex-column" style="max-width: 100%; min-width: max-content;">
+                                <h2 class="no-margin" id="user-fake-name" style="max-width: 100vw;">
                                     {if meta.nickname.is_some() {
                                         meta.nickname.unwrap()
                                     } else {
