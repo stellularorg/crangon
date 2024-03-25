@@ -210,17 +210,10 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
 
     // only a little bit of regex-ing remains now
 
-    // unescape arrow alignment
-    out = regex_replace(&out, "-&gt;&gt;", "->>");
-    out = regex_replace(&out, "&lt;&lt;-", "<<-");
-
-    out = regex_replace(&out, "-&gt;", "->");
-    out = regex_replace(&out, "&lt;-", "<-");
-
     // allowed elements
     let allowed_elements: Vec<&str> = Vec::from([
         "hue", "sat", "lit", "theme", "comment", "p", "span", "style", "img", "div", "a", "b", "i",
-        "strong", "em",
+        "strong", "em", "r", "rf",
     ]);
 
     for element in allowed_elements {
@@ -278,7 +271,7 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
         // replace
         out = out.replacen(
             capture.get(0).unwrap().as_str(),
-            &format!("<span style=\"color: {color}\">{content}</span>"),
+            &format!("<span style=\"color: {color}\" role=\"custom-color\">{content}</span>"),
             1,
         );
     }
@@ -338,7 +331,7 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
 
         out = out.replacen(
             _match,
-            &format!("<rf style=\"justify-content: {align}\">{content}</rf>\n"),
+            &format!("<rf class=\"justify-{align}\">{content}</rf>\n"),
             1,
         );
     }
@@ -362,10 +355,63 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
 
         out = out.replacen(
             _match,
-            &format!("<r style=\"text-align: {align}\">{content}</r>\n"),
+            &format!("<r class=\"text-{align}\">{content}</r>\n"),
             1,
         );
     }
+
+    // some bbcode stuff
+    out = regex_replace(&out, r"\[b\](.*?)\[/b\]", "<strong>$1</strong>"); // bold
+    out = regex_replace(&out, r"\[i\](.*?)\[/i\]", "<strong>$1</strong>"); // italic
+
+    out = regex_replace(
+        // underline
+        &out,
+        r"\[u\](.*?)\[/u\]",
+        "<span style=\"text-decoration: underline;\" role=\"underline\">$1</span>",
+    );
+
+    out = regex_replace(&out, r"\[c\](.*?)\[/c\]", "<r class=\"text-center\">$1</r>"); // center
+    out = regex_replace(&out, r"\[r\](.*?)\[/r\]", "<r class=\"text-right\">$1</r>"); // right
+
+    out = regex_replace(
+        // text color
+        &out,
+        r"\[t (.*?)\](.*?)\[/t\]",
+        "<span style=\"color: $1;\" role=\"custom-color\">$2</span>",
+    );
+
+    out = regex_replace(
+        // message
+        &out,
+        r"\[m (.*?)\](.*?)\[/m\]",
+        "<span title=\"$1\" role=\"custom-message\">$2</span>",
+    );
+
+    out = regex_replace(
+        // highlight
+        &out,
+        r"\[h\](.*?)\[/h\]",
+        "<span class=\"highlight\">$1</span>",
+    );
+
+    out = regex_replace(
+        // highlight
+        &out,
+        r"\[h\](.*?)\[/h\]",
+        "<span class=\"highlight\">$1</span>",
+    );
+
+    for i in 0..7 {
+        // headings
+        out = regex_replace(
+            &out,
+            &format!(r"\[h{i}\](.*?)\[/h{i}\]"),
+            &format!("<h{i}>$1</h{i}>"),
+        );
+    }
+
+    out = regex_replace(&out, r"\[/\]", "<br />"); // line break
 
     // bath time
     out = regex_replace(&out, "^(on)(.*)\\=(.*)\"$", "");

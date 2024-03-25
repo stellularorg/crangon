@@ -395,7 +395,7 @@ export default function CreateEditor(ElementID: string, content: string) {
             ...foldKeymap,
             ...completionKeymap,
             ...lintKeymap,
-            indentWithTab
+            indentWithTab,
         ]),
         keymap.of(markdownKeymap),
     ];
