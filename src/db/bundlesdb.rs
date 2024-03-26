@@ -146,8 +146,9 @@ pub struct UserMetadata {
     pub about: String,
     pub avatar_url: Option<String>,
     pub secondary_token: Option<String>,
-    pub allow_mail: Option<String>, // yes/no
-    pub nickname: Option<String>,   // user display name
+    pub allow_mail: Option<String>,    // yes/no
+    pub nickname: Option<String>,      // user display name
+    pub page_template: Option<String>, // profile handlebars template
 }
 
 #[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
@@ -736,6 +737,7 @@ impl BundlesDB {
                     secondary_token: Option::None,
                     allow_mail: Option::Some(String::from("yes")),
                     nickname: Option::Some(username.clone()),
+                    page_template: Option::Some(crate::pages::auth::profile_view_hb_template()),
                 })
                 .unwrap(),
             )

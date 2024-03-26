@@ -1,10 +1,10 @@
 use actix_web::HttpResponse;
 use actix_web::{get, web, HttpRequest, Responder};
 
+use serde_json::json;
 use yew::prelude::*;
 use yew::ServerRenderer;
 
-use crate::components::avatar::AvatarDisplay;
 use crate::db::bundlesdb::{self, AppData, FullUser, UserFollow, UserMetadata, UserState};
 use crate::utility;
 use crate::utility::format_html;
@@ -244,24 +244,259 @@ pub async fn login_secondary_token_request(req: HttpRequest) -> impl Responder {
         ));
 }
 
+pub fn profile_view_hb_template() -> String {
+    String::from("<main class=\"small flex flex-column g-4\">
+    <div id=\"error\" class=\"mdnote note-error full\" style=\"display: none\"></div>
+    <div id=\"success\" class=\"mdnote note-note full\" style=\"display: none\"></div>
+
+    <div
+        class=\"flex justify-space-between align-center mobile:flex-column g-4 flex-wrap\"
+    >
+        <div class=\"flex align-center g-4 flex-wrap\" style=\"max-width: 100%\">
+            {{{ avatar }}} {{{ username_display }}}
+        </div>
+
+        {{{ user_actions }}}
+    </div>
+
+    <div class=\"card secondary round\">
+        <div id=\"stats-or-info\" class=\"flex flex-column g-4\">
+            <details class=\"round border\" open>
+                <summary>Info</summary>
+
+                <table class=\"full\" style=\"margin: 0\">
+                    <thead>
+                        <tr>
+                            <th>Key</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <tr>
+                            <td>Level</td>
+                            <td>{{{ level_badge }}}</td>
+                        </tr>
+                        <tr>
+                            <td>Joined</td>
+                            <td>
+                                <span class=\"date-time-to-localize\">
+                                    {{ user.timestamp }}
+                                </span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </details>
+
+            <details class=\"round border\">
+                <summary>Statistics</summary>
+
+                <table class=\"full\" style=\"margin: 0\">
+                    <thead>
+                        <tr>
+                            <th>Key</th>
+                            <th>Value</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <tr>
+                            <td>Pastes</td>
+                            <td>{{ paste_count }}</td>
+                        </tr>
+
+                        <tr>
+                            <td>Boards</td>
+                            <td>{{ board_count }}</td>
+                        </tr>
+
+                        <tr>
+                            <td>Posts</td>
+                            <td>{{ post_count }}</td>
+                        </tr>
+
+                        <tr>
+                            <td>Followers</td>
+                            <td>{{{ followers_button }}}</td>
+                        </tr>
+
+                        <tr>
+                            <td>Following</td>
+                            <td>{{{ following_button }}}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </details>
+        </div>
+
+        <hr />
+
+        <div class=\"flex flex-column g-4\">
+            <div class=\"card round\" id=\"description\">
+                {{{ about }}}
+                {{{ edit_about_button }}}
+            </div>
+        </div>
+    </div>
+</main>")
+}
+
 #[function_component]
 fn ProfileView(props: &Props) -> Html {
     let meta = serde_json::from_str::<UserMetadata>(&props.user.metadata).unwrap();
 
+    // ...
     let can_edit = props.active_user.is_some()
         && props.active_user.as_ref().unwrap().username == props.user.username;
 
+    // template
+    let avatar = format!(
+        "<img
+        class=\"avatar\"
+        style=\"--size: {}px;\"
+        src=\"/api/auth/users/{}/avatar\"
+    />",
+        60, props.user.username
+    );
+
+    let username_c = props.user.username.clone();
+    let username_display = format!(
+        "<div class=\"flex flex-column\" style=\"max-width: 100%; min-width: max-content\">
+        <h2 class=\"no-margin\" id=\"user-fake-name\" style=\"max-width: 100vw\">{}</h2>
+    
+        <span id=\"user-real-name\">{}</span>
+    </div>",
+        if meta.nickname.is_some() {
+            meta.nickname.as_ref().unwrap()
+        } else {
+            &username_c
+        },
+        props.user.username
+    );
+
+    let about = if props.edit_mode == true {
+        // edit mode form
+        format!("<form id=\"edit-about\" class=\"flex flex-column g-4\" data-endpoint=\"/api/auth/users/{}/about\">
+            <div class=\"full flex justify-space-between align-center g-4\">
+                <b>Edit About</b>
+        
+                <button class=\"bundles-primary round\">
+                    <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-save\"><path d=\"M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z\"/><polyline points=\"17 21 17 13 7 13 7 21\"/><polyline points=\"7 3 7 8 15 8\"/></svg>
+                    Save
+                </button>
+            </div>
+        
+            <textarea
+                type=\"text\"
+                name=\"about\"
+                id=\"about\"
+                placeholder=\"About\"
+                class=\"full round\"
+                minlength=\"2\"
+                maxlength=\"200000\"
+                required
+            >{}</textarea>
+        </form>", props.user.username, meta.about.replace("\"", "\\\""))
+    } else {
+        // just show about
+        crate::markdown::render::parse_markdown(&meta.about.clone())
+    };
+
+    let edit_about_button = if can_edit == true && props.edit_mode == false {
+        "<a class=\"button round bundles-primary\" href=\"?edit=true\">Edit About</a>"
+    } else {
+        ""
+    };
+
+    let followers_button = format!(
+        "<a href=\"/~{}/followers\">{}</a>",
+        props.user.username, props.follower_count
+    );
+
+    let following_button = format!(
+        "<a href=\"/~{}/following\">{}</a>",
+        props.user.username, props.following_count
+    );
+
+    let user_actions = format!(
+        "{}",
+        if (can_edit == false)
+            && (props.auth_state.is_some())
+            && (props.auth_state.unwrap() == true)
+        {
+            format!(
+                "<div class=\"flex flex-wrap g-4\">
+                    <button class=\"round bundles-primary\" id=\"mail-user\" data-endpoint=\"/api/auth/users/{}/mail\">Mail</button>
+                    <button class=\"round bundles-primary\" id=\"follow-user\" data-endpoint=\"/api/auth/users/{}/follow\">{}</button>
+                </div>", 
+                props.user.username, 
+                props.user.username, 
+                if props.is_following == false {
+                    "Follow"
+                } else {
+                    "Unfollow"
+                }
+            )
+        } else {
+            String::new()
+        }
+    );
+
+    let level_badge = format!("<span class=\"chip badge role-{}\">{}</span>", props.user.role, props.user.role);
+
+    // render template
+    let default_template = &profile_view_hb_template();
+    let reg = handlebars::Handlebars::new();
+    let page = reg.render_template(
+        if meta.page_template.is_some() {
+            meta.page_template.as_ref().unwrap() // use provided template
+        } else {
+            default_template // use default template
+        },
+        &json!({
+            // user info
+            "username": props.user.username,
+            "about": about,
+            "paste_count": props.paste_count,
+            "board_count": props.board_count,
+            "post_count": props.post_count,
+            // components
+            "avatar": avatar,
+            "username_display": username_display,
+            "edit_about_button": edit_about_button,
+            "followers_button": followers_button,
+            "following_button": following_button,
+            "user_actions": user_actions,
+            "level_badge": level_badge,
+            // ...
+            "user": props.user,
+            "metadata": meta.clone()
+        }),
+    );
+
+    if page.is_err() {
+        return html! { <div>{page.err().unwrap().to_string()}</div> };
+    }
+
+    // ...
+    // TODO: properly sanitize if needed
+    let page =
+        Html::from_html_unchecked(AttrValue::from(page.unwrap().replace("fetch(", "fetch(\\")));
+
+    // ...
     return html! {
         <div class="flex flex-column" style="height: 100dvh;">
             <div class="toolbar flex justify-space-between">
                 // left
                 <div class="flex">
-                    <a class="button" href="/" style="border-left: 0">
+                    <a class="button device:desktop" href="/" style="border-left: 0">
                         <b>{"::SITE_NAME::"}</b>
                     </a>
 
                     <a class="button" href={format!("/~{}", props.user.username)} style="border-left: 0">
                         {&props.user.username}
+                        <span class={format!("chip badge role-{}", props.user.role)} style="padding: 0 0.5rem;">{&props.user.role}</span>
                     </a>
                 </div>
 
@@ -274,142 +509,15 @@ fn ProfileView(props: &Props) -> Html {
             </div>
 
             <div class="toolbar-layout-wrapper">
-                <main class="small flex flex-column g-4">
-                    <div id="error" class="mdnote note-error full" style="display: none;" />
-                    <div id="success" class="mdnote note-note full" style="display: none;" />
+                {page}
 
-                    <div class="flex justify-space-between align-center mobile:flex-column g-4 flex-wrap">
-                        <div class="flex align-center g-4 flex-wrap" style="max-width: 100%;">
-                            <AvatarDisplay size={60} username={props.user.username.clone()} />
-
-                            <div class="flex flex-column" style="max-width: 100%; min-width: max-content;">
-                                <h2 class="no-margin" id="user-fake-name" style="max-width: 100vw;">
-                                    {if meta.nickname.is_some() {
-                                        meta.nickname.unwrap()
-                                    } else {
-                                        props.user.username.clone()
-                                    }}
-                                </h2>
-
-                                <span id="user-real-name">{&props.user.username}</span>
-                            </div>
-                        </div>
-
-                        // must not be receiver and must still be authenticated
-                        {if (can_edit == false) && (props.auth_state.is_some()) && (props.auth_state.unwrap() == true) {
-                            html! {
-                                <div class="flex flex-wrap g-4">
-                                    <button class="round bundles-primary" id="mail-user" data-endpoint={format!("/api/auth/users/{}/mail", &props.user.username)}>
-                                        {"Mail"}
-                                    </button>
-
-                                    <button class="round bundles-primary" id="follow-user" data-endpoint={format!("/api/auth/users/{}/follow", &props.user.username)}>
-                                        {if props.is_following == false {
-                                            "Follow"
-                                        } else {
-                                            "Unfollow"
-                                        }}
-                                    </button>
-                                    // direct messages will likely just be all within the same board with "is_private" enabled
-                                    // <button class="round bundles-primary" disabled={true}>{"Message"}</button>
-                                </div>
-                            }
-                        } else {
-                            html! {}
-                        }}
-                    </div>
-
-                    <div class="card secondary round">
-                        <div id="stats-or-info" class="flex flex-column g-4">
-                            <details class="round border" open={true}>
-                                <summary>{"Info"}</summary>
-
-                                <table class="full" style="margin: 0;">
-                                    <thead>
-                                        <th>{"Key"}</th>
-                                        <th>{"Value"}</th>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr><td>{"Level"}</td><td><span class={format!("chip badge role-{}", props.user.role)}>{&props.user.role}</span></td></tr>
-                                        <tr><td>{"Joined"}</td><td><span class="date-time-to-localize">{&props.user.timestamp}</span></td></tr>
-                                    </tbody>
-                                </table>
-                            </details>
-
-                            <details class="round border" open={false}>
-                                <summary>{"Statistics"}</summary>
-
-                                <table class="full" style="margin: 0;">
-                                    <thead>
-                                        <th>{"Key"}</th>
-                                        <th>{"Value"}</th>
-                                    </thead>
-
-                                    <tbody>
-                                        <tr><td>{"Pastes"}</td><td>{&props.paste_count}</td></tr>
-                                        <tr><td>{"Boards"}</td><td>{&props.board_count}</td></tr>
-                                        <tr><td>{"Posts"}</td><td>{&props.post_count}</td></tr>
-                                        <tr><td>{"Followers"}</td><td><a href={format!("/~{}/followers", props.user.username)}>{&props.follower_count}</a></td></tr>
-                                        <tr><td>{"Following"}</td><td><a href={format!("/~{}/following", props.user.username)}>{&props.following_count}</a></td></tr>
-                                    </tbody>
-                                </table>
-                            </details>
-                        </div>
-
-                        <hr />
-
-                        <div class="flex flex-column g-4">
-                            <div class="card round" id="description">
-                                {if props.edit_mode == false {
-                                    // view mode
-                                    // TODO: maybe store meta.about in meta.about_html and update it when profile about updates...
-                                    let content = Html::from_html_unchecked(AttrValue::from(
-                                        crate::markdown::render::parse_markdown(&meta.about)
-                                    ));
-
-                                    html! { {content} }
-                                } else {
-                                    // edit mode
-                                    html! { <form id="edit-about" class="flex flex-column g-4" data-endpoint={format!("/api/auth/users/{}/about", &props.user.username)}>
-                                        <div class="full flex justify-space-between align-center g-4">
-                                            <b>{"Edit About"}</b>
-
-                                            <button class="bundles-primary round">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                                                {"Save"}
-                                            </button>
-                                        </div>
-
-                                        <textarea
-                                            type="text"
-                                            name="about"
-                                            id="about"
-                                            placeholder="About"
-                                            class="full round"
-                                            value={meta.about}
-                                            minlength={2}
-                                            maxlength={200_000}
-                                            required={true}
-                                        ></textarea>
-                                    </form> }
-                                }}
-
-                                {if (can_edit == true) && (props.edit_mode == false) {
-                                    html! { <a class="button round bundles-primary" href="?edit=true">{"Edit About"}</a> }
-                                } else {
-                                    html! {}
-                                }}
-                            </div>
-                        </div>
-                    </div>
-
-                    <script type="module">
-                        {"import \"/static/js/ProfileView.js\";"}
-                    </script>
-
+                <main class="small">
                     <Footer auth_state={props.auth_state} />
                 </main>
+
+                <script type="module">
+                    {"import \"/static/js/ProfileView.js\";"}
+                </script>
             </div>
         </div>
     };
