@@ -66,6 +66,7 @@ pub struct PasteMetadata {
     pub favicon: Option<String>,
     pub embed_color: Option<String>,
     pub view_password: Option<String>,
+    pub page_template: Option<String>, // handlebars formatted page template
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
@@ -870,6 +871,7 @@ impl BundlesDB {
                         "LOCKED(USER_BANNED)-{}",
                         crate::utility::random_id()
                     )),
+                    page_template: Option::Some(String::new()),
                 })
                 .unwrap(),
             )
@@ -1431,6 +1433,7 @@ impl BundlesDB {
             favicon: Option::None,
             embed_color: Option::Some(String::from("#ff9999")),
             view_password: Option::None,
+            page_template: Option::Some(crate::pages::paste_view::paste_view_hb_template()),
         };
 
         // check values

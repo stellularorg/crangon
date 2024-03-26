@@ -362,7 +362,8 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
 
     // some bbcode stuff
     out = regex_replace(&out, r"\[b\](.*?)\[/b\]", "<strong>$1</strong>"); // bold
-    out = regex_replace(&out, r"\[i\](.*?)\[/i\]", "<strong>$1</strong>"); // italic
+    out = regex_replace(&out, r"\[i\](.*?)\[/i\]", "<em>$1</em>"); // italic
+    out = regex_replace(&out, r"\[bi\](.*?)\[/bi\]", "<strong><em>$1</em></strong>"); // bold + italic
 
     out = regex_replace(
         // underline
@@ -371,17 +372,17 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
         "<span style=\"text-decoration: underline;\" role=\"underline\">$1</span>",
     );
 
-    out = regex_replace(&out, r"\[c\](.*?)\[/c\]", "<r class=\"text-center\">$1</r>"); // center
-    out = regex_replace(&out, r"\[r\](.*?)\[/r\]", "<r class=\"text-right\">$1</r>"); // right
+    out = regex_replace_dmnl(&out, r"\[c\](.*?)\[/c\]", "<r class=\"text-center\">$1</r>"); // center
+    out = regex_replace_dmnl(&out, r"\[r\](.*?)\[/r\]", "<r class=\"text-right\">$1</r>"); // right
 
-    out = regex_replace(
+    out = regex_replace_dmnl(
         // text color
         &out,
         r"\[t (.*?)\](.*?)\[/t\]",
         "<span style=\"color: $1;\" role=\"custom-color\">$2</span>",
     );
 
-    out = regex_replace(
+    out = regex_replace_dmnl(
         // message
         &out,
         r"\[m (.*?)\](.*?)\[/m\]",
@@ -402,16 +403,30 @@ pub fn from_tree(tree: &Pairs<'_, Rule>, mut original_in: String) -> String {
         "<span class=\"highlight\">$1</span>",
     );
 
-    for i in 0..7 {
+    for i in 1..7 {
         // headings
         out = regex_replace(
             &out,
             &format!(r"\[h{i}\](.*?)\[/h{i}\]"),
-            &format!("<h{i}>$1</h{i}>"),
+            &format!("<h{i} id=\"$1\">$1</h{i}>"),
         );
     }
 
     out = regex_replace(&out, r"\[/\]", "<br />"); // line break
+
+    out = regex_replace(
+        // code
+        &out,
+        r"\[cl\](.*?)\[/cl\]",
+        "<code>$1</code>",
+    );
+
+    out = regex_replace_dmnl(
+        // fenced code
+        &out,
+        r"\[src (.*?)\]\n(.*?)\n\[/src\]",
+        "<pre class=\"lang-$1\"><code>$2</code></pre>",
+    );
 
     // bath time
     out = regex_replace(&out, "^(on)(.*)\\=(.*)\"$", "");
@@ -434,6 +449,16 @@ pub fn parse_markdown(input: &str) -> String {
 fn regex_replace(input: &str, pattern: &str, replace_with: &str) -> String {
     RegexBuilder::new(pattern)
         .multi_line(true)
+        .build()
+        .unwrap()
+        .replace_all(input, replace_with)
+        .to_string()
+}
+
+fn regex_replace_dmnl(input: &str, pattern: &str, replace_with: &str) -> String {
+    RegexBuilder::new(pattern)
+        .multi_line(true)
+        .dot_matches_new_line(true)
         .build()
         .unwrap()
         .replace_all(input, replace_with)

@@ -48,7 +48,11 @@ export function paste_settings(
             // ...
             let meta_value = metadata[current_property];
             if (typeof meta_value === "string" || meta_value === null) {
-                const use = current_property === "about" ? "textarea" : "input";
+                const use =
+                    current_property === "about" ||
+                    current_property === "page_template"
+                        ? "textarea"
+                        : "input";
                 option_render = `<${use} 
                     type="text" 
                     name="${current_property}" 

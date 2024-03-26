@@ -1,12 +1,14 @@
 use actix_web::HttpResponse;
 use actix_web::{get, web, HttpRequest, Responder};
 
+use serde_json::json;
 use yew::prelude::*;
 use yew::ServerRenderer;
 
 use crate::db::bundlesdb::{
     self, AppData, FullPaste, FullUser, Paste, PasteMetadata, UserMetadata,
 };
+
 use crate::utility;
 use crate::utility::format_html;
 
@@ -31,10 +33,43 @@ struct DashboardProps {
     pub offset: i32,
 }
 
+pub fn paste_view_hb_template() -> String {
+    String::from("<div
+    id=\"editor-tab-preview\"
+    class=\"card round secondary tab-container secondary round\"
+    style=\"height: max-content; max-height: initial; margin-bottom: 0px;\"
+>
+    {{{ content }}}
+</div>
+
+<div class=\"flex justify-space-between g-4 full\" id=\"paste-info-box\">
+    <div class=\"flex g-4 flex-wrap mobile:flex-column\">
+        {{{ edit_button }}}
+        {{{ config_button }}}
+    </div>
+
+    <div class=\"flex flex-column g-2 text-right\" style=\"color: var(--text-color-faded); min-width: max-content;\">
+        <span class=\"flex justify-center g-4\" id=\"paste-info-pub\">
+            <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-cake-slice\"><circle cx=\"9\" cy=\"7\" r=\"2\"/><path d=\"M7.2 7.9 3 11v9c0 .6.4 1 1 1h16c.6 0 1-.4 1-1v-9c0-2-3-6-7-8l-3.6 2.6\"/><path d=\"M16 13H3\"/><path d=\"M16 17H3\"/></svg>
+            Pub: <span class=\"date-time-to-localize\">{{ pub_date }}</span>
+        </span>
+
+        <span class=\"flex justify-center g-4\" id=\"paste-info-edit\">
+            <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-pencil\"><path d=\"M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z\"/><path d=\"m15 5 4 4\"/></svg>
+            Edit: <span class=\"date-time-to-localize\">{{ edit_date }}</span>
+        </span>
+
+        <span id=\"paste-info-owner\">
+            Owner: {{{ owner_button }}}
+        </span>
+
+        <span id=\"paste-info-views\">Views: {{ views }}</span>
+    </div>
+</div>")
+}
+
 #[function_component]
 fn PasteView(props: &Props) -> Html {
-    let content = Html::from_html_unchecked(AttrValue::from(props.paste.content_html.clone()));
-
     let metadata = &props.paste.metadata;
     let user_metadata = if props.user.is_some() {
         Option::Some(
@@ -45,65 +80,65 @@ fn PasteView(props: &Props) -> Html {
         Option::None
     };
 
+    // template things
+    let edit_button = format!("<a class=\"button round\" href=\"/?editing={}\">
+        <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-pencil\"><path d=\"M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z\"/><path d=\"m15 5 4 4\"/></svg>
+        Edit
+    </a>", &props.paste.custom_url);
+
+    let config_button = format!("<a href=\"/d/settings/paste/{}\" class=\"button border round\">
+        <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-file-cog\"><path d=\"M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v2\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><circle cx=\"6\" cy=\"14\" r=\"3\"/><path d=\"M6 10v1\"/><path d=\"M6 17v1\"/><path d=\"M10 14H9\"/><path d=\"M3 14H2\"/><path d=\"m9 11-.88.88\"/><path d=\"M3.88 16.12 3 17\"/><path d=\"m9 17-.88-.88\"/><path d=\"M3.88 11.88 3 11\"/></svg>
+        Config
+    </a>", &props.paste.custom_url);
+
+    let owner_button = format!("<a href=\"/~{}\">{}</a>", &metadata.owner, {
+        if user_metadata.is_some() && user_metadata.as_ref().unwrap().nickname.is_some() {
+            user_metadata.as_ref().unwrap().nickname.as_ref().unwrap()
+        } else {
+            &metadata.owner
+        }
+    });
+
+    // render template
+    let default_template = &paste_view_hb_template();
+    let reg = handlebars::Handlebars::new();
+    let page = reg.render_template(
+        if metadata.page_template.is_some() {
+            metadata.page_template.as_ref().unwrap() // use provided template
+        } else {
+            default_template // use default template
+        },
+        &json!({
+            // paste info
+            "content": props.paste.content_html,
+            "pub_date": props.paste.pub_date,
+            "edit_date": props.paste.edit_date,
+            "views": props.paste.views,
+            // buttons
+            "edit_button": edit_button,
+            "config_button": config_button,
+            "owner_button": owner_button,
+            // full data
+            "paste": props.paste,
+            "metadata": metadata
+        }),
+    );
+
+    if page.is_err() {
+        return html! { <div>{page.err().unwrap().to_string()}</div> };
+    }
+
+    // ...
+    // TODO: properly sanitize if needed
+    let page =
+        Html::from_html_unchecked(AttrValue::from(page.unwrap().replace("fetch(", "fetch(\\")));
+
     // default return
     return html! {
         <main class="flex flex-column g-4">
             <div id="secret" />
 
-            <div
-                id="editor-tab-preview"
-                class="card round secondary tab-container secondary round"
-                style="height: max-content; max-height: initial; margin-bottom: 0px;"
-            >
-                {content}
-            </div>
-
-            <div class="flex justify-space-between g-4 full" id="paste-info-box">
-                <div class="flex g-4 flex-wrap mobile:flex-column">
-                    <a class="button round" href={format!("/?editing={}", &props.paste.custom_url)}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                        {"Edit"}
-                    </a>
-
-                    <a href={format!("/d/settings/paste/{}", &props.paste.custom_url)} class="button border round">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-cog"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v2"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><circle cx="6" cy="14" r="3"/><path d="M6 10v1"/><path d="M6 17v1"/><path d="M10 14H9"/><path d="M3 14H2"/><path d="m9 11-.88.88"/><path d="M3.88 16.12 3 17"/><path d="m9 17-.88-.88"/><path d="M3.88 11.88 3 11"/></svg>
-                        {"Config"}
-                    </a>
-                </div>
-
-                <div class="flex flex-column g-2 text-right" style="color: var(--text-color-faded); min-width: max-content;">
-                    <span class="flex justify-center g-4" id="paste-info-pub">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cake-slice"><circle cx="9" cy="7" r="2"/><path d="M7.2 7.9 3 11v9c0 .6.4 1 1 1h16c.6 0 1-.4 1-1v-9c0-2-3-6-7-8l-3.6 2.6"/><path d="M16 13H3"/><path d="M16 17H3"/></svg>
-                        {"Pub: "}<span class="date-time-to-localize">{&props.paste.pub_date}</span>
-                    </span>
-
-                    <span class="flex justify-center g-4" id="paste-info-edit">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                        {"Edit: "}<span class="date-time-to-localize">{&props.paste.edit_date}</span>
-                    </span>
-
-                    {if user_metadata.is_some() {
-                        let user_metadata = user_metadata.unwrap();
-
-                        html! {
-                            <span id="paste-info-owner">
-                                {"Owner: "}
-                                <a href={format!("/~{}", &metadata.owner)}>
-                                    {if user_metadata.nickname.is_some() {
-                                        user_metadata.nickname.unwrap()
-                                    } else {
-                                        metadata.owner.clone()
-                                    }}
-                                </a>
-                            </span>
-                        }
-                    } else {
-                        html! {}
-                    }}
-
-                    <span id="paste-info-views">{"Views: "}{&props.paste.views}</span>
-                </div>
-            </div>
+            {page}
 
             <Footer auth_state={props.auth_state} />
 
