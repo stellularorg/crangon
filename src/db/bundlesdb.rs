@@ -268,9 +268,6 @@ impl BundlesDB {
     }
 
     pub async fn init(&self) {
-        // ...
-        self.cachedb.init().await; // init cache
-
         // create tables
         let c = &self.db.client;
         // MAX = 1000000
@@ -577,7 +574,7 @@ impl BundlesDB {
         &self,
         username: String,
     ) -> DefaultReturn<Option<FullUser<String>>> {
-        // check if user already exists in cache
+        // check in cache
         let cached = self.cachedb.get(format!("user:{}", username)).await;
 
         if cached.is_some() {
@@ -1081,6 +1078,22 @@ impl BundlesDB {
     /// # Arguments:
     /// * `id` - `String` of the log's `id`
     pub async fn get_log_by_id(&self, id: String) -> DefaultReturn<Option<Log>> {
+        // check in cache
+        let cached = self.cachedb.get(format!("log:{}", id)).await;
+
+        if cached.is_some() {
+            // ...
+            let log = serde_json::from_str::<Log>(cached.unwrap().as_str()).unwrap();
+
+            // return
+            return DefaultReturn {
+                success: true,
+                message: String::from("Log exists (cache)"),
+                payload: Option::Some(log),
+            };
+        }
+
+        // ...
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Logs\" WHERE \"id\" = ?"
         } else {
@@ -1102,16 +1115,26 @@ impl BundlesDB {
         let row = res.unwrap();
         let row = self.textify_row(row).data;
 
+        // store in cache
+        let log = Log {
+            id: row.get("id").unwrap().to_string(),
+            logtype: row.get("logtype").unwrap().to_string(),
+            timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+            content: row.get("content").unwrap().to_string(),
+        };
+
+        self.cachedb
+            .set(
+                format!("log:{}", id),
+                serde_json::to_string::<Log>(&log).unwrap(),
+            )
+            .await;
+
         // return
         return DefaultReturn {
             success: true,
             message: String::from("Paste exists"),
-            payload: Option::Some(Log {
-                id: row.get("id").unwrap().to_string(),
-                logtype: row.get("logtype").unwrap().to_string(),
-                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
-                content: row.get("content").unwrap().to_string(),
-            }),
+            payload: Option::Some(log),
         };
     }
 
@@ -1197,6 +1220,23 @@ impl BundlesDB {
             };
         }
 
+        // update cache
+        let existing_in_cache = self.cachedb.get(format!("log:{}", id)).await;
+
+        if existing_in_cache.is_some() {
+            let mut log = serde_json::from_str::<Log>(&existing_in_cache.unwrap()).unwrap();
+
+            log.content = content; // update content
+
+            // update cache
+            self.cachedb
+                .update(
+                    format!("log:{}", id),
+                    serde_json::to_string::<Log>(&log).unwrap(),
+                )
+                .await;
+        }
+
         // return
         return DefaultReturn {
             success: true,
@@ -1238,6 +1278,9 @@ impl BundlesDB {
             };
         }
 
+        // update cache
+        self.cachedb.remove(format!("log:{}", id)).await;
+
         // return
         return DefaultReturn {
             success: true,
@@ -1277,7 +1320,7 @@ impl BundlesDB {
         query: &str,
         selector: &str,
     ) -> DefaultReturn<Option<FullPaste<PasteMetadata, String>>> {
-        // check if paste already exists in cache
+        // check in cache
         let cached = self.cachedb.get(format!("paste:{}", selector)).await;
 
         if cached.is_some() {
@@ -1414,6 +1457,23 @@ impl BundlesDB {
         &self,
         owner: String,
     ) -> DefaultReturn<Option<Vec<PasteIdentifier>>> {
+        // check in cache
+        let cached = self.cachedb.get(format!("pastes-by-owner:{}", owner)).await;
+
+        if cached.is_some() {
+            // ...
+            let pastes =
+                serde_json::from_str::<Vec<PasteIdentifier>>(cached.unwrap().as_str()).unwrap();
+
+            // return
+            return DefaultReturn {
+                success: true,
+                message: owner,
+                payload: Option::Some(pastes),
+            };
+        }
+
+        // ...
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE ?"
         } else {
@@ -1445,6 +1505,14 @@ impl BundlesDB {
             });
         }
 
+        // store in cache
+        self.cachedb
+            .set(
+                format!("pastes-by-owner:{}", owner),
+                serde_json::to_string::<Vec<PasteIdentifier>>(&full_res).unwrap(),
+            )
+            .await;
+
         // return
         return DefaultReturn {
             success: true,
@@ -1463,6 +1531,28 @@ impl BundlesDB {
         owner: String,
         offset: Option<i32>,
     ) -> DefaultReturn<Option<Vec<PasteIdentifier>>> {
+        let offset = if offset.is_some() { offset.unwrap() } else { 0 };
+
+        // check in cache
+        let cached = self
+            .cachedb
+            .get(format!("pastes-by-owner:{}:offset{}", owner, offset))
+            .await;
+
+        if cached.is_some() {
+            // ...
+            let pastes =
+                serde_json::from_str::<Vec<PasteIdentifier>>(cached.unwrap().as_str()).unwrap();
+
+            // return
+            return DefaultReturn {
+                success: true,
+                message: owner,
+                payload: Option::Some(pastes),
+            };
+        }
+
+        // ...
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE ? ORDER BY \"pub_date\" DESC LIMIT 50 OFFSET ?"
         } else {
@@ -1472,7 +1562,7 @@ impl BundlesDB {
         let c = &self.db.client;
         let res = sqlx::query(query)
             .bind::<&String>(&format!("%\"owner\":\"{}\"%", &owner))
-            .bind(if offset.is_some() { offset.unwrap() } else { 0 })
+            .bind(offset)
             .fetch_all(c)
             .await;
 
@@ -1494,6 +1584,14 @@ impl BundlesDB {
                 id: row.get("id").unwrap().to_string(),
             });
         }
+
+        // store in cache
+        self.cachedb
+            .set(
+                format!("pastes-by-owner:{}:offset{}", owner, offset),
+                serde_json::to_string::<Vec<PasteIdentifier>>(&full_res).unwrap(),
+            )
+            .await;
 
         // return
         return DefaultReturn {
@@ -1722,6 +1820,13 @@ impl BundlesDB {
                 message: res.err().unwrap().to_string(),
                 payload: Option::None,
             };
+        }
+
+        // update cache
+        if as_user.is_some() {
+            self.cachedb
+                .remove_starting_with(format!("pastes-by-owner:{}*", as_user.unwrap()))
+                .await;
         }
 
         // return
@@ -2244,6 +2349,25 @@ impl BundlesDB {
     /// # Arguments:
     /// * `url` - board name
     pub async fn get_board_by_name(&self, url: String) -> DefaultReturn<Option<Board<String>>> {
+        // check in cache
+        let cached = self
+            .cachedb
+            .get(format!("board:{}", url.to_lowercase()))
+            .await;
+
+        if cached.is_some() {
+            // ...
+            let board = serde_json::from_str::<Board<String>>(cached.unwrap().as_str()).unwrap();
+
+            // return
+            return DefaultReturn {
+                success: true,
+                message: String::from("Board exists (cache)"),
+                payload: Option::Some(board),
+            };
+        }
+
+        // ...
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Boards\" WHERE \"name\" = ?"
         } else {
@@ -2268,15 +2392,25 @@ impl BundlesDB {
         let row = res.unwrap();
         let row = self.textify_row(row).data;
 
+        // store in cache
+        let board = Board {
+            name: row.get("name").unwrap().to_string(),
+            timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+            metadata: row.get("metadata").unwrap().to_string(),
+        };
+
+        self.cachedb
+            .set(
+                format!("board:{}", url.to_lowercase()),
+                serde_json::to_string::<Board<String>>(&board).unwrap(),
+            )
+            .await;
+
         // return
         return DefaultReturn {
             success: true,
-            message: String::from("Board exists"),
-            payload: Option::Some(Board {
-                name: row.get("name").unwrap().to_string(),
-                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
-                metadata: row.get("metadata").unwrap().to_string(),
-            }),
+            message: String::from("Board exists (new)"),
+            payload: Option::Some(board),
         };
     }
 
@@ -3455,8 +3589,9 @@ impl BundlesDB {
         };
 
         let c = &self.db.client;
+        let metadata = serde_json::to_string(&metadata).unwrap();
         let res = sqlx::query(query)
-            .bind::<&String>(&serde_json::to_string(&metadata).unwrap())
+            .bind::<&String>(&metadata)
             .bind::<&String>(&name)
             .execute(c)
             .await;
@@ -3467,6 +3602,23 @@ impl BundlesDB {
                 message: String::from(res.err().unwrap().to_string()),
                 payload: Option::None,
             };
+        }
+
+        // update cache
+        let existing_in_cache = self.cachedb.get(format!("board:{}", name)).await;
+
+        if existing_in_cache.is_some() {
+            let mut board =
+                serde_json::from_str::<Board<String>>(&existing_in_cache.unwrap()).unwrap();
+            board.metadata = metadata; // update metadata
+
+            // update cache
+            self.cachedb
+                .update(
+                    format!("board:{}", name),
+                    serde_json::to_string::<Board<String>>(&board).unwrap(),
+                )
+                .await;
         }
 
         // return
@@ -3530,6 +3682,9 @@ impl BundlesDB {
                 payload: Option::None,
             };
         }
+
+        // update cache
+        self.cachedb.remove(format!("board:{}", name)).await;
 
         // return
         return DefaultReturn {

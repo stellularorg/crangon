@@ -8,7 +8,7 @@ For migration from Bundles, please see [#3](https://code.stellular.org/stellular
 
 ## Install
 
-Bundlrs provides build scripts using [just](https://github.com/casey/just). It is required that `bun`, `just`, and obviously Rust are installed before running.
+Bundlrs provides build scripts using [just](https://github.com/casey/just). It is required that `bun`, `just`, `redis`, and (obviously) Rust are installed before running.
 
 Build:
 

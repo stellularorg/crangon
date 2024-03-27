@@ -44,3 +44,4 @@ sqlx = { version = "0.7.3", features = [
 uuid = { version = "1.6.1", features = ["v4"] }
 yew = { version = "0.21.0", features = ["ssr"] }
 handlebars = "5.1.2"
+redis = "0.25.2"

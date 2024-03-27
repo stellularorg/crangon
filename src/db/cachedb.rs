@@ -4,33 +4,22 @@
 //! This should be relatively easy to convert to a Redis cache if needed since this is already essentially just a key-value store.
 //!
 //! Identifiers should be a string following this format: `TYPE_OF_OBJECT:OBJECT_ID`. For pastes this would look like: `paste:{custom_url}`
-use super::sql::{self, Database};
-use sqlx::Row;
+use redis::Commands;
 
 #[derive(Clone)]
 pub struct CacheDB {
-    pub db: Database<sqlx::SqlitePool>,
+    pub client: redis::Client,
 }
 
 impl CacheDB {
     pub async fn new() -> CacheDB {
         return CacheDB {
-            db: sql::create_db_sqlite("sqlite://:memory:?cache=shared").await,
+            client: redis::Client::open("redis://127.0.0.1:6379").unwrap(),
         };
     }
 
-    pub async fn init(&self) {
-        // create tables
-        let c = &self.db.client;
-
-        let _ = sqlx::query(
-            "CREATE TABLE IF NOT EXISTS \"CacheObjects\" (
-                id VARCHAR(1000000),
-                content VARCHAR(1000000)
-            )",
-        )
-        .execute(c)
-        .await;
+    pub async fn get_con(&self) -> redis::Connection {
+        self.client.get_connection().unwrap()
     }
 
     // GET
@@ -40,22 +29,15 @@ impl CacheDB {
     /// * `id` - `String` of the object's id
     pub async fn get(&self, id: String) -> Option<String> {
         // fetch from database
-        let c = &self.db.client;
-        let res = sqlx::query("SELECT * FROM \"CacheObjects\" WHERE \"id\" = ?")
-            .bind::<&String>(&id)
-            .fetch_one(c)
-            .await;
+        let mut c = self.get_con().await;
+        let res = c.get(id);
 
         if res.is_err() {
             return Option::None;
         }
 
-        // get content
-        let row = res.unwrap();
-        let content = row.get::<String, &str>("content");
-
         // return
-        Option::Some(content)
+        Option::Some(res.unwrap())
     }
 
     // SET
@@ -66,12 +48,8 @@ impl CacheDB {
     /// * `content` - `String` of the object's content
     pub async fn set(&self, id: String, content: String) -> bool {
         // set
-        let c = &self.db.client;
-        let res = sqlx::query("INSERT INTO \"CacheObjects\" VALUES (?, ?)")
-            .bind::<&String>(&id)
-            .bind::<&String>(&content)
-            .execute(c)
-            .await;
+        let mut c = self.get_con().await;
+        let res: Result<String, redis::RedisError> = c.set(id, content);
 
         if res.is_err() {
             return false;
@@ -87,13 +65,17 @@ impl CacheDB {
     /// * `id` - `String` of the object's id
     /// * `content` - `String` of the object's content
     pub async fn update(&self, id: String, content: String) -> bool {
-        // update
-        let c = &self.db.client;
-        let res = sqlx::query("UPDATE \"CacheObjects\" SET \"content\" = ? WHERE \"id\" = ?")
-            .bind::<&String>(&content)
-            .bind::<&String>(&id)
-            .execute(c)
-            .await;
+        self.set(id, content).await
+    }
+
+    /// Remove a cache object by its identifier
+    ///
+    /// # Arguments:
+    /// * `id` - `String` of the object's id
+    pub async fn remove(&self, id: String) -> bool {
+        // remove
+        let mut c = self.get_con().await;
+        let res: Result<String, redis::RedisError> = c.del(id);
 
         if res.is_err() {
             return false;
@@ -103,17 +85,23 @@ impl CacheDB {
         true
     }
 
-    /// Remove a cache object by its identifier
+    /// Remove a cache object by its identifier('s start)
     ///
     /// # Arguments:
-    /// * `id` - `String` of the object's id
-    pub async fn remove(&self, id: String) -> bool {
+    /// * `id` - `String` of the object's id('s start)
+    pub async fn remove_starting_with(&self, id: String) -> bool {
+        let mut c = self.get_con().await;
+
+        // get keys
+        let mut cmd = redis::cmd("DEL");
+        let keys: Result<Vec<String>, redis::RedisError> = c.keys(id);
+
+        for key in keys.unwrap() {
+            cmd.arg(key);
+        }
+
         // remove
-        let c = &self.db.client;
-        let res = sqlx::query("DELETE FROM \"CacheObjects\" WHERE \"id\" = ?")
-            .bind::<&String>(&id)
-            .execute(c)
-            .await;
+        let res: Result<String, redis::RedisError> = cmd.query(&mut c);
 
         if res.is_err() {
             return false;

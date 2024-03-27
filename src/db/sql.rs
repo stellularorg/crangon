@@ -86,13 +86,8 @@ pub async fn create_db(options: DatabaseOpts) -> Database<sqlx::PgPool> {
 #[cfg(feature = "sqlite")]
 /// Create a new "sqlite" database
 pub async fn create_db(_options: DatabaseOpts) -> Database<sqlx::SqlitePool> {
-    create_db_sqlite("sqlite://bundlrs.db").await // TODO: make allow a different connection uri?
-}
-
-/// Create a new "sqlite" database
-pub async fn create_db_sqlite(url: &str) -> Database<sqlx::SqlitePool> {
     // sqlite
-    let client = sqlx::SqlitePool::connect(url).await;
+    let client = sqlx::SqlitePool::connect("sqlite://bundlrs.db").await;
 
     if client.is_err() {
         panic!("Failed to connect to database!");
