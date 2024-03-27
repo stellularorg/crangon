@@ -72,7 +72,6 @@ async fn main() -> std::io::Result<()> {
         } else {
             String::new()
         },
-        cache_enabled: config::get_var("CACHE_ENABLED"),
     })
     .await;
 

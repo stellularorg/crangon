@@ -397,7 +397,7 @@ fn ProfileView(props: &Props) -> Html {
                 maxlength=\"200000\"
                 required
             >{}</textarea>
-        </form>", props.user.username, meta.about.replace("\"", "\\\""))
+        </form>", props.user.username, meta.about)
     } else {
         // just show about
         crate::markdown::render::parse_markdown(&meta.about.clone())

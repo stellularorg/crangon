@@ -8,24 +8,30 @@ For migration from Bundles, please see [#3](https://code.stellular.org/stellular
 
 ## Install
 
+Bundlrs provides build scripts using [just](https://github.com/casey/just). It is required that `bun`, `just`, and obviously Rust are installed before running.
+
 Build:
 
 ```bash
-bun run build
-# release
-bun run build:release
+# release (sqlite)
+just
 # release (mysql)
-bun run build:release:mysql
+just build mysql
 # release (postgres)
-bun run build:release:postgres
+just build postgres
+# documentation
+just docs
 ```
+
+Documentation is automatically built when building for release.
 
 Run:
 
 ```bash
-chmod +x ./target/debug/bundlrs && ./target/debug/bundlrs
+# test
+just test
 # release
-chmod +x ./target/release/bundlrs && ./target/release/bundlrs
+just run
 ```
 
 Bundlrs supports the features `sqlite`, `postgres`, and `mysql`. These features dictate which database types will be used.
@@ -54,6 +60,9 @@ Environment variables:
 
 - [Bundlrs Info Page](https://stellular.net/pub/info)
 - [Markdown Info Page](https://stellular.net/pub/markdown)
+- [Secondary Formatting Examples](https://stellular.net/37dbdb2096)
+- [Templates Info Page](https://stellular.net/pub/templates)
+- [SSM Info Page](https://stellular.net/pub/ssm)
 - [API Docs](https://stellular.net/api/docs/bundlrs/index.html)
 
 ## Boards

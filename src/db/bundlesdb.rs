@@ -1,6 +1,9 @@
 //! # BundlesDB
 //! Database handler for all database types
-use super::sql::{self, Database, DatabaseOpts};
+use super::{
+    cachedb::CacheDB,
+    sql::{self, Database, DatabaseOpts},
+};
 
 use sqlx::{Column, Row};
 
@@ -236,6 +239,7 @@ pub struct Notification {
 pub struct BundlesDB {
     pub db: Database<sqlx::PgPool>,
     pub options: DatabaseOpts,
+    pub cachedb: CacheDB,
 }
 
 #[derive(Clone)]
@@ -243,6 +247,7 @@ pub struct BundlesDB {
 pub struct BundlesDB {
     pub db: Database<sqlx::MySqlPool>,
     pub options: DatabaseOpts,
+    pub cachedb: CacheDB,
 }
 
 #[derive(Clone)]
@@ -250,6 +255,7 @@ pub struct BundlesDB {
 pub struct BundlesDB {
     pub db: Database<sqlx::SqlitePool>,
     pub options: DatabaseOpts,
+    pub cachedb: CacheDB,
 }
 
 impl BundlesDB {
@@ -257,11 +263,13 @@ impl BundlesDB {
         return BundlesDB {
             db: sql::create_db(options.clone()).await,
             options,
+            cachedb: CacheDB::new().await,
         };
     }
 
     pub async fn init(&self) {
         // ...
+        self.cachedb.init().await; // init cache
 
         // create tables
         let c = &self.db.client;
@@ -569,6 +577,39 @@ impl BundlesDB {
         &self,
         username: String,
     ) -> DefaultReturn<Option<FullUser<String>>> {
+        // check if user already exists in cache
+        let cached = self.cachedb.get(format!("user:{}", username)).await;
+
+        if cached.is_some() {
+            // ...
+            let user = serde_json::from_str::<UserState<String>>(cached.unwrap().as_str()).unwrap();
+
+            // get role
+            let role = user.role.clone();
+            if role == "banned" {
+                // account banned - we're going to act like it simply does not exist
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("User is banned"),
+                    payload: Option::None,
+                };
+            }
+
+            // fetch level from role
+            let level = self.get_level_by_role(role.clone()).await;
+
+            // ...
+            return DefaultReturn {
+                success: true,
+                message: String::from("User exists (cache)"),
+                payload: Option::Some(FullUser {
+                    user,
+                    level: level.payload.level,
+                }),
+            };
+        }
+
+        // ...
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Users\" WHERE \"username\" = ?"
         } else {
@@ -606,23 +647,33 @@ impl BundlesDB {
         // fetch level from role
         let level = self.get_level_by_role(role.clone()).await;
 
-        // return
+        // store in cache
         let meta = row.get("metadata");
+        let user = UserState {
+            username: row.get("username").unwrap().to_string(),
+            id_hashed: row.get("id_hashed").unwrap().to_string(),
+            role,
+            timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+            metadata: if meta.is_some() {
+                meta.unwrap().to_string()
+            } else {
+                String::new()
+            },
+        };
+
+        self.cachedb
+            .set(
+                format!("user:{}", username),
+                serde_json::to_string::<UserState<String>>(&user).unwrap(),
+            )
+            .await;
+
+        // return
         return DefaultReturn {
             success: true,
-            message: String::from("User exists"),
+            message: String::from("User exists (new)"),
             payload: Option::Some(FullUser {
-                user: UserState {
-                    username: row.get("username").unwrap().to_string(),
-                    id_hashed: row.get("id_hashed").unwrap().to_string(),
-                    role,
-                    timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
-                    metadata: if meta.is_some() {
-                        meta.unwrap().to_string()
-                    } else {
-                        String::new()
-                    },
-                },
+                user,
                 level: level.payload.level,
             }),
         };
@@ -633,6 +684,18 @@ impl BundlesDB {
     /// # Arguments:
     /// * `name` - `String` of the level's role name
     pub async fn get_level_by_role(&self, name: String) -> DefaultReturn<RoleLevelLog> {
+        // check if level already exists in cache
+        let cached = self.cachedb.get(format!("level:{}", name)).await;
+
+        if cached.is_some() {
+            return DefaultReturn {
+                success: true,
+                message: String::from("Level exists (cache)"),
+                payload: serde_json::from_str::<RoleLevelLog>(cached.unwrap().as_str()).unwrap(),
+            };
+        }
+
+        // ...
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'level' AND \"content\" LIKE ?"
         } else {
@@ -664,14 +727,23 @@ impl BundlesDB {
         let row = res.unwrap();
         let row = self.textify_row(row).data;
 
-        // return
+        // store in cache
         let id = row.get("id").unwrap().to_string();
         let level = serde_json::from_str::<RoleLevel>(row.get("content").unwrap()).unwrap();
 
+        let level = RoleLevelLog { id, level };
+        self.cachedb
+            .set(
+                format!("level:{}", name),
+                serde_json::to_string::<RoleLevelLog>(&level).unwrap(),
+            )
+            .await;
+
+        // return
         return DefaultReturn {
             success: true,
-            message: String::from("Level exists"),
-            payload: RoleLevelLog { id, level },
+            message: String::from("Level exists (new)"),
+            payload: level,
         };
     }
 
@@ -784,8 +856,9 @@ impl BundlesDB {
         };
 
         let c = &self.db.client;
+        let meta = &serde_json::to_string(&metadata).unwrap();
         let res = sqlx::query(query)
-            .bind::<&String>(&serde_json::to_string(&metadata).unwrap())
+            .bind::<&String>(meta)
             .bind::<&String>(&name)
             .execute(c)
             .await;
@@ -796,6 +869,23 @@ impl BundlesDB {
                 message: String::from(res.err().unwrap().to_string()),
                 payload: Option::None,
             };
+        }
+
+        // update cache
+        let existing_in_cache = self.cachedb.get(format!("user:{}", name)).await;
+
+        if existing_in_cache.is_some() {
+            let mut user =
+                serde_json::from_str::<UserState<String>>(&existing_in_cache.unwrap()).unwrap();
+            user.metadata = meta.to_string(); // update metadata
+
+            // update cache
+            self.cachedb
+                .update(
+                    format!("user:{}", name),
+                    serde_json::to_string::<UserState<String>>(&user).unwrap(),
+                )
+                .await;
         }
 
         // return
@@ -858,6 +948,7 @@ impl BundlesDB {
         };
 
         let c = &self.db.client;
+        // TODO: some kind of bulk cache update to handle this
         let res = sqlx::query(query)
             .bind::<&String>(
                 &serde_json::to_string::<PasteMetadata>(&PasteMetadata {
@@ -887,6 +978,23 @@ impl BundlesDB {
                 message: String::from(res.err().unwrap().to_string()),
                 payload: Option::None,
             };
+        }
+
+        // update cache
+        let existing_in_cache = self.cachedb.get(format!("user:{}", name)).await;
+
+        if existing_in_cache.is_some() {
+            let mut user =
+                serde_json::from_str::<UserState<String>>(&existing_in_cache.unwrap()).unwrap();
+            user.role = String::from("banned"); // update role
+
+            // update cache
+            self.cachedb
+                .update(
+                    format!("user:{}", name),
+                    serde_json::to_string::<UserState<String>>(&user).unwrap(),
+                )
+                .await;
         }
 
         // return
@@ -1169,6 +1277,33 @@ impl BundlesDB {
         query: &str,
         selector: &str,
     ) -> DefaultReturn<Option<FullPaste<PasteMetadata, String>>> {
+        // check if paste already exists in cache
+        let cached = self.cachedb.get(format!("paste:{}", selector)).await;
+
+        if cached.is_some() {
+            // ...
+            let paste =
+                serde_json::from_str::<Paste<PasteMetadata>>(cached.unwrap().as_str()).unwrap();
+
+            // get user
+            let user = if paste.metadata.owner.len() > 0 {
+                // TODO: maybe don't clone here
+                (self
+                    .get_user_by_username(paste.clone().metadata.owner)
+                    .await)
+                    .payload
+            } else {
+                Option::None
+            };
+
+            // return
+            return DefaultReturn {
+                success: true,
+                message: String::from("Paste exists (cache)"),
+                payload: Option::Some(FullPaste { paste, user }),
+            };
+        }
+
         // fetch from db
         let c = &self.db.client;
         let res = sqlx::query(query)
@@ -1208,6 +1343,14 @@ impl BundlesDB {
             metadata,
             views: views.to_owned(),
         };
+
+        // store in cache
+        self.cachedb
+            .set(
+                format!("paste:{}", paste.custom_url),
+                serde_json::to_string::<Paste<PasteMetadata>>(&paste).unwrap(),
+            )
+            .await;
 
         // get user
         let user = if paste.metadata.owner.len() > 0 {
@@ -1662,13 +1805,16 @@ impl BundlesDB {
             "UPDATE \"Pastes\" SET (\"content\", \"content_html\", \"edit_password\", \"custom_url\", \"edit_date\") = ($1, $2, $3, $4, $5) WHERE \"custom_url\" = $6"
         };
 
+        let content_html = &crate::markdown::render::parse_markdown(&content);
+        let edit_date = &utility::unix_epoch_timestamp().to_string();
+
         let c = &self.db.client;
         let res = sqlx::query(query)
             .bind::<&String>(&content)
-            .bind::<&String>(&crate::markdown::render::parse_markdown(&content))
+            .bind::<&String>(content_html)
             .bind::<&String>(&edit_password_hash)
             .bind::<&String>(&custom_url)
-            .bind::<&String>(&utility::unix_epoch_timestamp().to_string()) // update edit_date
+            .bind::<&String>(edit_date) // update edit_date
             .bind::<&String>(&url)
             .execute(c)
             .await;
@@ -1679,6 +1825,28 @@ impl BundlesDB {
                 message: String::from(res.err().unwrap().to_string()),
                 payload: Option::None,
             };
+        }
+
+        // update cache
+        let existing_in_cache = self.cachedb.get(format!("paste:{}", url)).await;
+
+        if existing_in_cache.is_some() {
+            let mut paste =
+                serde_json::from_str::<Paste<PasteMetadata>>(&existing_in_cache.unwrap()).unwrap();
+
+            paste.content = content; // update content
+            paste.content_html = content_html.to_string(); // update content_html
+            paste.edit_password = edit_password_hash; // update edit_password
+            paste.edit_date = edit_date.parse::<u128>().unwrap(); // update edit_date
+            paste.custom_url = custom_url.to_string(); // update custom_url
+
+            // update cache
+            self.cachedb
+                .update(
+                    format!("paste:{}", url),
+                    serde_json::to_string::<Paste<PasteMetadata>>(&paste).unwrap(),
+                )
+                .await;
         }
 
         // return
@@ -1763,6 +1931,23 @@ impl BundlesDB {
             };
         }
 
+        // update cache
+        let existing_in_cache = self.cachedb.get(format!("paste:{}", url)).await;
+
+        if existing_in_cache.is_some() {
+            let mut paste =
+                serde_json::from_str::<Paste<PasteMetadata>>(&existing_in_cache.unwrap()).unwrap();
+            paste.metadata = metadata; // update metadata
+
+            // update cache
+            self.cachedb
+                .update(
+                    format!("paste:{}", url),
+                    serde_json::to_string::<Paste<PasteMetadata>>(&paste).unwrap(),
+                )
+                .await;
+        }
+
         // return
         return DefaultReturn {
             success: true,
@@ -1814,6 +1999,24 @@ impl BundlesDB {
                     format!("{}::{}", &url, &view_as),
                 )
                 .await;
+
+                // update cache
+                let existing_in_cache = self.cachedb.get(format!("paste:{}", url)).await;
+
+                if existing_in_cache.is_some() {
+                    let mut paste =
+                        serde_json::from_str::<Paste<PasteMetadata>>(&existing_in_cache.unwrap())
+                            .unwrap();
+                    paste.views += 1;
+
+                    // update cache
+                    self.cachedb
+                        .update(
+                            format!("paste:{}", url),
+                            serde_json::to_string::<Paste<PasteMetadata>>(&paste).unwrap(),
+                        )
+                        .await;
+                }
 
                 // return
                 return DefaultReturn {
@@ -1927,6 +2130,9 @@ impl BundlesDB {
                 payload: Option::None,
             };
         }
+
+        // update cache
+        self.cachedb.remove(format!("paste:{}", url)).await;
 
         // return
         return DefaultReturn {
