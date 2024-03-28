@@ -3627,7 +3627,7 @@ impl BundlesDB {
 
             // ...but also clear the board (TODO: remove this step)
             self.cachedb
-                .remove(format!("board-posts:{}", p.reply.as_ref().unwrap()))
+                .remove(format!("board-posts:{}", p.board.to_lowercase()))
                 .await;
         } else {
             // a new post would always be on the first page, so only clear that one
