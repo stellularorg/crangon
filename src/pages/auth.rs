@@ -9,7 +9,7 @@ use crate::db::bundlesdb::{self, AppData, FullUser, UserFollow, UserMetadata, Us
 use crate::utility;
 use crate::utility::format_html;
 
-use crate::components::navigation::Footer;
+use crate::components::navigation::{Footer, GlobalMenu};
 
 #[derive(Default, Properties, PartialEq)]
 struct Props {
@@ -449,7 +449,7 @@ fn ProfileView(props: &Props) -> Html {
     let default_template = &profile_view_hb_template();
     let reg = handlebars::Handlebars::new();
     let page = reg.render_template(
-        if meta.page_template.is_some() {
+        if meta.page_template.is_some() && !meta.page_template.as_ref().unwrap().is_empty() {
             meta.page_template.as_ref().unwrap() // use provided template
         } else {
             default_template // use default template
@@ -487,12 +487,14 @@ fn ProfileView(props: &Props) -> Html {
     // ...
     return html! {
         <div class="flex flex-column" style="height: 100dvh;">
+<GlobalMenu auth_state={props.auth_state} />
+
             <div class="toolbar flex justify-space-between">
                 // left
                 <div class="flex">
-                    <a class="button device:desktop" href="/" style="border-left: 0">
-                        <b>{"::SITE_NAME::"}</b>
-                    </a>
+                    <button title="Menu" b_onclick="window.toggle_child_menu(event.target, '#upper\\\\:globalmenu')" style="border-left: 0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                    </button>
 
                     <a class="button" href={format!("/~{}", props.user.username)} style="border-left: 0">
                         {&props.user.username}
@@ -678,12 +680,14 @@ pub async fn profile_view_request(
 fn FollowersView(props: &FollowersProps) -> Html {
     html! {
         <div class="flex flex-column" style="height: 100dvh;">
+<GlobalMenu auth_state={props.auth_state} />
+
             <div class="toolbar flex justify-space-between">
                 // left
                 <div class="flex">
-                    <a class="button" href="/" style="border-left: 0">
-                        <b>{"::SITE_NAME::"}</b>
-                    </a>
+                    <button title="Menu" b_onclick="window.toggle_child_menu(event.target, '#upper\\\\:globalmenu')" style="border-left: 0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                    </button>
 
                     <a class="button" href={format!("/~{}", props.user.username)} style="border-left: 0">
                         {&props.user.username}
@@ -842,12 +846,14 @@ pub async fn followers_request(
 fn FollowingView(props: &FollowingProps) -> Html {
     html! {
         <div class="flex flex-column" style="height: 100dvh;">
+<GlobalMenu auth_state={props.auth_state} />
+
             <div class="toolbar flex justify-space-between">
                 // left
                 <div class="flex">
-                    <a class="button" href="/" style="border-left: 0">
-                        <b>{"::SITE_NAME::"}</b>
-                    </a>
+                    <button title="Menu" b_onclick="window.toggle_child_menu(event.target, '#upper\\\\:globalmenu')" style="border-left: 0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                    </button>
 
                     <a class="button" href={format!("/~{}", props.user.username)} style="border-left: 0">
                         {&props.user.username}
@@ -1008,12 +1014,14 @@ fn UserSettings(props: &SettingsProps) -> Html {
 
     return html! {
         <div>
+<GlobalMenu auth_state={props.auth_state} />
+
             <div class="toolbar flex justify-space-between">
                 // left
                 <div class="flex">
-                    <a class="button" href="/" style="border-left: 0">
-                        <b>{"::SITE_NAME::"}</b>
-                    </a>
+                    <button title="Menu" b_onclick="window.toggle_child_menu(event.target, '#upper\\\\:globalmenu')" style="border-left: 0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                    </button>
 
                     <a class="button" href={format!("/~{}", props.profile.username)} style="border-left: 0">
                         {props.profile.username.clone()}

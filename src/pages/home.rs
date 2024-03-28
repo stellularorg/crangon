@@ -5,7 +5,7 @@ use yew::prelude::*;
 use yew::ServerRenderer;
 
 use crate::components::avatar::AvatarDisplay;
-use crate::components::navigation::Footer;
+use crate::components::navigation::{Footer, GlobalMenu};
 use crate::db::{self, bundlesdb};
 use crate::utility::format_html;
 
@@ -349,12 +349,14 @@ Disallow: /*?",
 fn Dashboard(props: &DashboardProps) -> Html {
     return html! {
         <div class="flex flex-column" style="height: 100dvh;">
+            <GlobalMenu auth_state={props.auth_state} />
+
             <div class="toolbar flex justify-space-between">
                 // left
                 <div class="flex">
-                    <a class="button" href="/" style="border-left: 0">
-                        <b>{"::SITE_NAME::"}</b>
-                    </a>
+                    <button title="Menu" b_onclick="window.toggle_child_menu(event.target, '#upper\\\\:globalmenu')" style="border-left: 0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                    </button>
 
                     <a class="button" href="/d" style="border-left: 0">
                         {"Dashboard"}
@@ -551,70 +553,72 @@ You can create an account at: /d/auth/register",
 #[function_component]
 fn Notifications(props: &NotificationsProps) -> Html {
     return html! {
-        <div class="flex flex-column" style="height: 100dvh;">
-            <div class="toolbar flex justify-space-between">
-                // left
-                <div class="flex">
-                    <a class="button" href="/" style="border-left: 0">
-                        <b>{"::SITE_NAME::"}</b>
-                    </a>
+            <div class="flex flex-column" style="height: 100dvh;">
+    <GlobalMenu auth_state={props.auth_state} />
 
-                    <a class="button" href="/d" style="border-left: 0">
-                        {"Dashboard"}
-                    </a>
-                </div>
-            </div>
+                <div class="toolbar flex justify-space-between">
+                    // left
+                    <div class="flex">
+                        <button title="Menu" b_onclick="window.toggle_child_menu(event.target, '#upper\\\\:globalmenu')" style="border-left: 0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                        </button>
 
-            <div class="toolbar-layout-wrapper">
-                <div id="link-header" style="display: flex;" class="flex-column bg-1">
-                    <div class="link-header-top"></div>
-
-                    <div class="link-header-middle">
-                        <h1 class="no-margin">{"Dashboard"}</h1>
-                    </div>
-
-                    <div class="link-header-bottom">
-                        <a href="/d" class="button">{"Home"}</a>
-                        <a href="/d/pastes" class="button">{"Pastes"}</a>
-                        <a href="/d/atomic" class="button">{"Atomic"}</a>
-                        <a href="/d/boards" class="button">{"Boards"}</a>
+                        <a class="button" href="/d" style="border-left: 0">
+                            {"Dashboard"}
+                        </a>
                     </div>
                 </div>
 
-                <main class="small flex flex-column g-4">
-                    <div class="flex justify-space-between align-center">
-                        <b>{"Unread Notifications"}</b>
+                <div class="toolbar-layout-wrapper">
+                    <div id="link-header" style="display: flex;" class="flex-column bg-1">
+                        <div class="link-header-top"></div>
 
-                        <div class="flex g-4 flex-wrap">
-                            {for props.notifications.iter().map(|n| {
-                                let notif = serde_json::from_str::<bundlesdb::Notification>(&n.content).unwrap();
+                        <div class="link-header-middle">
+                            <h1 class="no-margin">{"Dashboard"}</h1>
+                        </div>
 
-                                html! {
-                                    <a class="button secondary round full justify-start" href={notif.address} title={notif.content.clone()}>
-                                        <b>{notif.content}</b>
-                                    </a>
-                                }
-                            })}
+                        <div class="link-header-bottom">
+                            <a href="/d" class="button">{"Home"}</a>
+                            <a href="/d/pastes" class="button">{"Pastes"}</a>
+                            <a href="/d/atomic" class="button">{"Atomic"}</a>
+                            <a href="/d/boards" class="button">{"Boards"}</a>
                         </div>
                     </div>
 
-                    <div class="full flex justify-space-between" id="pages">
-                        <a class="button round" href={format!("?offset={}", props.offset - 50)} disabled={props.offset <= 0}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-                            {"Back"}
-                        </a>
+                    <main class="small flex flex-column g-4">
+                        <div class="flex justify-space-between align-center">
+                            <b>{"Unread Notifications"}</b>
 
-                        <a class="button round" href={format!("?offset={}", props.offset + 50)} disabled={props.notifications.len() == 0}>
-                            {"Next"}
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                        </a>
-                    </div>
+                            <div class="flex g-4 flex-wrap">
+                                {for props.notifications.iter().map(|n| {
+                                    let notif = serde_json::from_str::<bundlesdb::Notification>(&n.content).unwrap();
 
-                    <Footer auth_state={props.auth_state} />
-                </main>
+                                    html! {
+                                        <a class="button secondary round full justify-start" href={notif.address} title={notif.content.clone()}>
+                                            <b>{notif.content}</b>
+                                        </a>
+                                    }
+                                })}
+                            </div>
+                        </div>
+
+                        <div class="full flex justify-space-between" id="pages">
+                            <a class="button round" href={format!("?offset={}", props.offset - 50)} disabled={props.offset <= 0}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                                {"Back"}
+                            </a>
+
+                            <a class="button round" href={format!("?offset={}", props.offset + 50)} disabled={props.notifications.len() == 0}>
+                                {"Next"}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                            </a>
+                        </div>
+
+                        <Footer auth_state={props.auth_state} />
+                    </main>
+                </div>
             </div>
-        </div>
-    };
+        };
 }
 
 fn build_notifications_renderer_with_props(
@@ -693,80 +697,82 @@ You can create an account at: /d/auth/register",
 #[function_component]
 fn Inbox(props: &InboxProps) -> Html {
     return html! {
-        <div class="flex flex-column" style="height: 100dvh;">
-            <div class="toolbar flex justify-space-between">
-                // left
-                <div class="flex">
-                    <a class="button" href="/" style="border-left: 0">
-                        <b>{"::SITE_NAME::"}</b>
-                    </a>
+            <div class="flex flex-column" style="height: 100dvh;">
+    <GlobalMenu auth_state={props.auth_state} />
 
-                    <a class="button" href="/d" style="border-left: 0">
-                        {"Dashboard"}
-                    </a>
-                </div>
-            </div>
+                <div class="toolbar flex justify-space-between">
+                    // left
+                    <div class="flex">
+                        <button title="Menu" b_onclick="window.toggle_child_menu(event.target, '#upper\\\\:globalmenu')" style="border-left: 0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                        </button>
 
-            <div class="toolbar-layout-wrapper">
-                <div id="link-header" style="display: flex;" class="flex-column bg-1">
-                    <div class="link-header-top"></div>
-
-                    <div class="link-header-middle">
-                        <h1 class="no-margin">{"Dashboard"}</h1>
-                    </div>
-
-                    <div class="link-header-bottom">
-                        <a href="/d" class="button">{"Home"}</a>
-                        <a href="/d/pastes" class="button">{"Pastes"}</a>
-                        <a href="/d/atomic" class="button">{"Atomic"}</a>
-                        <a href="/d/boards" class="button">{"Boards"}</a>
+                        <a class="button" href="/d" style="border-left: 0">
+                            {"Dashboard"}
+                        </a>
                     </div>
                 </div>
 
-                <main class="small flex flex-column g-4">
-                    <div class="flex justify-space-between align-center">
-                        <b>{"My Inboxes"}</b>
+                <div class="toolbar-layout-wrapper">
+                    <div id="link-header" style="display: flex;" class="flex-column bg-1">
+                        <div class="link-header-top"></div>
+
+                        <div class="link-header-middle">
+                            <h1 class="no-margin">{"Dashboard"}</h1>
+                        </div>
+
+                        <div class="link-header-bottom">
+                            <a href="/d" class="button">{"Home"}</a>
+                            <a href="/d/pastes" class="button">{"Pastes"}</a>
+                            <a href="/d/atomic" class="button">{"Atomic"}</a>
+                            <a href="/d/boards" class="button">{"Boards"}</a>
+                        </div>
                     </div>
 
-                    <table class="full stripped">
-                        <thead>
-                            <th>{"Name"}</th>
-                            // <th>{"Type"}</th>
-                        </thead>
+                    <main class="small flex flex-column g-4">
+                        <div class="flex justify-space-between align-center">
+                            <b>{"My Inboxes"}</b>
+                        </div>
 
-                        <tbody>
-                            {for props.boards.iter().map(|b| {
-                                html! {
-                                    <tr>
-                                        <td>
-                                            <a class="flex full g-4" href={format!("/b/{}", b.name)}>
-                                                <AvatarDisplay size={25} username={b.tags.clone()} />
-                                                {b.tags.clone()}
-                                            </a>
-                                        </td>
-                                    </tr>
-                                }
-                            })}
-                        </tbody>
-                    </table>
+                        <table class="full stripped">
+                            <thead>
+                                <th>{"Name"}</th>
+                                // <th>{"Type"}</th>
+                            </thead>
 
-                    <div class="full flex justify-space-between" id="pages">
-                        <a class="button round" href={format!("?offset={}", props.offset - 50)} disabled={props.offset <= 0}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-                            {"Back"}
-                        </a>
+                            <tbody>
+                                {for props.boards.iter().map(|b| {
+                                    html! {
+                                        <tr>
+                                            <td>
+                                                <a class="flex full g-4" href={format!("/b/{}", b.name)}>
+                                                    <AvatarDisplay size={25} username={b.tags.clone()} />
+                                                    {b.tags.clone()}
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    }
+                                })}
+                            </tbody>
+                        </table>
 
-                        <a class="button round" href={format!("?offset={}", props.offset + 50)} disabled={props.boards.len() == 0}>
-                            {"Next"}
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                        </a>
-                    </div>
+                        <div class="full flex justify-space-between" id="pages">
+                            <a class="button round" href={format!("?offset={}", props.offset - 50)} disabled={props.offset <= 0}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                                {"Back"}
+                            </a>
 
-                    <Footer auth_state={props.auth_state} />
-                </main>
+                            <a class="button round" href={format!("?offset={}", props.offset + 50)} disabled={props.boards.len() == 0}>
+                                {"Next"}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                            </a>
+                        </div>
+
+                        <Footer auth_state={props.auth_state} />
+                    </main>
+                </div>
             </div>
-        </div>
-    };
+        };
 }
 
 fn build_inbox_renderer_with_props(props: InboxProps) -> ServerRenderer<Inbox> {

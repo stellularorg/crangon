@@ -179,5 +179,80 @@ for (const avatar of Array.from(avatars) as HTMLImageElement[]) {
     }
 }
 
+// events
+const onclick = Array.from(
+    document.querySelectorAll("[b_onclick]")
+) as HTMLElement[];
+
+for (const element of onclick) {
+    element.setAttribute("onclick", element.getAttribute("b_onclick")!);
+    element.removeAttribute("b_onclick");
+}
+
+// menus
+(globalThis as any).toggle_child_menu = (
+    self: HTMLElement,
+    id: string,
+    bottom: boolean = true
+) => {
+    // resolve button
+    while (self.nodeName !== "BUTTON") {
+        self = self.parentElement!;
+    }
+
+    // ...
+    const menu: HTMLElement | null = document.querySelector(
+        id
+    ) as HTMLElement | null;
+
+    if (menu) {
+        self.classList.toggle("selected");
+
+        if (menu.style.display === "none") {
+            let rect = self.getBoundingClientRect();
+
+            // align menu
+            if (bottom === true) {
+                menu.style.top = `${rect.bottom + self.offsetTop}px`;
+            } else {
+                menu.style.bottom = `${rect.top + self.offsetTop}px`;
+            }
+
+            // show menu
+            menu.style.display = "flex";
+
+            // ...
+            self.style.background = "var(--background-surface)";
+            self.style.filter = "invert(1) grayscale(1)";
+
+            // events
+            menu.addEventListener("click", (event) => {
+                event.stopPropagation();
+            });
+
+            setTimeout(() => {
+                let window_event = () => {
+                    (window as any).toggle_child_menu(self, id);
+                    window.removeEventListener("click", window_event);
+                    self.removeEventListener("click", self_event);
+                };
+
+                window.addEventListener("click", window_event);
+
+                let self_event = () => {
+                    (window as any).toggle_child_menu(self, id);
+                    self.removeEventListener("click", self_event);
+                };
+
+                self.addEventListener("click", self_event);
+            }, 100);
+        } else if (menu.style.display === "flex") {
+            menu.style.display = "none";
+            self.style.background = "inherit";
+            self.style.filter = "unset";
+        }
+    }
+};
+
 // default export
 export default {};

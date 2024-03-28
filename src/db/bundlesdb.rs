@@ -806,7 +806,7 @@ impl BundlesDB {
                     secondary_token: Option::None,
                     allow_mail: Option::Some(String::from("yes")),
                     nickname: Option::Some(username.clone()),
-                    page_template: Option::Some(crate::pages::auth::profile_view_hb_template()),
+                    page_template: Option::None,
                 })
                 .unwrap(),
             )
@@ -961,7 +961,7 @@ impl BundlesDB {
                         "LOCKED(USER_BANNED)-{}",
                         crate::utility::random_id()
                     )),
-                    page_template: Option::Some(String::new()),
+                    page_template: Option::None,
                 })
                 .unwrap(),
             )
@@ -1704,7 +1704,7 @@ impl BundlesDB {
             favicon: Option::None,
             embed_color: Option::Some(String::from("#ff9999")),
             view_password: Option::None,
-            page_template: Option::Some(crate::pages::paste_view::paste_view_hb_template()),
+            page_template: Option::None,
         };
 
         // check values

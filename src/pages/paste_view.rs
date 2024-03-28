@@ -12,7 +12,7 @@ use crate::db::bundlesdb::{
 use crate::utility;
 use crate::utility::format_html;
 
-use crate::components::navigation::Footer;
+use crate::components::navigation::{Footer, GlobalMenu};
 
 #[derive(Default, Properties, PartialEq)]
 pub struct Props {
@@ -103,7 +103,8 @@ fn PasteView(props: &Props) -> Html {
     let default_template = &paste_view_hb_template();
     let reg = handlebars::Handlebars::new();
     let page = reg.render_template(
-        if metadata.page_template.is_some() {
+        if metadata.page_template.is_some() && !metadata.page_template.as_ref().unwrap().is_empty()
+        {
             metadata.page_template.as_ref().unwrap() // use provided template
         } else {
             default_template // use default template
@@ -447,72 +448,74 @@ pub async fn atomic_paste_view_request(
 #[function_component]
 fn Dashboard(props: &DashboardProps) -> Html {
     return html! {
-        <div class="flex flex-column" style="height: 100dvh;">
-            <div class="toolbar flex justify-space-between">
-                // left
-                <div class="flex">
-                    <a class="button" href="/" style="border-left: 0">
-                        <b>{"::SITE_NAME::"}</b>
-                    </a>
+            <div class="flex flex-column" style="height: 100dvh;">
+    <GlobalMenu auth_state={props.auth_state} />
 
-                    <a class="button" href="/d" style="border-left: 0">
-                        {"Dashboard"}
-                    </a>
-                </div>
-            </div>
+                <div class="toolbar flex justify-space-between">
+                    // left
+                    <div class="flex">
+                        <button title="Menu" b_onclick="window.toggle_child_menu(event.target, '#upper\\\\:globalmenu')" style="border-left: 0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                        </button>
 
-            <div class="toolbar-layout-wrapper">
-                <div id="link-header" style="display: flex;" class="flex-column bg-1">
-                    <div class="link-header-top"></div>
-
-                    <div class="link-header-middle">
-                        <h1 class="no-margin">{"Dashboard"}</h1>
-                    </div>
-
-                    <div class="link-header-bottom">
-                        <a href="/d" class="button">{"Home"}</a>
-                        <a href="/d/pastes" class="button active">{"Pastes"}</a>
-                        <a href="/d/atomic" class="button">{"Atomic"}</a>
-                        <a href="/d/boards" class="button">{"Boards"}</a>
-                    </div>
-                </div>
-
-                <main class="small flex flex-column g-4">
-                    <div class="flex justify-space-between align-center">
-                        <b>{"Pastes"}</b>
-
-                        <a class="button bundles-primary round" href="/">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-square"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
-                            {"New"}
+                        <a class="button" href="/d" style="border-left: 0">
+                            {"Dashboard"}
                         </a>
                     </div>
+                </div>
 
-                    <div class="card round secondary flex g-4 flex-column justify-center" id="pastes_list">
-                        {for props.pastes.iter().map(|p| html! {
-                            <a class="button secondary round full justify-start" href={format!("/?editing={}", &p.custom_url)}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-pen"><path d="M12 22h6a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v10"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10.4 12.6a2 2 0 1 1 3 3L8 21l-4 1 1-4Z"/></svg>
-                                {&p.custom_url}
+                <div class="toolbar-layout-wrapper">
+                    <div id="link-header" style="display: flex;" class="flex-column bg-1">
+                        <div class="link-header-top"></div>
+
+                        <div class="link-header-middle">
+                            <h1 class="no-margin">{"Dashboard"}</h1>
+                        </div>
+
+                        <div class="link-header-bottom">
+                            <a href="/d" class="button">{"Home"}</a>
+                            <a href="/d/pastes" class="button active">{"Pastes"}</a>
+                            <a href="/d/atomic" class="button">{"Atomic"}</a>
+                            <a href="/d/boards" class="button">{"Boards"}</a>
+                        </div>
+                    </div>
+
+                    <main class="small flex flex-column g-4">
+                        <div class="flex justify-space-between align-center">
+                            <b>{"Pastes"}</b>
+
+                            <a class="button bundles-primary round" href="/">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-square"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                                {"New"}
                             </a>
-                        })}
-                    </div>
+                        </div>
 
-                    <div class="full flex justify-space-between" id="pages">
-                        <a class="button round" href={format!("?offset={}", props.offset - 50)} disabled={props.offset <= 0}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-                            {"Back"}
-                        </a>
+                        <div class="card round secondary flex g-4 flex-column justify-center" id="pastes_list">
+                            {for props.pastes.iter().map(|p| html! {
+                                <a class="button secondary round full justify-start" href={format!("/?editing={}", &p.custom_url)}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-pen"><path d="M12 22h6a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v10"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10.4 12.6a2 2 0 1 1 3 3L8 21l-4 1 1-4Z"/></svg>
+                                    {&p.custom_url}
+                                </a>
+                            })}
+                        </div>
 
-                        <a class="button round" href={format!("?offset={}", props.offset + 50)} disabled={props.pastes.len() == 0}>
-                            {"Next"}
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                        </a>
-                    </div>
+                        <div class="full flex justify-space-between" id="pages">
+                            <a class="button round" href={format!("?offset={}", props.offset - 50)} disabled={props.offset <= 0}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                                {"Back"}
+                            </a>
 
-                    <Footer auth_state={props.auth_state} />
-                </main>
+                            <a class="button round" href={format!("?offset={}", props.offset + 50)} disabled={props.pastes.len() == 0}>
+                                {"Next"}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                            </a>
+                        </div>
+
+                        <Footer auth_state={props.auth_state} />
+                    </main>
+                </div>
             </div>
-        </div>
-    };
+        };
 }
 
 fn build_dashboard_renderer_with_props(props: DashboardProps) -> ServerRenderer<Dashboard> {

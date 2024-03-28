@@ -5,7 +5,7 @@ use yew::prelude::*;
 use yew::ServerRenderer;
 
 use crate::components::message::{Message, TopicForumMessage};
-use crate::components::navigation::Footer;
+use crate::components::navigation::{Footer, GlobalMenu};
 use crate::db::bundlesdb::{Board, BoardMetadata, BoardPostLog, FullUser, Log};
 use crate::db::{self, bundlesdb};
 use crate::utility::{self, format_html};
@@ -238,187 +238,189 @@ fn ViewBoard(props: &Props) -> Html {
 
     // ...
     return html! {
-        <div class="flex flex-column" style="height: 100dvh;">
-            <div style="display: none;" id="board-name">{&props.board.name}</div>
+            <div class="flex flex-column" style="height: 100dvh;">
+                <div style="display: none;" id="board-name">{&props.board.name}</div>
 
-            <div class="toolbar flex justify-space-between">
-                // left
-                <div class="flex">
-                    <a class="button" href="/" style="border-left: 0">
-                        <b>{"::SITE_NAME::"}</b>
-                    </a>
+    <GlobalMenu auth_state={props.auth_state} />
 
-                    <a class="button" href={format!("/b/{}", props.board.name)} style="border-left: 0">
-                        {if props.board.name.starts_with("inbox-") {
-                            "inbox"
-                        } else {
-                            &props.board.name
-                        }}
-                    </a>
-                </div>
+                <div class="toolbar flex justify-space-between">
+                    // left
+                    <div class="flex">
+                        <button title="Menu" b_onclick="window.toggle_child_menu(event.target, '#upper\\\\:globalmenu')" style="border-left: 0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                        </button>
 
-                // right
-                <div class="flex">
-                    <a class="button" href={format!("/b/{}/manage", props.board.name)} title="Manage Board">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-cog"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v2"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><circle cx="6" cy="14" r="3"/><path d="M6 10v1"/><path d="M6 17v1"/><path d="M10 14H9"/><path d="M3 14H2"/><path d="m9 11-.88.88"/><path d="M3.88 16.12 3 17"/><path d="m9 17-.88-.88"/><path d="M3.88 11.88 3 11"/></svg>
-                    </a>
-                </div>
-            </div>
-
-            <div class="toolbar-layout-wrapper">
-                <main class="flex flex-column g-4 align-center">
-                    <div class="full flex justify-space-between align-center g-4">
-                        <h5 class="no-margin">{if props.board.name.starts_with("inbox-") {
-                            // show OTHER USER's username if we're in an inbox
-                            let mailstream = serde_json::from_str::<bundlesdb::UserMailStreamIdentifier>(&board_m.about.as_ref().unwrap()).unwrap();
-
-                            if props.me == mailstream.user1 {
-                                mailstream.user2
+                        <a class="button" href={format!("/b/{}", props.board.name)} style="border-left: 0">
+                            {if props.board.name.starts_with("inbox-") {
+                                "inbox"
                             } else {
-                                mailstream.user1
-                            }
-                        } else {
-                            props.board.name.clone()
-                        }}</h5>
-                        <a class="button bundles-primary round" href={format!("/b/{}/new", props.board.name)}>{"New Post"}</a>
+                                &props.board.name
+                            }}
+                        </a>
                     </div>
 
-                    <div
-                        class="full"
-                        id="about"
-                        style={if props.board.name.starts_with("inbox-") {
-                            "display: none;"
-                        } else {
-                            ""
-                        }}
-                    >
-                        <div class="flex flex-column g-4">
-                            <details class="full round">
-                                <summary>{"Board Information"}</summary>
+                    // right
+                    <div class="flex">
+                        <a class="button" href={format!("/b/{}/manage", props.board.name)} title="Manage Board">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-cog"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v2"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><circle cx="6" cy="14" r="3"/><path d="M6 10v1"/><path d="M6 17v1"/><path d="M10 14H9"/><path d="M3 14H2"/><path d="m9 11-.88.88"/><path d="M3.88 16.12 3 17"/><path d="m9 17-.88-.88"/><path d="M3.88 11.88 3 11"/></svg>
+                        </a>
+                    </div>
+                </div>
 
-                                <div class="card secondary">
-                                    <ul>
-                                        <li>{"Created: "}<span class="date-time-to-localize">{&props.board.timestamp}</span></li>
-                                        <li>{"Owner: "}<a href={format!("/~{}", &board_m.owner)}>{&board_m.owner}</a></li>
+                <div class="toolbar-layout-wrapper">
+                    <main class="flex flex-column g-4 align-center">
+                        <div class="full flex justify-space-between align-center g-4">
+                            <h5 class="no-margin">{if props.board.name.starts_with("inbox-") {
+                                // show OTHER USER's username if we're in an inbox
+                                let mailstream = serde_json::from_str::<bundlesdb::UserMailStreamIdentifier>(&board_m.about.as_ref().unwrap()).unwrap();
 
-                                        {if board_m.tags.is_some() {
-                                            let binding = board_m.tags.unwrap().clone();
-                                            let tags = binding.split(" ");
-
-                                            html! { <li>
-                                                {"Tags: "}
-                                                <span class="g-4 flex-wrap" style="display: inline-flex;">
-                                                    {for tags.into_iter().map(|t| {
-                                                        html! { <a href={format!("/d/boards/browse?tags={}", t.replace("+", "%2B"))}>{&t}</a> }
-                                                    })}
-                                                </span>
-                                            </li> }
-                                        } else {
-                                            html! {}
-                                        }}
-                                    </ul>
-                                </div>
-                            </details>
-
-                            <details class="full round">
-                                <summary>{"Search"}</summary>
-
-                                <div class="card secondary flex flex-column g-4">
-                                    <b>{"By Tags"}</b>
-
-                                    <form class="flex g-4 full">
-                                        <input
-                                            type="text"
-                                            name="tags"
-                                            id="tags"
-                                            placeholder="Tags"
-                                            class="round"
-                                            value={props.tags.clone()}
-                                            maxlength={250}
-                                            style="width: calc(100% - 50px);"
-                                        />
-
-                                        <button class="round bundles-primary" style="width: 50px;">{"Go"}</button>
-                                    </form>
-                                </div>
-                            </details>
+                                if props.me == mailstream.user1 {
+                                    mailstream.user2
+                                } else {
+                                    mailstream.user1
+                                }
+                            } else {
+                                props.board.name.clone()
+                            }}</h5>
+                            <a class="button bundles-primary round" href={format!("/b/{}/new", props.board.name)}>{"New Post"}</a>
                         </div>
 
-                        {if board_m.about.is_some() && board_m.about.as_ref().unwrap().len() > 0 {
-                            let content = Html::from_html_unchecked(AttrValue::from(
-                                crate::markdown::render::parse_markdown(&board_m.about.unwrap())
-                            ));
+                        <div
+                            class="full"
+                            id="about"
+                            style={if props.board.name.starts_with("inbox-") {
+                                "display: none;"
+                            } else {
+                                ""
+                            }}
+                        >
+                            <div class="flex flex-column g-4">
+                                <details class="full round">
+                                    <summary>{"Board Information"}</summary>
 
+                                    <div class="card secondary">
+                                        <ul>
+                                            <li>{"Created: "}<span class="date-time-to-localize">{&props.board.timestamp}</span></li>
+                                            <li>{"Owner: "}<a href={format!("/~{}", &board_m.owner)}>{&board_m.owner}</a></li>
+
+                                            {if board_m.tags.is_some() {
+                                                let binding = board_m.tags.unwrap().clone();
+                                                let tags = binding.split(" ");
+
+                                                html! { <li>
+                                                    {"Tags: "}
+                                                    <span class="g-4 flex-wrap" style="display: inline-flex;">
+                                                        {for tags.into_iter().map(|t| {
+                                                            html! { <a href={format!("/d/boards/browse?tags={}", t.replace("+", "%2B"))}>{&t}</a> }
+                                                        })}
+                                                    </span>
+                                                </li> }
+                                            } else {
+                                                html! {}
+                                            }}
+                                        </ul>
+                                    </div>
+                                </details>
+
+                                <details class="full round">
+                                    <summary>{"Search"}</summary>
+
+                                    <div class="card secondary flex flex-column g-4">
+                                        <b>{"By Tags"}</b>
+
+                                        <form class="flex g-4 full">
+                                            <input
+                                                type="text"
+                                                name="tags"
+                                                id="tags"
+                                                placeholder="Tags"
+                                                class="round"
+                                                value={props.tags.clone()}
+                                                maxlength={250}
+                                                style="width: calc(100% - 50px);"
+                                            />
+
+                                            <button class="round bundles-primary" style="width: 50px;">{"Go"}</button>
+                                        </form>
+                                    </div>
+                                </details>
+                            </div>
+
+                            {if board_m.about.is_some() && board_m.about.as_ref().unwrap().len() > 0 {
+                                let content = Html::from_html_unchecked(AttrValue::from(
+                                    crate::markdown::render::parse_markdown(&board_m.about.unwrap())
+                                ));
+
+                                html! {
+                                    <>
+                                        <hr />
+                                        {content}
+                                    </>
+                                }
+                            } else {
+                                html! {}
+                            }}
+
+                            <hr />
+                        </div>
+
+                        {if props.pinned.len() > 0 {
                             html! {
                                 <>
-                                    <hr />
-                                    {content}
+                                    {for props.pinned.iter().map(|p| {
+                                        html! { <Message post={p.clone()} show_open={true} pinned={true} /> }
+                                    })}
+
+                                    <hr class="full" style="var(--u-08) 0 var(--u-04) 0" />
                                 </>
                             }
                         } else {
                             html! {}
                         }}
 
-                        <hr />
-                    </div>
+                        {if !topic_required {
+                            html! {{for props.posts.iter().map(|p| {
+                                html! { <Message post={p.clone()} show_open={true} pinned={false} /> }
+                            })}}
+                        } else {
+                            html! {
+                                <table class="full stripped">
+                                    <thead>
+                                        <th>{"Title"}</th>
+                                        <th>{"Author"}</th>
+                                        <th class="device:desktop">{"Created"}</th>
+                                    </thead>
 
-                    {if props.pinned.len() > 0 {
-                        html! {
-                            <>
-                                {for props.pinned.iter().map(|p| {
-                                    html! { <Message post={p.clone()} show_open={true} pinned={true} /> }
-                                })}
+                                    <tbody>
+                                        {for props.posts.iter().map(|p| {
+                                            html! { <TopicForumMessage post={p.clone()} show_open={true} pinned={false} /> }
+                                        })}
+                                    </tbody>
+                                </table>
+                            }
+                        }}
 
-                                <hr class="full" style="var(--u-08) 0 var(--u-04) 0" />
-                            </>
-                        }
-                    } else {
-                        html! {}
-                    }}
+                        <div class="full flex justify-space-between" id="pages">
+                            <a class="button round" href={format!("?tags={}&offset={}&view={}", props.tags, props.offset - 50, props.view)} disabled={props.offset <= 0}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                                {"Back"}
+                            </a>
 
-                    {if !topic_required {
-                        html! {{for props.posts.iter().map(|p| {
-                            html! { <Message post={p.clone()} show_open={true} pinned={false} /> }
-                        })}}
-                    } else {
-                        html! {
-                            <table class="full stripped">
-                                <thead>
-                                    <th>{"Title"}</th>
-                                    <th>{"Author"}</th>
-                                    <th class="device:desktop">{"Created"}</th>
-                                </thead>
+                            <a class="button round" href={format!("?tags={}&offset={}&view={}", props.tags, props.offset + 50, props.view)} disabled={props.posts.len() == 0}>
+                                {"Next"}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                            </a>
+                        </div>
 
-                                <tbody>
-                                    {for props.posts.iter().map(|p| {
-                                        html! { <TopicForumMessage post={p.clone()} show_open={true} pinned={false} /> }
-                                    })}
-                                </tbody>
-                            </table>
-                        }
-                    }}
+                        <script type="module">
+                            {"import \"/static/js/BoardView.js\";"}
+                        </script>
 
-                    <div class="full flex justify-space-between" id="pages">
-                        <a class="button round" href={format!("?tags={}&offset={}&view={}", props.tags, props.offset - 50, props.view)} disabled={props.offset <= 0}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-                            {"Back"}
-                        </a>
-
-                        <a class="button round" href={format!("?tags={}&offset={}&view={}", props.tags, props.offset + 50, props.view)} disabled={props.posts.len() == 0}>
-                            {"Next"}
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                        </a>
-                    </div>
-
-                    <script type="module">
-                        {"import \"/static/js/BoardView.js\";"}
-                    </script>
-
-                    <Footer auth_state={props.auth_state} />
-                </main>
+                        <Footer auth_state={props.auth_state} />
+                    </main>
+                </div>
             </div>
-        </div>
-    };
+        };
 }
 
 fn build_view_renderer_with_props(props: Props) -> ServerRenderer<ViewBoard> {
@@ -605,110 +607,112 @@ fn CreateBoardPost(props: &PostProps) -> Html {
 
     // ...
     return html! {
-        <div class="flex flex-column" style="height: 100dvh;">
-            <div style="display: none;" id="board-name">{&props.board.name}</div>
+            <div class="flex flex-column" style="height: 100dvh;">
+                <div style="display: none;" id="board-name">{&props.board.name}</div>
 
-            <div class="toolbar flex justify-space-between">
-                // left
-                <div class="flex">
-                    <a class="button" href="/" style="border-left: 0">
-                        <b>{"::SITE_NAME::"}</b>
-                    </a>
+    <GlobalMenu auth_state={props.auth_state} />
 
-                    <a class="button" href={format!("/b/{}", props.board.name)} style="border-left: 0">
-                        {if props.board.name.starts_with("inbox-") {
-                            "inbox"
-                        } else {
-                            &props.board.name
-                        }}
-                    </a>
-                </div>
+                <div class="toolbar flex justify-space-between">
+                    // left
+                    <div class="flex">
+                        <button title="Menu" b_onclick="window.toggle_child_menu(event.target, '#upper\\\\:globalmenu')" style="border-left: 0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                        </button>
 
-                // right
-                <div class="flex">
-                    <a class="button" href={format!("/b/{}/manage", props.board.name)} title="Manage Board">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-cog"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v2"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><circle cx="6" cy="14" r="3"/><path d="M6 10v1"/><path d="M6 17v1"/><path d="M10 14H9"/><path d="M3 14H2"/><path d="m9 11-.88.88"/><path d="M3.88 16.12 3 17"/><path d="m9 17-.88-.88"/><path d="M3.88 11.88 3 11"/></svg>
-                    </a>
-                </div>
-            </div>
-
-            <div class="toolbar-layout-wrapper">
-                <main class="flex flex-column g-4 align-center">
-                    {if (props.auth_state.is_some() && props.auth_state.unwrap() == true) || (can_post_from_anonymous == true) {
-                        // ^ signed in OR can_post_from_anonymous is true
-                        html! {
-                            <div class="full">
-                                <div class="card round secondary flex flex-column g-4" id="post">
-                                    <div id="error" class="mdnote note-error full" style="display: none;" />
-
-                                    <form id="create-post" class="flex flex-column g-4">
-                                        <div class="full flex justify-space-between align-center g-4">
-                                            <b>{"Create Post"}</b>
-
-                                            <button class="bundles-primary round">
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                                                {"Send"}
-                                            </button>
-                                        </div>
-
-                                        <textarea
-                                            type="text"
-                                            name="content"
-                                            id="content"
-                                            placeholder="Content"
-                                            class="full round"
-                                            minlength={2}
-                                            maxlength={1_000}
-                                            required={true}
-                                        ></textarea>
-
-                                        <input
-                                            type="text"
-                                            name="topic"
-                                            id="topic"
-                                            placeholder={format!("Topic{}", if !topic_required {
-                                                " (Optional)"
-                                            } else {
-                                                ""
-                                            })}
-                                            class="round"
-                                            maxlength={250}
-                                            required={topic_required}
-                                        />
-                                    </form>
-                                </div>
-
-                                <hr style="var(--u-08) 0 var(--u-04) 0" />
-                            </div>
-                    }} else {
-                        html! {}
-                    }}
-
-                    <details class="full round">
-                        <summary>{"About this board"}</summary>
-
-                        <div class="card secondary full" id="about">
-                            {if board_m.about.is_some() {
-                                let content = Html::from_html_unchecked(AttrValue::from(
-                                    crate::markdown::render::parse_markdown(&board_m.about.unwrap())
-                                ));
-
-                                html! {{content}}
+                        <a class="button" href={format!("/b/{}", props.board.name)} style="border-left: 0">
+                            {if props.board.name.starts_with("inbox-") {
+                                "inbox"
                             } else {
-                                html! {}
+                                &props.board.name
                             }}
-                        </div>
-                    </details>
+                        </a>
+                    </div>
 
-                    <script type="module">
-                        {"import \"/static/js/BoardView.js\";"}
-                    </script>
+                    // right
+                    <div class="flex">
+                        <a class="button" href={format!("/b/{}/manage", props.board.name)} title="Manage Board">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-cog"><path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v2"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><circle cx="6" cy="14" r="3"/><path d="M6 10v1"/><path d="M6 17v1"/><path d="M10 14H9"/><path d="M3 14H2"/><path d="m9 11-.88.88"/><path d="M3.88 16.12 3 17"/><path d="m9 17-.88-.88"/><path d="M3.88 11.88 3 11"/></svg>
+                        </a>
+                    </div>
+                </div>
 
-                    <Footer auth_state={props.auth_state} />
-                </main>
+                <div class="toolbar-layout-wrapper">
+                    <main class="flex flex-column g-4 align-center">
+                        {if (props.auth_state.is_some() && props.auth_state.unwrap() == true) || (can_post_from_anonymous == true) {
+                            // ^ signed in OR can_post_from_anonymous is true
+                            html! {
+                                <div class="full">
+                                    <div class="card round secondary flex flex-column g-4" id="post">
+                                        <div id="error" class="mdnote note-error full" style="display: none;" />
+
+                                        <form id="create-post" class="flex flex-column g-4">
+                                            <div class="full flex justify-space-between align-center g-4">
+                                                <b>{"Create Post"}</b>
+
+                                                <button class="bundles-primary round">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                                    {"Send"}
+                                                </button>
+                                            </div>
+
+                                            <textarea
+                                                type="text"
+                                                name="content"
+                                                id="content"
+                                                placeholder="Content"
+                                                class="full round"
+                                                minlength={2}
+                                                maxlength={1_000}
+                                                required={true}
+                                            ></textarea>
+
+                                            <input
+                                                type="text"
+                                                name="topic"
+                                                id="topic"
+                                                placeholder={format!("Topic{}", if !topic_required {
+                                                    " (Optional)"
+                                                } else {
+                                                    ""
+                                                })}
+                                                class="round"
+                                                maxlength={250}
+                                                required={topic_required}
+                                            />
+                                        </form>
+                                    </div>
+
+                                    <hr style="var(--u-08) 0 var(--u-04) 0" />
+                                </div>
+                        }} else {
+                            html! {}
+                        }}
+
+                        <details class="full round">
+                            <summary>{"About this board"}</summary>
+
+                            <div class="card secondary full" id="about">
+                                {if board_m.about.is_some() {
+                                    let content = Html::from_html_unchecked(AttrValue::from(
+                                        crate::markdown::render::parse_markdown(&board_m.about.unwrap())
+                                    ));
+
+                                    html! {{content}}
+                                } else {
+                                    html! {}
+                                }}
+                            </div>
+                        </details>
+
+                        <script type="module">
+                            {"import \"/static/js/BoardView.js\";"}
+                        </script>
+
+                        <Footer auth_state={props.auth_state} />
+                    </main>
+                </div>
             </div>
-        </div>
-    };
+        };
 }
 
 fn build_post_renderer_with_props(props: PostProps) -> ServerRenderer<CreateBoardPost> {
@@ -900,227 +904,229 @@ fn ViewBoardPost(props: &ViewPostProps) -> Html {
 
     // ...
     return html! {
-        <div class="flex flex-column" style="height: 100dvh;">
-            <div style="display: none;" id="board-name">{&props.board.name}</div>
-            <div style="display: none;" id="post-id">{&props.post.id}</div>
+            <div class="flex flex-column" style="height: 100dvh;">
+                <div style="display: none;" id="board-name">{&props.board.name}</div>
+                <div style="display: none;" id="post-id">{&props.post.id}</div>
 
-            <div class="toolbar flex justify-space-between">
-                // left
-                <div class="flex">
-                    <a class="button" href="/" style="border-left: 0">
-                        <b>{"::SITE_NAME::"}</b>
-                    </a>
+    <GlobalMenu auth_state={props.auth_state} />
 
-                    <a class="button" href={format!("/b/{}", props.board.name)} style="border-left: 0">
-                        {if props.board.name.starts_with("inbox-") {
-                            "inbox"
-                        } else {
-                            &props.board.name
-                        }}
-                    </a>
+                <div class="toolbar flex justify-space-between">
+                    // left
+                    <div class="flex">
+                        <button title="Menu" b_onclick="window.toggle_child_menu(event.target, '#upper\\\\:globalmenu')" style="border-left: 0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                        </button>
+
+                        <a class="button" href={format!("/b/{}", props.board.name)} style="border-left: 0">
+                            {if props.board.name.starts_with("inbox-") {
+                                "inbox"
+                            } else {
+                                &props.board.name
+                            }}
+                        </a>
+                    </div>
                 </div>
-            </div>
 
-            <div class="toolbar-layout-wrapper">
-                <main class="flex flex-column g-4">
-                    <div id="error" class="mdnote note-error full" style="display: none;" />
-                    <div id="success" class="mdnote note-note full" style="display: none;" />
+                <div class="toolbar-layout-wrapper">
+                    <main class="flex flex-column g-4">
+                        <div id="error" class="mdnote note-error full" style="display: none;" />
+                        <div id="success" class="mdnote note-note full" style="display: none;" />
 
-                    {if (props.edit == false && props.edit_tags == false) | (can_edit == false) {
-                        html! { <>
-                            {if post.topic.is_some() {
-                                html! { <h3 style="margin-top: 0; margin-bottom: 1rem; max-width: 100%;">{post.topic.unwrap()}</h3> }
+                        {if (props.edit == false && props.edit_tags == false) | (can_edit == false) {
+                            html! { <>
+                                {if post.topic.is_some() {
+                                    html! { <h3 style="margin-top: 0; margin-bottom: 1rem; max-width: 100%;">{post.topic.unwrap()}</h3> }
+                                } else {
+                                    html! {}
+                                }}
+
+                                <Message post={p.clone()} show_open={false} pinned={false} />
+                            </> }
+                        } else if props.edit_tags == true {
+                            // edit tags
+                            html! { <div class="card round secondary" id="post">
+                                <form id="edit-post-tags" class="flex flex-column g-4" data-endpoint={format!("/api/board/{}/posts/{}/tags", &post.board, &p.id)}>
+                                    <div class="full flex justify-space-between align-center g-4">
+                                        <b>{"Edit Post Tags"}</b>
+
+                                        <button class="bundles-primary round">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                            {"Save"}
+                                        </button>
+                                    </div>
+
+                                    <textarea
+                                        type="text"
+                                        name="tags"
+                                        id="tags"
+                                        placeholder="Tags"
+                                        class="full round"
+                                        value={if post.tags.is_some() {
+                                            post.tags.unwrap()
+                                        } else {
+                                            String::new()
+                                        }}
+                                        minlength={2}
+                                        maxlength={1_000}
+                                        required={true}
+                                    ></textarea>
+                                </form>
+                            </div> }
+                        } else {
+                            // edit content
+                            html! { <div class="card round secondary" id="post">
+                                <form id="edit-post" class="flex flex-column g-4" data-endpoint={format!("/api/board/{}/posts/{}/update", &post.board, &p.id)}>
+                                    <div class="full flex justify-space-between align-center g-4">
+                                        <b>{"Edit Post"}</b>
+
+                                        <button class="bundles-primary round">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                            {"Save"}
+                                        </button>
+                                    </div>
+
+                                    <textarea
+                                        type="text"
+                                        name="content"
+                                        id="content"
+                                        placeholder="Content"
+                                        class="full round"
+                                        value={post.content}
+                                        minlength={2}
+                                        maxlength={1_000}
+                                        required={true}
+                                    ></textarea>
+
+                                    <input
+                                        type="text"
+                                        name="topic"
+                                        id="topic"
+                                        placeholder={format!("Topic{}", if !topic_required {
+                                            " (Optional)"
+                                        } else {
+                                            ""
+                                        })}
+                                        class="round"
+                                        value={if post.topic.is_some() {
+                                            post.topic.unwrap()
+                                        } else {
+                                            String::new()
+                                        }}
+                                        maxlength={250}
+                                        required={topic_required}
+                                    />
+                                </form>
+                            </div> }
+                        }}
+
+                        <div class="flex flex-wrap g-4">
+                            {if can_manage {
+                                html! {
+                                    <>
+                                        <button class="border round" id="delete-post" data-endpoint={format!("/api/board/{}/posts/{}", &post.board, &p.id)}>{"Delete"}</button>
+                                        <a class="button border round" href="?edit_tags=true">{"Edit Tags"}</a>
+                                    </>
+                                }
                             } else {
                                 html! {}
                             }}
 
-                            <Message post={p.clone()} show_open={false} pinned={false} />
-                        </> }
-                    } else if props.edit_tags == true {
-                        // edit tags
-                        html! { <div class="card round secondary" id="post">
-                            <form id="edit-post-tags" class="flex flex-column g-4" data-endpoint={format!("/api/board/{}/posts/{}/tags", &post.board, &p.id)}>
-                                <div class="full flex justify-space-between align-center g-4">
-                                    <b>{"Edit Post Tags"}</b>
+                            {if can_manage_board {
+                                html! {
+                                    <button class="border round" id="pin-post" data-endpoint={format!("/api/board/{}/posts/{}/pin", &post.board, &p.id)}>{"Pin"}</button>
+                                }
+                            } else {
+                                html! {}
+                            }}
 
-                                    <button class="bundles-primary round">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                                        {"Save"}
-                                    </button>
-                                </div>
+                            {if can_edit {
+                                html! {
+                                    <a class="button border round" href="?edit=true">{"Edit"}</a>
+                                }
+                            } else {
+                                html! {}
+                            }}
+                        </div>
 
-                                <textarea
-                                    type="text"
-                                    name="tags"
-                                    id="tags"
-                                    placeholder="Tags"
-                                    class="full round"
-                                    value={if post.tags.is_some() {
-                                        post.tags.unwrap()
-                                    } else {
-                                        String::new()
-                                    }}
-                                    minlength={2}
-                                    maxlength={1_000}
-                                    required={true}
-                                ></textarea>
-                            </form>
-                        </div> }
-                    } else {
-                        // edit content
-                        html! { <div class="card round secondary" id="post">
-                            <form id="edit-post" class="flex flex-column g-4" data-endpoint={format!("/api/board/{}/posts/{}/update", &post.board, &p.id)}>
-                                <div class="full flex justify-space-between align-center g-4">
-                                    <b>{"Edit Post"}</b>
-
-                                    <button class="bundles-primary round">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                                        {"Save"}
-                                    </button>
-                                </div>
-
-                                <textarea
-                                    type="text"
-                                    name="content"
-                                    id="content"
-                                    placeholder="Content"
-                                    class="full round"
-                                    value={post.content}
-                                    minlength={2}
-                                    maxlength={1_000}
-                                    required={true}
-                                ></textarea>
-
-                                <input
-                                    type="text"
-                                    name="topic"
-                                    id="topic"
-                                    placeholder={format!("Topic{}", if !topic_required {
-                                        " (Optional)"
-                                    } else {
-                                        ""
-                                    })}
-                                    class="round"
-                                    value={if post.topic.is_some() {
-                                        post.topic.unwrap()
-                                    } else {
-                                        String::new()
-                                    }}
-                                    maxlength={250}
-                                    required={topic_required}
-                                />
-                            </form>
-                        </div> }
-                    }}
-
-                    <div class="flex flex-wrap g-4">
-                        {if can_manage {
+                        {if (props.auth_state.is_some() && props.auth_state.unwrap() == true) || (can_post_from_anonymous == true) {
+                            // ^ signed in OR can_post_from_anonymous is true
                             html! {
                                 <>
-                                    <button class="border round" id="delete-post" data-endpoint={format!("/api/board/{}/posts/{}", &post.board, &p.id)}>{"Delete"}</button>
-                                    <a class="button border round" href="?edit_tags=true">{"Edit Tags"}</a>
-                                </>
-                            }
-                        } else {
-                            html! {}
-                        }}
+                                    <hr style="var(--u-04) 0 var(--u-08) 0" />
 
-                        {if can_manage_board {
-                            html! {
-                                <button class="border round" id="pin-post" data-endpoint={format!("/api/board/{}/posts/{}/pin", &post.board, &p.id)}>{"Pin"}</button>
-                            }
-                        } else {
-                            html! {}
-                        }}
+                                    <div class="full flex flex-column g-4">
+                                        <details class="full round" style="display: none;">
+                                            <summary>{"About this board"}</summary>
 
-                        {if can_edit {
-                            html! {
-                                <a class="button border round" href="?edit=true">{"Edit"}</a>
-                            }
-                        } else {
-                            html! {}
-                        }}
-                    </div>
+                                            <div class="card secondary full" id="about">
+                                                {if board.about.is_some() {
+                                                    let content = Html::from_html_unchecked(AttrValue::from(
+                                                        crate::markdown::render::parse_markdown(&board.about.unwrap())
+                                                    ));
 
-                    {if (props.auth_state.is_some() && props.auth_state.unwrap() == true) || (can_post_from_anonymous == true) {
-                        // ^ signed in OR can_post_from_anonymous is true
-                        html! {
-                            <>
-                                <hr style="var(--u-04) 0 var(--u-08) 0" />
-
-                                <div class="full flex flex-column g-4">
-                                    <details class="full round" style="display: none;">
-                                        <summary>{"About this board"}</summary>
-
-                                        <div class="card secondary full" id="about">
-                                            {if board.about.is_some() {
-                                                let content = Html::from_html_unchecked(AttrValue::from(
-                                                    crate::markdown::render::parse_markdown(&board.about.unwrap())
-                                                ));
-
-                                                html! {{content}}
-                                            } else {
-                                                html! {}
-                                            }}
-                                        </div>
-                                    </details>
-
-                                    <div class="card round secondary" id="post">
-                                        <form id="create-post" class="flex flex-column g-4">
-                                            <div class="full flex justify-space-between align-center g-4">
-                                                <b>{"Reply"}</b>
-
-                                                <button class="bundles-primary round">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                                                    {"Send"}
-                                                </button>
+                                                    html! {{content}}
+                                                } else {
+                                                    html! {}
+                                                }}
                                             </div>
+                                        </details>
 
-                                            <textarea
-                                                type="text"
-                                                name="content"
-                                                id="content"
-                                                placeholder="Content"
-                                                class="full round"
-                                                minlength={2}
-                                                maxlength={1_000}
-                                                required={true}
-                                            ></textarea>
-                                        </form>
+                                        <div class="card round secondary" id="post">
+                                            <form id="create-post" class="flex flex-column g-4">
+                                                <div class="full flex justify-space-between align-center g-4">
+                                                    <b>{"Reply"}</b>
+
+                                                    <button class="bundles-primary round">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                                                        {"Send"}
+                                                    </button>
+                                                </div>
+
+                                                <textarea
+                                                    type="text"
+                                                    name="content"
+                                                    id="content"
+                                                    placeholder="Content"
+                                                    class="full round"
+                                                    minlength={2}
+                                                    maxlength={1_000}
+                                                    required={true}
+                                                ></textarea>
+                                            </form>
+                                        </div>
+
+                                        // <hr style="var(--u-08) 0 var(--u-04) 0" />
                                     </div>
+                                </>
+                        }} else {
+                            html! {}
+                        }}
 
-                                    // <hr style="var(--u-08) 0 var(--u-04) 0" />
-                                </div>
-                            </>
-                    }} else {
-                        html! {}
-                    }}
+                        {for props.replies.iter().map(|p| {
+                            html! { <Message post={p.clone()} show_open={true} pinned={false} /> }
+                        })}
 
-                    {for props.replies.iter().map(|p| {
-                        html! { <Message post={p.clone()} show_open={true} pinned={false} /> }
-                    })}
+                        <div class="full flex justify-space-between" id="pages">
+                            <a class="button round" href={format!("?offset={}", props.offset - 50)} disabled={props.offset <= 0}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                                {"Back"}
+                            </a>
 
-                    <div class="full flex justify-space-between" id="pages">
-                        <a class="button round" href={format!("?offset={}", props.offset - 50)} disabled={props.offset <= 0}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-                            {"Back"}
-                        </a>
+                            <a class="button round" href={format!("?offset={}", props.offset + 50)} disabled={props.replies.len() == 0}>
+                                {"Next"}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                            </a>
+                        </div>
 
-                        <a class="button round" href={format!("?offset={}", props.offset + 50)} disabled={props.replies.len() == 0}>
-                            {"Next"}
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                        </a>
-                    </div>
+                        <Footer auth_state={props.auth_state} />
+                    </main>
+                </div>
 
-                    <Footer auth_state={props.auth_state} />
-                </main>
+                <script type="module">
+                    {"import \"/static/js/ManageBoardPost.js\";"}
+                </script>
             </div>
-
-            <script type="module">
-                {"import \"/static/js/ManageBoardPost.js\";"}
-            </script>
-        </div>
-    };
+        };
 }
 
 fn build_view_post_renderer_with_props(props: ViewPostProps) -> ServerRenderer<ViewBoardPost> {
@@ -1248,61 +1254,63 @@ fn BoardSettings(props: &SettingsProps) -> Html {
     let metadata = serde_json::from_str::<bundlesdb::BoardMetadata>(&props.board.metadata).unwrap();
 
     return html! {
-        <div>
-            <div class="toolbar flex justify-space-between">
-                // left
-                <div class="flex">
-                    <a class="button" href="/" style="border-left: 0">
-                        <b>{"::SITE_NAME::"}</b>
-                    </a>
+            <div>
+    <GlobalMenu auth_state={props.auth_state} />
 
-                    <a class="button" href={format!("/b/{}", props.board.name)} style="border-left: 0">
-                        {props.board.name.clone()}
-                    </a>
-                </div>
+                <div class="toolbar flex justify-space-between">
+                    // left
+                    <div class="flex">
+                        <button title="Menu" b_onclick="window.toggle_child_menu(event.target, '#upper\\\\:globalmenu')" style="border-left: 0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                        </button>
 
-                // right
-                <div class="flex">
-                    <a class="button" href={format!("/b/{}", props.board.name)}>{"Feed"}</a>
-                </div>
-            </div>
-
-            <div class="toolbar-layout-wrapper">
-                <main class="flex flex-column g-4 small">
-                    <h2 class="full text-center">{"Board Settings"}</h2>
-
-                    <div class="card round secondary flex flex-column g-4">
-                        <div class="flex full justify-space-between flex-wrap mobile:justify-center g-4">
-                            <div class="flex g-4">
-                                <form action="/api/metadata" id="update-form">
-                                    <button class="green round secondary">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                                        {"Save"}
-                                    </button>
-                                </form>
-
-                                <button class="secondary round" id="add_field">{"Add Field"}</button>
-                            </div>
-
-                            <div class="flex g-4">
-                                <button class="secondary round red" id="delete-board">{"Delete"}</button>
-                                <a href={format!("/b/{}", props.board.name)} class="button round secondary">{"Cancel"}</a>
-                            </div>
-                        </div>
-
-                        <div id="options-field" class="flex flex-wrap mobile:flex-column g-4 full justify-space-between" />
+                        <a class="button" href={format!("/b/{}", props.board.name)} style="border-left: 0">
+                            {props.board.name.clone()}
+                        </a>
                     </div>
 
-                    <script type="module">
-                        {format!("import {{ paste_settings }} from \"/static/js/SettingsEditor.js\";
-                        paste_settings({}, \"{}\", document.getElementById(\"options-field\"), \"board\");", serde_json::to_string(&metadata).unwrap(), &props.board.name)}
-                    </script>
+                    // right
+                    <div class="flex">
+                        <a class="button" href={format!("/b/{}", props.board.name)}>{"Feed"}</a>
+                    </div>
+                </div>
 
-                    <Footer auth_state={props.auth_state} />
-                </main>
+                <div class="toolbar-layout-wrapper">
+                    <main class="flex flex-column g-4 small">
+                        <h2 class="full text-center">{"Board Settings"}</h2>
+
+                        <div class="card round secondary flex flex-column g-4">
+                            <div class="flex full justify-space-between flex-wrap mobile:justify-center g-4">
+                                <div class="flex g-4">
+                                    <form action="/api/metadata" id="update-form">
+                                        <button class="green round secondary">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-save"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                                            {"Save"}
+                                        </button>
+                                    </form>
+
+                                    <button class="secondary round" id="add_field">{"Add Field"}</button>
+                                </div>
+
+                                <div class="flex g-4">
+                                    <button class="secondary round red" id="delete-board">{"Delete"}</button>
+                                    <a href={format!("/b/{}", props.board.name)} class="button round secondary">{"Cancel"}</a>
+                                </div>
+                            </div>
+
+                            <div id="options-field" class="flex flex-wrap mobile:flex-column g-4 full justify-space-between" />
+                        </div>
+
+                        <script type="module">
+                            {format!("import {{ paste_settings }} from \"/static/js/SettingsEditor.js\";
+                            paste_settings({}, \"{}\", document.getElementById(\"options-field\"), \"board\");", serde_json::to_string(&metadata).unwrap(), &props.board.name)}
+                        </script>
+
+                        <Footer auth_state={props.auth_state} />
+                    </main>
+                </div>
             </div>
-        </div>
-    };
+        };
 }
 
 fn build_settings_with_props(props: SettingsProps) -> ServerRenderer<BoardSettings> {
@@ -1396,82 +1404,84 @@ pub async fn board_settings_request(
 #[function_component]
 fn SearchByTag(props: &SearchProps) -> Html {
     html! {
-        <div class="flex flex-column" style="height: 100dvh;">
-            <div class="toolbar flex justify-space-between">
-                // left
-                <div class="flex">
-                    <a class="button" href="/" style="border-left: 0">
-                        <b>{"::SITE_NAME::"}</b>
-                    </a>
+            <div class="flex flex-column" style="height: 100dvh;">
+    <GlobalMenu auth_state={props.auth_state} />
 
-                    <a class="button" href="/d" style="border-left: 0">
-                        {"Dashboard"}
-                    </a>
-                </div>
-            </div>
+                <div class="toolbar flex justify-space-between">
+                    // left
+                    <div class="flex">
+                        <button title="Menu" b_onclick="window.toggle_child_menu(event.target, '#upper\\\\:globalmenu')" style="border-left: 0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                        </button>
 
-            <div class="toolbar-layout-wrapper">
-                <div id="link-header" style="display: flex;" class="flex-column bg-1">
-                    <div class="link-header-top"></div>
-
-                    <div class="link-header-middle">
-                        <h1 class="no-margin">{"Browse Boards"}</h1>
-                    </div>
-
-                    <div class="link-header-bottom">
-                        <a href="/d" class="button">{"Home"}</a>
-                        <a href="/d/pastes" class="button">{"Pastes"}</a>
-                        <a href="/d/atomic" class="button">{"Atomic"}</a>
-                        <a href="/d/boards" class="button active">{"Boards"}</a>
+                        <a class="button" href="/d" style="border-left: 0">
+                            {"Dashboard"}
+                        </a>
                     </div>
                 </div>
 
-                <main class="small flex flex-column g-4">
-                    <div class="flex justify-space-between align-center mobile:flex-column g-4">
-                        <b>{"Search Boards"}</b>
+                <div class="toolbar-layout-wrapper">
+                    <div id="link-header" style="display: flex;" class="flex-column bg-1">
+                        <div class="link-header-top"></div>
 
-                        <form style="width: 50%;" class="flex g-4 mobile:max">
-                            <input
-                                type="text"
-                                name="tags"
-                                id="tags"
-                                placeholder="Tags"
-                                class="round"
-                                value={props.tags.clone()}
-                                maxlength={250}
-                                style="width: calc(100% - 50px);"
-                            />
+                        <div class="link-header-middle">
+                            <h1 class="no-margin">{"Browse Boards"}</h1>
+                        </div>
 
-                            <button class="round bundles-primary" style="width: 50px;">{"Go"}</button>
-                        </form>
+                        <div class="link-header-bottom">
+                            <a href="/d" class="button">{"Home"}</a>
+                            <a href="/d/pastes" class="button">{"Pastes"}</a>
+                            <a href="/d/atomic" class="button">{"Atomic"}</a>
+                            <a href="/d/boards" class="button active">{"Boards"}</a>
+                        </div>
                     </div>
 
-                    <div class="card round secondary flex g-4 flex-column justify-center" id="boards_list">
-                        {for props.boards.iter().map(|b| html! {
-                            <a class="button secondary round full justify-start" href={format!("/b/{}", &b.name)} title={b.tags.clone()}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-messages-square"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2v5Z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg>
-                                {&b.name}
+                    <main class="small flex flex-column g-4">
+                        <div class="flex justify-space-between align-center mobile:flex-column g-4">
+                            <b>{"Search Boards"}</b>
+
+                            <form style="width: 50%;" class="flex g-4 mobile:max">
+                                <input
+                                    type="text"
+                                    name="tags"
+                                    id="tags"
+                                    placeholder="Tags"
+                                    class="round"
+                                    value={props.tags.clone()}
+                                    maxlength={250}
+                                    style="width: calc(100% - 50px);"
+                                />
+
+                                <button class="round bundles-primary" style="width: 50px;">{"Go"}</button>
+                            </form>
+                        </div>
+
+                        <div class="card round secondary flex g-4 flex-column justify-center" id="boards_list">
+                            {for props.boards.iter().map(|b| html! {
+                                <a class="button secondary round full justify-start" href={format!("/b/{}", &b.name)} title={b.tags.clone()}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-messages-square"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2v5Z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg>
+                                    {&b.name}
+                                </a>
+                            })}
+                        </div>
+
+                        <div class="full flex justify-space-between" id="pages">
+                            <a class="button round" href={format!("?tags={}&offset={}", props.tags, props.offset - 50)} disabled={props.offset <= 0}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
+                                {"Back"}
                             </a>
-                        })}
-                    </div>
 
-                    <div class="full flex justify-space-between" id="pages">
-                        <a class="button round" href={format!("?tags={}&offset={}", props.tags, props.offset - 50)} disabled={props.offset <= 0}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-                            {"Back"}
-                        </a>
+                            <a class="button round" href={format!("?tags={}&offset={}", props.tags, props.offset + 50)} disabled={props.boards.len() == 0}>
+                                {"Next"}
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                            </a>
+                        </div>
 
-                        <a class="button round" href={format!("?tags={}&offset={}", props.tags, props.offset + 50)} disabled={props.boards.len() == 0}>
-                            {"Next"}
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                        </a>
-                    </div>
-
-                    <Footer auth_state={props.auth_state} />
-                </main>
+                        <Footer auth_state={props.auth_state} />
+                    </main>
+                </div>
             </div>
-        </div>
-    }
+        }
 }
 
 fn build_search_renderer_with_props(props: SearchProps) -> ServerRenderer<SearchByTag> {
@@ -1560,67 +1570,69 @@ You can create an account at: /d/auth/register",
 #[function_component]
 fn Dashboard(props: &DashboardProps) -> Html {
     html! {
-        <div class="flex flex-column" style="height: 100dvh;">
-            <div class="toolbar flex justify-space-between">
-                // left
-                <div class="flex">
-                    <a class="button" href="/" style="border-left: 0">
-                        <b>{"::SITE_NAME::"}</b>
-                    </a>
+            <div class="flex flex-column" style="height: 100dvh;">
+    <GlobalMenu auth_state={props.auth_state} />
 
-                    <a class="button" href="/d" style="border-left: 0">
-                        {"Dashboard"}
-                    </a>
-                </div>
-            </div>
+                <div class="toolbar flex justify-space-between">
+                    // left
+                    <div class="flex">
+                        <button title="Menu" b_onclick="window.toggle_child_menu(event.target, '#upper\\\\:globalmenu')" style="border-left: 0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                        </button>
 
-            <div class="toolbar-layout-wrapper">
-                <div id="link-header" style="display: flex;" class="flex-column bg-1">
-                    <div class="link-header-top"></div>
-
-                    <div class="link-header-middle">
-                        <h1 class="no-margin">{"Dashboard"}</h1>
-                    </div>
-
-                    <div class="link-header-bottom">
-                        <a href="/d" class="button">{"Home"}</a>
-                        <a href="/d/pastes" class="button">{"Pastes"}</a>
-                        <a href="/d/atomic" class="button">{"Atomic"}</a>
-                        <a href="/d/boards" class="button active">{"Boards"}</a>
+                        <a class="button" href="/d" style="border-left: 0">
+                            {"Dashboard"}
+                        </a>
                     </div>
                 </div>
 
-                <main class="small flex flex-column g-4">
-                    <div class="flex justify-space-between align-center">
-                        <b>{"My Boards"}</b>
+                <div class="toolbar-layout-wrapper">
+                    <div id="link-header" style="display: flex;" class="flex-column bg-1">
+                        <div class="link-header-top"></div>
 
-                        <div class="flex g-4 flex-wrap">
-                            <a class="button border round" href="/d/boards/browse">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                                {"Browse"}
-                            </a>
+                        <div class="link-header-middle">
+                            <h1 class="no-margin">{"Dashboard"}</h1>
+                        </div>
 
-                            <a class="button bundles-primary round" href="/b/new">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-square"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
-                                {"New"}
-                            </a>
+                        <div class="link-header-bottom">
+                            <a href="/d" class="button">{"Home"}</a>
+                            <a href="/d/pastes" class="button">{"Pastes"}</a>
+                            <a href="/d/atomic" class="button">{"Atomic"}</a>
+                            <a href="/d/boards" class="button active">{"Boards"}</a>
                         </div>
                     </div>
 
-                    <div class="card round secondary flex g-4 flex-column justify-center" id="boards_list">
-                        {for props.boards.iter().map(|b| html! {
-                            <a class="button secondary round full justify-start" href={format!("/b/{}", &b.name)}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-messages-square"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2v5Z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg>
-                                {&b.name}
-                            </a>
-                        })}
-                    </div>
+                    <main class="small flex flex-column g-4">
+                        <div class="flex justify-space-between align-center">
+                            <b>{"My Boards"}</b>
 
-                    <Footer auth_state={props.auth_state} />
-                </main>
+                            <div class="flex g-4 flex-wrap">
+                                <a class="button border round" href="/d/boards/browse">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-search"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                                    {"Browse"}
+                                </a>
+
+                                <a class="button bundles-primary round" href="/b/new">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-square"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                                    {"New"}
+                                </a>
+                            </div>
+                        </div>
+
+                        <div class="card round secondary flex g-4 flex-column justify-center" id="boards_list">
+                            {for props.boards.iter().map(|b| html! {
+                                <a class="button secondary round full justify-start" href={format!("/b/{}", &b.name)}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-messages-square"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4c0-1.1.9-2 2-2h8a2 2 0 0 1 2 2v5Z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg>
+                                    {&b.name}
+                                </a>
+                            })}
+                        </div>
+
+                        <Footer auth_state={props.auth_state} />
+                    </main>
+                </div>
             </div>
-        </div>
-    }
+        }
 }
 
 fn build_dashboard_renderer_with_props(props: DashboardProps) -> ServerRenderer<Dashboard> {

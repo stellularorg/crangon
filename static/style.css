@@ -50,6 +50,8 @@
 
     --secondary: hsl(41, 100%, 62%);
     --secondary-low: hsl(41, 100%, 58%);
+
+    --blue3: hsl(208, 98%, 40%);
 }
 
 .dark-theme {
@@ -60,6 +62,8 @@
 
     --mod: +;
     --diff: 0%;
+
+    --blue3: hsl(205, 59%, 64%);
 }
 
 *.round {
@@ -70,6 +74,11 @@
 svg {
     fill: transparent;
     stroke: currentColor;
+}
+
+/* general text */
+a {
+    color: var(--blue3);
 }
 
 /* button modifications */
@@ -300,6 +309,7 @@ select:focus {
     height: var(--toolbar-nav-height);
     padding: 0;
     border-bottom: solid 1px var(--background-surface2a);
+    background: var(--background-surface);
 }
 
 .toolbar button,
@@ -313,14 +323,15 @@ select:focus {
     height: var(--toolbar-nav-height) !important;
     display: flex;
     justify-content: center;
-    background: transparent;
+    background: inherit;
     border-left: solid 1px var(--background-surface2a);
     border-right: solid 1px var(--background-surface2a);
+    position: relative;
 }
 
-.toolbar button:hover,
-.toolbar .button:hover {
-    background: var(--background-surface1a);
+.toolbar button:not(.selected):hover,
+.toolbar .button:not(.selected):hover {
+    background: var(--background-surface1a) !important;
 }
 
 .toolbar button:hover *,
@@ -334,6 +345,43 @@ select:focus {
     overflow-y: auto;
 }
 
+/* link list */
+.link-list {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    bottom: 0;
+    border: solid 1px var(--background-surface2a);
+    border-top: none;
+    background: var(--background-surface);
+    max-width: 100dvw;
+    max-height: 100%;
+    overflow: hidden auto;
+    width: 25rem;
+    height: max-content;
+    z-index: 100;
+}
+
+.link-list .option.small {
+    padding: var(--u-04) var(--u-10);
+}
+
+.link-list .option {
+    height: max-content;
+    display: flex;
+    justify-content: center;
+    background: transparent;
+    padding: var(--u-10);
+}
+
+.link-list .option:not(:last-child) {
+    border-bottom: solid 1px var(--background-surface2a) !important;
+}
+
+.link-list .option:hover {
+    background: var(--background-surface1a);
+}
+
 /* link header */
 #link-header {
     padding: 0 calc(var(--u-10) * 4);
@@ -343,6 +391,12 @@ select:focus {
 @media screen and (max-width: 900px) {
     #link-header {
         padding: 0 var(--u-10);
+    }
+
+    .link-list {
+        width: 100%;
+        border-left: none;
+        border-right: none;
     }
 }
 
