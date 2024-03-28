@@ -41,62 +41,62 @@ struct Props {
 #[function_component]
 fn Dashboard(props: &Props) -> Html {
     return html! {
-            <div class="flex flex-column" style="height: 100dvh;">
-    <GlobalMenu auth_state={props.auth_state} />
+        <div class="flex flex-column" style="height: 100dvh;">
+            <GlobalMenu auth_state={props.auth_state} />
 
-                <div class="toolbar flex justify-space-between">
-                    // left
-                    <div class="flex">
-                        <button title="Menu" b_onclick="window.toggle_child_menu(event.target, '#upper\\\\:globalmenu')" style="border-left: 0">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
-                        </button>
+            <div class="toolbar flex justify-space-between">
+                // left
+                <div class="flex">
+                    <button title="Menu" b_onclick="window.toggle_child_menu(event.target, '#upper\\\\:globalmenu')" style="border-left: 0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
+                    </button>
 
-                        <a class="button" href="/d" style="border-left: 0">
-                            {"Dashboard"}
-                        </a>
-                    </div>
-                </div>
-
-                <div class="toolbar-layout-wrapper">
-                    <div id="link-header" style="display: flex;" class="flex-column bg-1">
-                        <div class="link-header-top"></div>
-
-                        <div class="link-header-middle">
-                            <h1 class="no-margin">{"Dashboard"}</h1>
-                        </div>
-
-                        <div class="link-header-bottom">
-                            <a href="/d" class="button">{"Home"}</a>
-                            <a href="/d/pastes" class="button">{"Pastes"}</a>
-                            <a href="/d/atomic" class="button active">{"Atomic"}</a>
-                            <a href="/d/boards" class="button">{"Boards"}</a>
-                        </div>
-                    </div>
-
-                    <main class="small flex flex-column g-4">
-                        <div class="flex justify-space-between align-center">
-                            <b>{"Atomic Pastes"}</b>
-
-                            <a class="button bundles-primary round" href="/d/atomic/new">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-square"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
-                                {"New"}
-                            </a>
-                        </div>
-
-                        <div class="card round secondary flex g-4 flex-column justify-center" id="pastes_list">
-                            {for props.pastes.iter().map(|p| html! {
-                                <a class="button secondary round full justify-start" href={format!("/d/atomic/{}?path=/index.html", &p.id)}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder-archive"><circle cx="15" cy="19" r="2"/><path d="M20.9 19.8A2 2 0 0 0 22 18V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h5.1"/><path d="M15 11v-1"/><path d="M15 17v-2"/></svg>
-                                    {&p.custom_url}
-                                </a>
-                            })}
-                        </div>
-
-                        <Footer auth_state={props.auth_state} />
-                    </main>
+                    <a class="button" href="/d" style="border-left: 0">
+                        {"Dashboard"}
+                    </a>
                 </div>
             </div>
-        };
+
+            <div class="toolbar-layout-wrapper">
+                <div id="link-header" style="display: flex;" class="flex-column bg-1">
+                    <div class="link-header-top"></div>
+
+                    <div class="link-header-middle">
+                        <h1 class="no-margin">{"Dashboard"}</h1>
+                    </div>
+
+                    <div class="link-header-bottom">
+                        <a href="/d" class="button">{"Home"}</a>
+                        <a href="/d/pastes" class="button">{"Pastes"}</a>
+                        <a href="/d/atomic" class="button active">{"Atomic"}</a>
+                        <a href="/d/boards" class="button">{"Boards"}</a>
+                    </div>
+                </div>
+
+                <main class="small flex flex-column g-4">
+                    <div class="flex justify-space-between align-center">
+                        <b>{"Atomic Pastes"}</b>
+
+                        <a class="button bundles-primary round" href="/d/atomic/new">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-square"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+                            {"New"}
+                        </a>
+                    </div>
+
+                    <div class="card round secondary flex g-4 flex-column justify-center" id="pastes_list">
+                        {for props.pastes.iter().map(|p| html! {
+                            <a class="button secondary round full justify-start" href={format!("/d/atomic/{}?path=/index.html", &p.id)}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder-archive"><circle cx="15" cy="19" r="2"/><path d="M20.9 19.8A2 2 0 0 0 22 18V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h5.1"/><path d="M15 11v-1"/><path d="M15 17v-2"/></svg>
+                                {&p.custom_url}
+                            </a>
+                        })}
+                    </div>
+
+                    <Footer auth_state={props.auth_state} />
+                </main>
+            </div>
+        </div>
+    };
 }
 
 fn build_dashboard_renderer_with_props(props: Props) -> ServerRenderer<Dashboard> {

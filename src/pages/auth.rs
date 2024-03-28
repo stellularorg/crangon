@@ -487,7 +487,7 @@ fn ProfileView(props: &Props) -> Html {
     // ...
     return html! {
         <div class="flex flex-column" style="height: 100dvh;">
-<GlobalMenu auth_state={props.auth_state} />
+            <GlobalMenu auth_state={props.auth_state} />
 
             <div class="toolbar flex justify-space-between">
                 // left
@@ -680,7 +680,7 @@ pub async fn profile_view_request(
 fn FollowersView(props: &FollowersProps) -> Html {
     html! {
         <div class="flex flex-column" style="height: 100dvh;">
-<GlobalMenu auth_state={props.auth_state} />
+            <GlobalMenu auth_state={props.auth_state} />
 
             <div class="toolbar flex justify-space-between">
                 // left
@@ -846,7 +846,7 @@ pub async fn followers_request(
 fn FollowingView(props: &FollowingProps) -> Html {
     html! {
         <div class="flex flex-column" style="height: 100dvh;">
-<GlobalMenu auth_state={props.auth_state} />
+            <GlobalMenu auth_state={props.auth_state} />
 
             <div class="toolbar flex justify-space-between">
                 // left
@@ -1014,7 +1014,7 @@ fn UserSettings(props: &SettingsProps) -> Html {
 
     return html! {
         <div>
-<GlobalMenu auth_state={props.auth_state} />
+            <GlobalMenu auth_state={props.auth_state} />
 
             <div class="toolbar flex justify-space-between">
                 // left

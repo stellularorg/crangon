@@ -101,7 +101,7 @@ pub fn Footer(props: &FooterProps) -> Html {
 
 #[function_component]
 pub fn GlobalMenu(props: &FooterProps) -> Html {
-    let version = std::env::var("CARGO_PKG_VERSION").unwrap();
+    let version = std::env::var("CARGO_PKG_VERSION").unwrap_or(String::from("source"));
 
     let info_req = std::env::var("INFO");
     let mut info: String = String::new();
