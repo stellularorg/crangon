@@ -1609,6 +1609,26 @@ impl BundlesDB {
         &self,
         owner: String,
     ) -> DefaultReturn<Option<Vec<PasteIdentifier>>> {
+        // check in cache
+        let cached = self
+            .cachedb
+            .get(format!("pastes-by-owner-atomic:{}:atomic", owner))
+            .await;
+
+        if cached.is_some() {
+            // ...
+            let pastes =
+                serde_json::from_str::<Vec<PasteIdentifier>>(cached.unwrap().as_str()).unwrap();
+
+            // return
+            return DefaultReturn {
+                success: true,
+                message: owner,
+                payload: Option::Some(pastes),
+            };
+        }
+
+        // ...
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE ? AND \"content\" LIKE ?"
         } else {
@@ -1640,6 +1660,14 @@ impl BundlesDB {
                 id: row.get("id").unwrap().to_string(),
             });
         }
+
+        // store in cache
+        self.cachedb
+            .set(
+                format!("pastes-by-owner:{}:atomic", owner),
+                serde_json::to_string::<Vec<PasteIdentifier>>(&full_res).unwrap(),
+            )
+            .await;
 
         // return
         return DefaultReturn {
@@ -2672,6 +2700,8 @@ impl BundlesDB {
         url: String,
         offset: Option<i32>,
     ) -> DefaultReturn<Option<Vec<Log>>> {
+        let offset = if offset.is_some() { offset.unwrap() } else { 0 };
+
         // make sure board exists
         let existing: DefaultReturn<Option<Board<String>>> =
             self.get_board_by_name(url.to_owned().to_lowercase()).await;
@@ -2681,6 +2711,28 @@ impl BundlesDB {
                 success: false,
                 message: String::from("Board does not exist"),
                 payload: Option::None,
+            };
+        }
+
+        // check in cache
+        let cached = self
+            .cachedb
+            .get(format!(
+                "board-posts:{}:offset{}",
+                url.to_lowercase(),
+                offset
+            ))
+            .await;
+
+        if cached.is_some() {
+            // ...
+            let posts = serde_json::from_str::<Vec<Log>>(cached.unwrap().as_str()).unwrap();
+
+            // ...
+            return DefaultReturn {
+                success: true,
+                message: String::from("Successfully fetched posts"),
+                payload: Option::Some(posts),
             };
         }
 
@@ -2694,7 +2746,7 @@ impl BundlesDB {
         let c = &self.db.client;
         let res = sqlx::query(query)
             .bind::<&String>(&format!("%\"board\":\"{}\"%", url))
-            .bind(if offset.is_some() { offset.unwrap() } else { 0 })
+            .bind(offset)
             .fetch_all(c)
             .await;
 
@@ -2725,7 +2777,7 @@ impl BundlesDB {
             let mut parsed = serde_json::from_str::<BoardPostLog>(&post.content).unwrap();
 
             // get replies
-            let replies = &self.get_post_replies_limited(post.clone().id, false).await;
+            let replies = &self.get_post_replies(post.clone().id, false).await;
 
             if replies.payload.is_some() {
                 parsed.replies = Option::Some(replies.payload.as_ref().unwrap().len());
@@ -2739,6 +2791,14 @@ impl BundlesDB {
 
             continue;
         }
+
+        // store in cache
+        self.cachedb
+            .set(
+                format!("board-posts:{}:offset{}", url.to_lowercase(), offset),
+                serde_json::to_string::<Vec<Log>>(&true_output).unwrap(),
+            )
+            .await;
 
         // return
         return DefaultReturn {
@@ -2823,7 +2883,7 @@ impl BundlesDB {
             let mut parsed = serde_json::from_str::<BoardPostLog>(&post.content).unwrap();
 
             // get replies
-            let replies = &self.get_post_replies_limited(post.clone().id, false).await;
+            let replies = &self.get_post_replies(post.clone().id, false).await;
 
             if replies.payload.is_some() {
                 parsed.replies = Option::Some(replies.payload.as_ref().unwrap().len());
@@ -2906,17 +2966,19 @@ impl BundlesDB {
         };
     }
 
-    /// Get all posts in a [`Board`] by its name that are replying to another [`BoardPostLog`]
+    /// Get all posts in a [`Board`] by its name that are replying to another [`BoardPostLog`] (limited form)
     ///
     /// # Arguments:
     /// * `id` - post id
     /// * `run_existing_check` - if we should check that the log exists first
-    pub async fn get_post_replies(
+    pub async fn get_post_replies_limited(
         &self,
         id: String,
         run_existing_check: bool,
         offset: Option<i32>,
     ) -> DefaultReturn<Option<Vec<Log>>> {
+        let offset = if offset.is_some() { offset.unwrap() } else { 0 };
+
         // make sure message exists
         if run_existing_check != false {
             let existing: DefaultReturn<Option<Log>> = self.get_log_by_id(id.to_owned()).await;
@@ -2930,6 +2992,24 @@ impl BundlesDB {
             }
         }
 
+        // check in cache
+        let cached = self
+            .cachedb
+            .get(format!("post-replies:{}:offset{}", id, offset))
+            .await;
+
+        if cached.is_some() {
+            // ...
+            let posts = serde_json::from_str::<Vec<Log>>(cached.unwrap().as_str()).unwrap();
+
+            // ...
+            return DefaultReturn {
+                success: true,
+                message: String::from("Successfully fetched replies (limited)"),
+                payload: Option::Some(posts),
+            };
+        }
+
         // ...
         let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
             "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
@@ -2940,7 +3020,7 @@ impl BundlesDB {
         let c = &self.db.client;
         let res = sqlx::query(query)
             .bind::<&String>(&format!("%\"reply\":\"{}\"%", id))
-            .bind(if offset.is_some() { offset.unwrap() } else { 0 })
+            .bind(offset)
             .fetch_all(c)
             .await;
 
@@ -2971,7 +3051,7 @@ impl BundlesDB {
             let mut parsed = serde_json::from_str::<BoardPostLog>(&post.content).unwrap();
 
             // get replies
-            let replies = &self.get_post_replies_limited(post.clone().id, false).await;
+            let replies = &self.get_post_replies(post.clone().id, false).await;
 
             if replies.payload.is_some() {
                 parsed.replies = Option::Some(replies.payload.as_ref().unwrap().len());
@@ -2986,22 +3066,30 @@ impl BundlesDB {
             continue;
         }
 
+        // store in cache
+        self.cachedb
+            .set(
+                format!("post-replies:{}:offset{}", id, offset),
+                serde_json::to_string::<Vec<Log>>(&true_output).unwrap(),
+            )
+            .await;
+
         // return
         return DefaultReturn {
             success: true,
-            message: String::from("Successfully fetched posts (replies)"),
+            message: String::from("Successfully fetched replies (limited)"),
             payload: Option::Some(true_output),
         };
     }
 
-    /// Get all posts in a [`Board`] by its name that are replying to another [`BoardPostLog`] (limited form)
+    /// Get all posts in a [`Board`] by its name that are replying to another [`BoardPostLog`]
     ///
     /// - only includes post id
     ///
     /// # Arguments:
     /// * `id` - post id
     /// * `run_existing_check` - if we should check that the log exists first
-    pub async fn get_post_replies_limited(
+    pub async fn get_post_replies(
         &self,
         id: String,
         run_existing_check: bool,
@@ -3017,6 +3105,22 @@ impl BundlesDB {
                     payload: Option::None,
                 };
             }
+        }
+
+        // check in cache
+        let cached = self.cachedb.get(format!("post-replies:{}", id)).await;
+
+        if cached.is_some() {
+            // ...
+            let posts =
+                serde_json::from_str::<Vec<LogIdentifier>>(cached.unwrap().as_str()).unwrap();
+
+            // ...
+            return DefaultReturn {
+                success: true,
+                message: String::from("Successfully fetched posts (limited)"),
+                payload: Option::Some(posts),
+            };
         }
 
         // ...
@@ -3035,7 +3139,7 @@ impl BundlesDB {
         if res.is_err() {
             return DefaultReturn {
                 success: false,
-                message: String::from("Failed to fetch posts"),
+                message: String::from("Failed to fetch replies"),
                 payload: Option::None,
             };
         }
@@ -3051,10 +3155,18 @@ impl BundlesDB {
             });
         }
 
+        // store in cache
+        self.cachedb
+            .set(
+                format!("post-replies:{}", id),
+                serde_json::to_string::<Vec<LogIdentifier>>(&output).unwrap(),
+            )
+            .await;
+
         // return
         return DefaultReturn {
             success: true,
-            message: String::from("Successfully fetched posts (limited)"),
+            message: String::from("Successfully fetched replies"),
             payload: Option::Some(output),
         };
     }
@@ -3505,6 +3617,54 @@ impl BundlesDB {
             replies: Option::None,
             tags: Option::None,
         };
+
+        // update cache
+        if p.reply.is_none() {
+            // a new post would always be on the first page, so only clear that one
+            self.cachedb
+                .remove(format!("board-posts:{}:offset0", p.board.to_lowercase()))
+                .await;
+
+            // ...but also clear the board (TODO: remove this step)
+            self.cachedb
+                .remove(format!("board-posts:{}", p.reply.as_ref().unwrap()))
+                .await;
+        } else {
+            // a new post would always be on the first page, so only clear that one
+            self.cachedb
+                .remove(format!("post-replies:{}", p.reply.as_ref().unwrap()))
+                .await;
+
+            self.cachedb
+                .remove(format!(
+                    "post-replies:{}:offset0",
+                    p.reply.as_ref().unwrap()
+                ))
+                .await;
+
+            // get replying_to
+            let replying_to = self
+                .get_log_by_id(p.reply.as_ref().unwrap().to_string())
+                .await;
+
+            let replying_to =
+                serde_json::from_str::<BoardPostLog>(&replying_to.payload.unwrap().content)
+                    .unwrap();
+
+            // delete replying_to's reply list at offset 0
+            if replying_to.reply.is_some() {
+                self.cachedb
+                    .remove(format!(
+                        "post-replies:{}:offset0",
+                        replying_to.reply.unwrap()
+                    ))
+                    .await;
+            } else {
+                self.cachedb
+                    .remove(format!("board-posts:{}:offset0", p.board.to_lowercase()))
+                    .await;
+            }
+        }
 
         // return
         self.create_log(

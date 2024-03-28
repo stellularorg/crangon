@@ -1191,7 +1191,7 @@ pub async fn view_board_post_request(
     // get replies
     let replies: bundlesdb::DefaultReturn<Option<Vec<Log>>> = data
         .db
-        .get_post_replies(id.clone(), false, info.offset)
+        .get_post_replies_limited(id.clone(), false, info.offset)
         .await;
 
     // ...

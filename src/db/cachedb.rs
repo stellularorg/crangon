@@ -1,7 +1,6 @@
 //! # CacheDB
 //!
-//! In-memory shared cache SQLite database connection for caching.
-//! This should be relatively easy to convert to a Redis cache if needed since this is already essentially just a key-value store.
+//! Redis connection.
 //!
 //! Identifiers should be a string following this format: `TYPE_OF_OBJECT:OBJECT_ID`. For pastes this would look like: `paste:{custom_url}`
 use redis::Commands;
