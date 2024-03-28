@@ -505,6 +505,21 @@ pub async fn update_post_request(
         .edit_log(id, serde_json::to_string::<BoardPostLog>(&post).unwrap())
         .await;
 
+    // update cache
+    if post.reply.is_some() {
+        // this doesn't change the number of posts so we only need to refresh ALL OFFSETS
+        // TODO: maybe do something to figure out the post offset if possible so we don't clear all offsets every time
+        data.db
+            .cachedb
+            .remove_starting_with(format!("post-replies:{}:*", post.reply.as_ref().unwrap()))
+            .await;
+    } else {
+        data.db
+            .cachedb
+            .remove_starting_with(format!("board-posts:{}:*", post.board))
+            .await;
+    }
+
     // return
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
@@ -671,6 +686,35 @@ pub async fn delete_post_request(req: HttpRequest, data: web::Data<AppData>) -> 
 
     // ...
     let res = data.db.delete_log(id).await;
+
+    // update cache
+    if post.reply.is_some() {
+        data.db
+            .cachedb
+            .remove(format!("post-replies:{}", post.reply.as_ref().unwrap()))
+            .await;
+
+        data.db
+            .cachedb
+            .remove(format!(
+                "post-replies:{}:offset0",
+                post.reply.as_ref().unwrap()
+            ))
+            .await;
+
+        // technically we should do that whole reply parent thing from create_board_post
+        // to update the number when viewing this post in a feed, but that's a waste of time and memory
+    } else {
+        data.db
+            .cachedb
+            .remove(format!("board-posts:{}", post.board))
+            .await;
+
+        data.db
+            .cachedb
+            .remove(format!("board-posts:{}:offset0", post.board))
+            .await;
+    }
 
     // return
     return HttpResponse::Ok()
