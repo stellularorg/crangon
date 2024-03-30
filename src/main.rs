@@ -88,10 +88,13 @@ async fn main() -> std::io::Result<()> {
             http_client: client,
         });
 
+        let cors = actix_cors::Cors::default().send_wildcard();
+
         App::new()
             .app_data(web::Data::clone(&data))
             // middleware
             .wrap(actix_web::middleware::Logger::default())
+            .wrap(cors)
             // static dir
             .service(
                 fs::Files::new(
@@ -107,15 +110,6 @@ async fn main() -> std::io::Result<()> {
             // docs
             .service(fs::Files::new("/api/docs", "./target/doc").show_files_listing())
             // POST api
-            // POST auth
-            .service(crate::api::auth::register)
-            .service(crate::api::auth::login)
-            .service(crate::api::auth::login_secondary_token)
-            .service(crate::api::auth::edit_about_request)
-            .service(crate::api::auth::refresh_secondary_token_request)
-            .service(crate::api::auth::update_request)
-            .service(crate::api::auth::follow_request)
-            .service(crate::api::boards::create_mail_stream_request)
             .service(crate::api::auth::ban_request)
             // POST api::pastes
             .service(crate::api::pastes::render_request)
@@ -131,14 +125,12 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::pastes::get_from_url_request)
             .service(crate::api::pastes::get_from_id_request)
             .service(crate::api::pastes::exists_request)
+            .service(crate::api::auth::callback_request)
             .service(crate::api::auth::logout)
             // GET dashboard
             .service(crate::pages::home::dashboard_request)
             .service(crate::pages::home::notifications_request)
             .service(crate::pages::home::inbox_request)
-            .service(crate::pages::auth::register_request)
-            .service(crate::pages::auth::login_request)
-            .service(crate::pages::auth::login_secondary_token_request)
             .service(crate::pages::settings::user_settings_request)
             .service(crate::pages::settings::paste_settings_request)
             .service(crate::pages::paste_view::dashboard_request)
@@ -146,40 +138,11 @@ async fn main() -> std::io::Result<()> {
             .service(crate::pages::atomic_editor::dashboard_request)
             .service(crate::pages::atomic_editor::new_request)
             .service(crate::pages::atomic_editor::edit_request)
-            // GET boards
-            .service(crate::pages::boards::dashboard_request)
-            .service(crate::pages::boards::search_by_tags_request)
-            .service(crate::pages::boards::new_request)
-            .service(crate::pages::boards::view_board_post_request)
-            .service(crate::pages::boards::board_settings_request)
-            .service(crate::pages::boards::create_board_post_request)
-            .service(crate::pages::boards::view_board_request)
-            // GET boards api
-            .service(crate::api::boards::get_posts_request)
-            .service(crate::api::boards::get_post_request)
-            // POST boards api
-            .service(crate::api::boards::create_request)
-            .service(crate::api::boards::create_post_request)
-            .service(crate::api::boards::update_post_request)
-            .service(crate::api::boards::update_post_tags_request)
-            .service(crate::api::boards::metadata_request)
-            .service(crate::api::boards::pin_post_request)
-            // DELETE boards api
-            .service(crate::api::boards::delete_post_request)
-            .service(crate::api::boards::delete_board_request)
             // GET staff
             .service(crate::pages::staff::dashboard_request)
             .service(crate::pages::staff::staff_boards_dashboard_request)
             .service(crate::pages::staff::staff_users_dashboard_request)
             // GET users
-            .service(crate::pages::auth::followers_request)
-            .service(crate::pages::auth::following_request)
-            .service(crate::pages::auth::user_settings_request)
-            .service(crate::pages::auth::profile_view_request)
-            .service(crate::api::auth::avatar_request)
-            .service(crate::api::auth::followers_request)
-            .service(crate::api::auth::following_request)
-            .service(crate::api::auth::level_request)
             .service(crate::api::auth::get_from_owner_request)
             // GET root
             .service(crate::pages::home::home_request)

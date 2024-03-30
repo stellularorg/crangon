@@ -91,7 +91,7 @@ fn PasteView(props: &Props) -> Html {
         Config
     </a>", &props.paste.custom_url);
 
-    let owner_button = format!("<a href=\"/~{}\">{}</a>", &metadata.owner, {
+    let owner_button = format!("<a href=\"::GUPPY_ROOT::{}\">{}</a>", &metadata.owner, {
         if user_metadata.is_some() && user_metadata.as_ref().unwrap().nickname.is_some() {
             user_metadata.as_ref().unwrap().nickname.as_ref().unwrap()
         } else {
@@ -476,7 +476,7 @@ fn Dashboard(props: &DashboardProps) -> Html {
                         <a href="/d" class="button">{"Home"}</a>
                         <a href="/d/pastes" class="button active">{"Pastes"}</a>
                         <a href="/d/atomic" class="button">{"Atomic"}</a>
-                        <a href="/d/boards" class="button">{"Boards"}</a>
+                        <a href="::PUFFER_ROOT::d" class="button">{"Boards"}</a>
                     </div>
                 </div>
 
@@ -527,7 +527,7 @@ fn build_dashboard_renderer_with_props(props: DashboardProps) -> ServerRenderer<
 pub async fn dashboard_request(
     req: HttpRequest,
     data: web::Data<bundlesdb::AppData>,
-    info: web::Query<super::boards::ViewBoardQueryProps>,
+    info: web::Query<crate::api::pastes::OffsetQueryProps>,
 ) -> impl Responder {
     // verify auth status
     let token_cookie = req.cookie("__Secure-Token");

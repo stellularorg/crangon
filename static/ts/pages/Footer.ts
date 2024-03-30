@@ -254,5 +254,14 @@ for (const element of onclick) {
     }
 };
 
+// wants redirect
+for (const element of Array.from(
+    document.querySelectorAll('[data-wants-redirect="true"]')
+) as HTMLAnchorElement[]) {
+    element.href = `${element.href}?callback=${encodeURIComponent(
+        `${window.location.origin}/api/auth/callback`
+    )}`;
+}
+
 // default export
 export default {};

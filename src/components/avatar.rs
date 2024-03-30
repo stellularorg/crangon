@@ -12,7 +12,7 @@ pub fn AvatarDisplay(props: &AvatarProps) -> Html {
         <img
             class="avatar"
             style={format!("--size: {}px;", props.size)}
-            src={format!("/api/auth/users/{}/avatar", props.username)}
+            src={format!("::GUPPY_ROOT::/api/auth/users/{}/avatar", props.username)}
         />
     }
 }

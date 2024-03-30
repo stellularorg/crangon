@@ -39,14 +39,14 @@ pub fn Footer(props: &FooterProps) -> Html {
                         </div>
 
                         <div class="item">
-                            <a href="/d/auth/register" class="flex align-center g-4">
+                            <a href="::GUPPY_ROOT::/d/auth/register" class="flex align-center g-4" data-wants-redirect="true">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-at-sign"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg>
                                 {"register"}
                             </a>
                         </div>
 
                         <div class="item">
-                            <a href="/d/auth/login" class="flex align-center g-4">
+                            <a href="::GUPPY_ROOT::/d/auth/login" class="flex align-center g-4" data-wants-redirect="true">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-log-in"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg>
                                 {"login"}
                             </a>
@@ -129,12 +129,12 @@ pub fn GlobalMenu(props: &FooterProps) -> Html {
                             {"new"}
                         </a>
 
-                        <a href="/d/auth/register" class="button green full round border justify-start">
+                        <a href="::GUPPY_ROOT::/d/auth/register" class="button green full round border justify-start" data-wants-redirect="true">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-at-sign"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg>
                             {"register"}
                         </a>
 
-                        <a href="/d/auth/login" class="button green full round border justify-start">
+                        <a href="::GUPPY_ROOT::/d/auth/login" class="button green full round border justify-start" data-wants-redirect="true">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-log-in"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" x2="3" y1="12" y2="12"/></svg>
                             {"login"}
                         </a>

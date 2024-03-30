@@ -13,13 +13,9 @@ const output = await build({
         "./static/ts/editors/MarkdownEditor.ts",
         "./static/ts/editors/ClientFixMarkdown.ts",
         "./static/ts/editors/SettingsEditor.ts",
-        "./static/ts/pages/AuthPages.ts",
         "./static/ts/pages/Footer.ts",
         "./static/ts/pages/NewAtomic.ts",
-        "./static/ts/pages/NewBoard.ts",
-        "./static/ts/pages/BoardView.ts",
         "./static/ts/pages/ManageBoardPost.ts",
-        "./static/ts/pages/ProfileView.ts",
         "./static/ts/pages/SDManageUser.ts",
     ],
     minify: {

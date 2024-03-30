@@ -3,7 +3,7 @@ name = "bundlrs"
 authors = ["hkau"]
 license = "MIT"
 
-version = "0.11.8"
+version = "0.12.0"
 edition = "2021"
 
 rust-version = "1.75"
@@ -43,5 +43,6 @@ sqlx = { version = "0.7.3", features = [
 ] }
 uuid = { version = "1.6.1", features = ["v4"] }
 yew = { version = "0.21.0", features = ["ssr"] }
-handlebars = "5.1.2"
 redis = "0.25.2"
+handlebars = "5.1.2"
+actix-cors = "0.7.0"

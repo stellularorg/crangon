@@ -3,6 +3,11 @@ use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
 use crate::db::bundlesdb::{self, AtomicPasteFSFile, DefaultReturn, FullPaste, PasteMetadata};
 use crate::{markdown, ssm, utility};
 
+#[derive(Default, PartialEq, serde::Deserialize)]
+pub struct OffsetQueryProps {
+    pub offset: Option<i32>,
+}
+
 #[derive(serde::Deserialize)]
 struct RenderInfo {
     text: String,

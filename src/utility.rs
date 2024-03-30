@@ -47,6 +47,8 @@ pub fn format_html(input: String, head: &str) -> String {
 
     // ...
     let site_name = config::get_var("SITE_NAME");
+    let guppy = config::get_var("GUPPY_ROOT");
+    let puffer = config::get_var("PUFFER_ROOT");
 
     // ...
     return format!(
@@ -82,5 +84,13 @@ pub fn format_html(input: String, head: &str) -> String {
         site_name.unwrap()
     } else {
         "Bundlrs".to_string()
+    }.as_str()).replace("::GUPPY_ROOT::", if guppy.is_some() {
+        guppy.unwrap()
+    } else {
+        "".to_string()
+    }.as_str()).replace("::PUFFER_ROOT::", if puffer.is_some() {
+        puffer.unwrap()
+    } else {
+        "".to_string()
     }.as_str());
 }

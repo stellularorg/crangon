@@ -6,6 +6,8 @@ Bundlrs is a *super* lightweight and [anonymous](#user-accounts) social markdown
 
 For migration from Bundles, please see [#3](https://code.stellular.org/stellular/bundlrs/issues/3).
 
+> Also see [Puffer](https://code.stellular.org/stellular/puffer) and [Guppy](https://code.stellular.org/stellular/guppy)! (required)
+
 ## Install
 
 Bundlrs provides build scripts using [just](https://github.com/casey/just). It is required that `bun`, `just`, `redis`, and (obviously) Rust are installed before running.

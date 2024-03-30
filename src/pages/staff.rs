@@ -9,7 +9,7 @@ use crate::db::bundlesdb::{DefaultReturn, FullUser};
 use crate::db::{self, bundlesdb};
 use crate::utility::format_html;
 
-use crate::pages::boards::ViewBoardQueryProps;
+use crate::api::pastes::OffsetQueryProps;
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 struct DashboardProps {
@@ -147,7 +147,7 @@ You can create an account at: /d/auth/register",
 
 #[function_component]
 fn BoardsDashboard(props: &BoardsProps) -> Html {
-    return html! {
+    html! {
         <div class="flex flex-column" style="height: 100dvh;">
             <GlobalMenu auth_state={props.auth_state} />
 
@@ -199,7 +199,7 @@ fn BoardsDashboard(props: &BoardsProps) -> Html {
                             let post = serde_json::from_str::<bundlesdb::BoardPostLog>(&p.content).unwrap();
 
                             html! {
-                                <a class="button secondary round full justify-start" href={format!("/b/{}/posts/{}", &post.board, &p.id)}>
+                                <a class="button secondary round full justify-start" href={format!("::PUFFER_ROOT::/{}/posts/{}", &post.board, &p.id)}>
                                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square-text"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M13 8H7"/><path d="M17 12H7"/></svg>
                                     {&post.board}
 
@@ -215,7 +215,7 @@ fn BoardsDashboard(props: &BoardsProps) -> Html {
                 </main>
             </div>
         </div>
-    };
+    }
 }
 
 fn build_boards_dashboard_renderer_with_props(
@@ -229,7 +229,7 @@ fn build_boards_dashboard_renderer_with_props(
 pub async fn staff_boards_dashboard_request(
     req: HttpRequest,
     data: web::Data<db::bundlesdb::AppData>,
-    info: web::Query<ViewBoardQueryProps>,
+    info: web::Query<OffsetQueryProps>,
 ) -> impl Responder {
     // verify auth status
     let token_cookie = req.cookie("__Secure-Token");
