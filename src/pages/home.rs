@@ -376,7 +376,7 @@ fn Dashboard(props: &DashboardProps) -> Html {
                         <a href="/d" class="button active">{"Home"}</a>
                         <a href="/d/pastes" class="button">{"Pastes"}</a>
                         <a href="/d/atomic" class="button">{"Atomic"}</a>
-                        <a href="::PUFFER_ROOT::d" class="button">{"Boards"}</a>
+                        <a href="::PUFFER_ROOT::/d" class="button">{"Boards"}</a>
                     </div>
                 </div>
 
@@ -433,7 +433,7 @@ fn Dashboard(props: &DashboardProps) -> Html {
                     <div class="card secondary round flex justify-space-between align-center g-4">
                         <b>{"My Boards"}</b>
 
-                        <a class="button bundles-primary round" href="::PUFFER_ROOT::d">
+                        <a class="button bundles-primary round" href="::PUFFER_ROOT::/d">
                             {"Go"}
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                         </a>
@@ -442,7 +442,7 @@ fn Dashboard(props: &DashboardProps) -> Html {
                     // <div class="card secondary round flex justify-space-between align-center g-4">
                     //     <b>{"Browse Boards"}</b>
 
-                    //     <a class="button bundles-primary round" href="::PUFFER_ROOT::d/browse">
+                    //     <a class="button bundles-primary round" href="::PUFFER_ROOT::/d/browse">
                     //         {"Go"}
                     //         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                     //     </a>
@@ -460,7 +460,7 @@ fn Dashboard(props: &DashboardProps) -> Html {
                     <div class="card secondary round flex justify-space-between align-center g-4">
                         <b>{"My Profile"}</b>
 
-                        <a class="button bundles-primary round" href={format!("::GUPPY_ROOT::{}", props.user.username)}>
+                        <a class="button bundles-primary round" href={format!("::GUPPY_ROOT::/{}", props.user.username)}>
                             {"Go"}
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                         </a>
@@ -469,7 +469,7 @@ fn Dashboard(props: &DashboardProps) -> Html {
                     <div class="card secondary round flex justify-space-between align-center g-4">
                         <b>{"Account Settings"}</b>
 
-                        <a class="button bundles-primary round" href={format!("::GUPPY_ROOT::{}/settings", props.user.username)}>
+                        <a class="button bundles-primary round" href={format!("::GUPPY_ROOT::/{}/settings", props.user.username)}>
                             {"Go"}
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                         </a>
@@ -581,7 +581,7 @@ fn Notifications(props: &NotificationsProps) -> Html {
                         <a href="/d" class="button">{"Home"}</a>
                         <a href="/d/pastes" class="button">{"Pastes"}</a>
                         <a href="/d/atomic" class="button">{"Atomic"}</a>
-                        <a href="::PUFFER_ROOT::d" class="button">{"Boards"}</a>
+                        <a href="::PUFFER_ROOT::/d" class="button">{"Boards"}</a>
                     </div>
                 </div>
 
@@ -725,7 +725,7 @@ fn Inbox(props: &InboxProps) -> Html {
                         <a href="/d" class="button">{"Home"}</a>
                         <a href="/d/pastes" class="button">{"Pastes"}</a>
                         <a href="/d/atomic" class="button">{"Atomic"}</a>
-                        <a href="::PUFFER_ROOT::d" class="button">{"Boards"}</a>
+                        <a href="::PUFFER_ROOT::/d" class="button">{"Boards"}</a>
                     </div>
                 </div>
 
@@ -745,7 +745,7 @@ fn Inbox(props: &InboxProps) -> Html {
                                 html! {
                                     <tr>
                                         <td>
-                                            <a class="flex full g-4" href={format!("::PUFFER_ROOT::{}", b.name)}>
+                                            <a class="flex full g-4" href={format!("::PUFFER_ROOT::/{}", b.name)}>
                                                 <AvatarDisplay size={25} username={b.tags.clone()} />
                                                 {b.tags.clone()}
                                             </a>

@@ -91,7 +91,7 @@ fn PasteView(props: &Props) -> Html {
         Config
     </a>", &props.paste.custom_url);
 
-    let owner_button = format!("<a href=\"::GUPPY_ROOT::{}\">{}</a>", &metadata.owner, {
+    let owner_button = format!("<a href=\"::GUPPY_ROOT::/{}\">{}</a>", &metadata.owner, {
         if user_metadata.is_some() && user_metadata.as_ref().unwrap().nickname.is_some() {
             user_metadata.as_ref().unwrap().nickname.as_ref().unwrap()
         } else {
@@ -476,7 +476,7 @@ fn Dashboard(props: &DashboardProps) -> Html {
                         <a href="/d" class="button">{"Home"}</a>
                         <a href="/d/pastes" class="button active">{"Pastes"}</a>
                         <a href="/d/atomic" class="button">{"Atomic"}</a>
-                        <a href="::PUFFER_ROOT::d" class="button">{"Boards"}</a>
+                        <a href="::PUFFER_ROOT::/d" class="button">{"Boards"}</a>
                     </div>
                 </div>
 

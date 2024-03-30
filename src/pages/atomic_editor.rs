@@ -69,7 +69,7 @@ fn Dashboard(props: &Props) -> Html {
                         <a href="/d" class="button">{"Home"}</a>
                         <a href="/d/pastes" class="button">{"Pastes"}</a>
                         <a href="/d/atomic" class="button active">{"Atomic"}</a>
-                        <a href="::PUFFER_ROOT::d" class="button">{"Boards"}</a>
+                        <a href="::PUFFER_ROOT::/d" class="button">{"Boards"}</a>
                     </div>
                 </div>
 
