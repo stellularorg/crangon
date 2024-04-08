@@ -828,6 +828,10 @@ impl Database {
 
         p.custom_url = idna::punycode::encode_str(&p.custom_url).unwrap();
 
+        if p.custom_url.ends_with("-") {
+            p.custom_url.pop();
+        }
+
         // create paste
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "INSERT INTO \"Pastes\" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
