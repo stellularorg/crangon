@@ -5,8 +5,7 @@ use yew::prelude::*;
 use yew::ServerRenderer;
 
 use crate::components::navigation::{Footer, GlobalMenu};
-use crate::db::bundlesdb::{DefaultReturn, FullUser};
-use crate::db::{self, bundlesdb};
+use crate::db::{self, DefaultReturn, FullUser};
 use crate::utility::format_html;
 
 use crate::api::pastes::OffsetQueryProps;
@@ -19,7 +18,7 @@ struct DashboardProps {
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 struct BoardsProps {
     pub offset: i32,
-    pub posts: Vec<bundlesdb::Log>,
+    pub posts: Vec<db::Log>,
     pub auth_state: Option<bool>,
 }
 
@@ -84,10 +83,7 @@ fn build_dashboard_renderer_with_props(props: DashboardProps) -> ServerRenderer<
 
 #[get("/d/staff")]
 /// Available at "/d/staff"
-pub async fn dashboard_request(
-    req: HttpRequest,
-    data: web::Data<db::bundlesdb::AppData>,
-) -> impl Responder {
+pub async fn dashboard_request(req: HttpRequest, data: web::Data<db::AppData>) -> impl Responder {
     // verify auth status
     let token_cookie = req.cookie("__Secure-Token");
     let mut set_cookie: &str = "";
@@ -196,7 +192,7 @@ fn BoardsDashboard(props: &BoardsProps) -> Html {
 
                     <div class="card round secondary flex g-4 flex-column justify-center" id="boards_list">
                         {for props.posts.iter().map(|p| {
-                            let post = serde_json::from_str::<bundlesdb::BoardPostLog>(&p.content).unwrap();
+                            let post = serde_json::from_str::<db::BoardPostLog>(&p.content).unwrap();
 
                             html! {
                                 <a class="button secondary round full justify-start" href={format!("::PUFFER_ROOT::/{}/posts/{}", &post.board, &p.id)}>
@@ -228,7 +224,7 @@ fn build_boards_dashboard_renderer_with_props(
 /// Available at "/d/staff/boards"
 pub async fn staff_boards_dashboard_request(
     req: HttpRequest,
-    data: web::Data<db::bundlesdb::AppData>,
+    data: web::Data<db::AppData>,
     info: web::Query<OffsetQueryProps>,
 ) -> impl Responder {
     // verify auth status
@@ -272,7 +268,7 @@ You can create an account at: /d/auth/register",
     }
 
     // get posts
-    let posts: bundlesdb::DefaultReturn<Option<Vec<bundlesdb::Log>>> =
+    let posts: db::DefaultReturn<Option<Vec<db::Log>>> =
         data.db.fetch_most_recent_posts(info.offset).await;
 
     // ...
@@ -398,7 +394,7 @@ fn build_users_dashboard_renderer_with_props(props: UsersProps) -> ServerRendere
 /// Available at "/d/staff/users"
 pub async fn staff_users_dashboard_request(
     req: HttpRequest,
-    data: web::Data<db::bundlesdb::AppData>,
+    data: web::Data<db::AppData>,
     info: web::Query<UsersQueryProps>,
 ) -> impl Responder {
     // verify auth status
@@ -442,7 +438,7 @@ You can create an account at: /d/auth/register",
     }
 
     // get user
-    let user: bundlesdb::DefaultReturn<Option<FullUser<String>>> = if info.username.is_some() {
+    let user: db::DefaultReturn<Option<FullUser<String>>> = if info.username.is_some() {
         data.db
             .get_user_by_username(info.username.as_ref().unwrap().to_owned())
             .await

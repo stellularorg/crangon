@@ -1,4 +1,4 @@
-use crate::db::bundlesdb::{self, AppData};
+use crate::db::{self, AppData};
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
 
 #[derive(Default, PartialEq, serde::Deserialize)]
@@ -57,29 +57,27 @@ pub async fn logout(req: HttpRequest, data: web::Data<AppData>) -> impl Responde
 /// Get all pastes by owner
 pub async fn get_from_owner_request(
     req: HttpRequest,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<db::AppData>,
     info: web::Query<crate::api::pastes::OffsetQueryProps>,
 ) -> impl Responder {
     let name: String = req.match_info().get("name").unwrap().to_string();
 
     // get pastes
-    let res: bundlesdb::DefaultReturn<Option<Vec<bundlesdb::PasteIdentifier>>> =
+    let res: db::DefaultReturn<Option<Vec<db::PasteIdentifier>>> =
         data.db.get_pastes_by_owner_limited(name, info.offset).await;
 
     // return
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
         .body(
-            serde_json::to_string::<
-                bundlesdb::DefaultReturn<Option<Vec<bundlesdb::PasteIdentifier>>>,
-            >(&res)
-            .unwrap(),
+            serde_json::to_string::<db::DefaultReturn<Option<Vec<db::PasteIdentifier>>>>(&res)
+                .unwrap(),
         );
 }
 
 #[post("/api/auth/users/{name:.*?}/ban")]
 /// Ban user
-pub async fn ban_request(req: HttpRequest, data: web::Data<bundlesdb::AppData>) -> impl Responder {
+pub async fn ban_request(req: HttpRequest, data: web::Data<db::AppData>) -> impl Responder {
     let name: String = req.match_info().get("name").unwrap().to_string();
 
     // get token user
@@ -116,10 +114,10 @@ pub async fn ban_request(req: HttpRequest, data: web::Data<bundlesdb::AppData>) 
     }
 
     // ban user
-    let res: bundlesdb::DefaultReturn<Option<String>> = data.db.ban_user_by_name(name).await;
+    let res: db::DefaultReturn<Option<String>> = data.db.ban_user_by_name(name).await;
 
     // return
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
-        .body(serde_json::to_string::<bundlesdb::DefaultReturn<Option<String>>>(&res).unwrap());
+        .body(serde_json::to_string::<db::DefaultReturn<Option<String>>>(&res).unwrap());
 }

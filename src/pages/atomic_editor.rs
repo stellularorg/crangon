@@ -5,8 +5,7 @@ use yew::prelude::*;
 use yew::ServerRenderer;
 
 use crate::components::navigation::{Footer, GlobalMenu};
-use crate::db::bundlesdb::{AtomicPasteFSFile, FullPaste, PasteMetadata};
-use crate::db::{self, bundlesdb};
+use crate::db::{self, AtomicPasteFSFile, FullPaste, PasteMetadata};
 use crate::utility::{self, format_html};
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
@@ -16,14 +15,14 @@ struct EditQueryProps {
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 struct FSProps {
-    pub files: Vec<bundlesdb::AtomicPasteFSFile>,
+    pub files: Vec<db::AtomicPasteFSFile>,
     pub auth_state: Option<bool>,
 }
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 struct EditProps {
     pub custom_url: String,
-    pub file: bundlesdb::AtomicPasteFSFile,
+    pub file: db::AtomicPasteFSFile,
     pub auth_state: Option<bool>,
 }
 
@@ -34,7 +33,7 @@ struct NewProps {
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 struct Props {
-    pub pastes: Vec<bundlesdb::PasteIdentifier>,
+    pub pastes: Vec<db::PasteIdentifier>,
     pub auth_state: Option<bool>,
 }
 
@@ -105,10 +104,7 @@ fn build_dashboard_renderer_with_props(props: Props) -> ServerRenderer<Dashboard
 
 #[get("/d/atomic")]
 /// Available at "/d/atomic"
-pub async fn dashboard_request(
-    req: HttpRequest,
-    data: web::Data<db::bundlesdb::AppData>,
-) -> impl Responder {
+pub async fn dashboard_request(req: HttpRequest, data: web::Data<db::AppData>) -> impl Responder {
     // verify auth status
     let token_cookie = req.cookie("__Secure-Token");
     let mut set_cookie: &str = "";
@@ -212,10 +208,7 @@ fn build_new_renderer_with_props(props: NewProps) -> ServerRenderer<CreateNew> {
 
 #[get("/d/atomic/new")]
 /// Available at "/d/atomic/new"
-pub async fn new_request(
-    req: HttpRequest,
-    data: web::Data<db::bundlesdb::AppData>,
-) -> impl Responder {
+pub async fn new_request(req: HttpRequest, data: web::Data<db::AppData>) -> impl Responder {
     // verify auth status
     let token_cookie = req.cookie("__Secure-Token");
     let mut set_cookie: &str = "";
@@ -334,7 +327,7 @@ fn build_fs_renderer_with_props(props: FSProps) -> ServerRenderer<PasteFiles> {
 /// Available at "/d/atomic/{id}"
 pub async fn edit_request(
     req: HttpRequest,
-    data: web::Data<db::bundlesdb::AppData>,
+    data: web::Data<db::AppData>,
     info: web::Query<EditQueryProps>,
 ) -> impl Responder {
     // verify auth status
@@ -369,7 +362,7 @@ You can create an account at: /d/auth/register",
 
     // get paste
     let id: String = req.match_info().get("id").unwrap().to_string();
-    let paste: bundlesdb::DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
+    let paste: db::DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
         data.db.get_paste_by_id(id).await;
 
     if paste.success == false {
@@ -391,7 +384,7 @@ You can create an account at: /d/auth/register",
     }
 
     // get file from path
-    let real_content = serde_json::from_str::<bundlesdb::AtomicPaste>(&unwrap.content);
+    let real_content = serde_json::from_str::<db::AtomicPaste>(&unwrap.content);
 
     if real_content.is_err() {
         return HttpResponse::NotAcceptable().body("Paste failed to deserialize");

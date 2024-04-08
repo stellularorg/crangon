@@ -5,9 +5,7 @@ use serde_json::json;
 use yew::prelude::*;
 use yew::ServerRenderer;
 
-use crate::db::bundlesdb::{
-    self, AppData, FullPaste, FullUser, Paste, PasteMetadata, UserMetadata,
-};
+use crate::db::{self, AppData, FullPaste, FullUser, Paste, PasteMetadata, UserMetadata};
 
 use crate::utility;
 use crate::utility::format_html;
@@ -28,7 +26,7 @@ pub struct PasteViewProps {
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 struct DashboardProps {
-    pub pastes: Vec<bundlesdb::PasteIdentifier>,
+    pub pastes: Vec<db::PasteIdentifier>,
     pub auth_state: Option<bool>,
     pub offset: i32,
 }
@@ -204,7 +202,7 @@ pub async fn paste_view_request(
     let url: String = req.match_info().get("url").unwrap().to_string();
     let url_c = url.clone();
 
-    let paste: bundlesdb::DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
+    let paste: db::DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
         data.db.get_paste_by_url(url).await;
 
     if paste.success == false {
@@ -265,7 +263,7 @@ pub async fn paste_view_request(
 
     // handle atomic pastes (just return index.html)
     if unwrap.paste.content.contains("\"_is_atomic\":true") {
-        let real_content = serde_json::from_str::<bundlesdb::AtomicPaste>(&unwrap.paste.content);
+        let real_content = serde_json::from_str::<db::AtomicPaste>(&unwrap.paste.content);
 
         if real_content.is_err() {
             return HttpResponse::NotAcceptable().body("Paste failed to deserialize");
@@ -396,7 +394,7 @@ pub async fn atomic_paste_view_request(
     let url: String = req.match_info().get("url").unwrap().to_string();
     let path: String = req.match_info().get("path").unwrap().to_string();
 
-    let paste: bundlesdb::DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
+    let paste: db::DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
         data.db.get_paste_by_url(url).await;
 
     if paste.success == false {
@@ -413,7 +411,7 @@ pub async fn atomic_paste_view_request(
 
     // handle atomic pastes (just return index.html)
     if unwrap.paste.content.contains("\"_is_atomic\":true") {
-        let real_content = serde_json::from_str::<bundlesdb::AtomicPaste>(&unwrap.paste.content);
+        let real_content = serde_json::from_str::<db::AtomicPaste>(&unwrap.paste.content);
 
         if real_content.is_err() {
             return HttpResponse::NotAcceptable().body("Paste failed to deserialize");
@@ -526,7 +524,7 @@ fn build_dashboard_renderer_with_props(props: DashboardProps) -> ServerRenderer<
 /// Available at "/d/pastes"
 pub async fn dashboard_request(
     req: HttpRequest,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<db::AppData>,
     info: web::Query<crate::api::pastes::OffsetQueryProps>,
 ) -> impl Responder {
     // verify auth status

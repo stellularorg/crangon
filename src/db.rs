@@ -1,39 +1,23 @@
-//! # BundlesDB
+//! # Database
 //! Database handler for all database types
-use super::{
-    cachedb::CacheDB,
-    sql::{self, Database, DatabaseOpts},
-};
-
-use sqlx::{Column, Row};
-
 use crate::utility;
 use serde::{Deserialize, Serialize};
 
-use std::collections::HashMap;
+use dorsal::query as sqlquery;
 
 #[derive(Clone)]
 pub struct AppData {
-    pub db: BundlesDB,
+    pub db: Database,
     pub http_client: awc::Client,
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Serialize, Deserialize, Clone)]
-/// Default API return value
-pub struct DefaultReturn<T> {
-    pub success: bool,
-    pub message: String,
-    pub payload: T,
-}
+pub use dorsal::db::special::auth_db::{FullUser, UserMetadata, UserState};
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct DatabaseReturn {
-    pub data: HashMap<String, String>,
-}
+pub use dorsal::db::special::log_db::Log;
+pub use dorsal::DefaultReturn;
 
 // Paste and Group require the type of their metadata to be specified so it can be converted if needed
-#[derive(Debug, Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
+#[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Paste<M> {
     // selectors
     pub custom_url: String,
@@ -53,7 +37,7 @@ pub struct Paste<M> {
     pub views: usize,
 }
 
-#[derive(Debug, Default, sqlx::FromRow, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PasteIdentifier {
     pub custom_url: String,
     pub id: String,
@@ -95,7 +79,7 @@ pub struct AtomicPasteFSFile {
     pub content: String,
 }
 
-#[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
+#[derive(Default, PartialEq, Clone, Serialize, Deserialize)]
 pub struct Group<M> {
     // selectors
     pub name: String,
@@ -110,74 +94,19 @@ pub struct GroupMetadata {
     pub owner: String, // username of owner
 }
 
-#[derive(Debug, Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
-/// A user object
-pub struct UserState<M> {
-    // selectors
-    pub username: String,
-    pub id_hashed: String, // users use their UNHASHED id to login, it is used as their session id too!
-    //                        the hashed id is the only id that should ever be public!
-    pub role: String,
-    // dates
-    pub timestamp: u128,
-    // ...
-    pub metadata: M,
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
-pub struct RoleLevel {
-    pub elevation: i32, // this marks the level of the role, 0 should always be member
-    // users cannot manage users of a higher elevation than them
-    pub name: String,             // role name, shown on user profiles
-    pub permissions: Vec<String>, // a vec of user permissions (ex: "ManagePastes")
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
-pub struct FullUser<M> {
-    pub user: UserState<M>,
-    pub level: RoleLevel,
-}
-
-#[derive(Default, Clone, sqlx::FromRow, Serialize, Deserialize, PartialEq)]
-pub struct RoleLevelLog {
-    pub id: String,
-    pub level: RoleLevel,
+#[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Notification {
+    pub user: String,    // the user that is being notified
+    pub content: String, // notification text
+    pub address: String, // notification redirect url
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
-pub struct UserMetadata {
-    pub about: String,
-    pub avatar_url: Option<String>,
-    pub secondary_token: Option<String>,
-    pub allow_mail: Option<String>,    // yes/no
-    pub nickname: Option<String>,      // user display name
-    pub page_template: Option<String>, // profile handlebars template
-}
-
-#[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
-pub struct Log {
-    // selectors
-    pub id: String,
-    pub logtype: String,
-    // dates
-    pub timestamp: u128,
-    // ...
-    pub content: String,
-}
-
-#[derive(Debug, Default, sqlx::FromRow, Clone, Serialize, Deserialize, PartialEq)]
-pub struct LogIdentifier {
-    pub id: String,
-}
-
-#[derive(Default, PartialEq, sqlx::FromRow, Clone, Serialize, Deserialize)]
-pub struct Board<M> {
-    // selectors
-    pub name: String,
-    // dates
-    pub timestamp: u128,
-    // ...
-    pub metadata: M,
+// Takes the place of "about" in BoardMetadata, identifies a board as a user mail stream
+pub struct UserMailStreamIdentifier {
+    pub _is_user_mail_stream: bool, // always going to be true ... cannot be edited into board about ANYWHERE
+    pub user1: String,              // username of first user
+    pub user2: String,              // username of second user
 }
 
 #[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
@@ -206,74 +135,38 @@ pub struct BoardPostLog {
     pub tags: Option<String>,   // same as board tags, just for posts specifically
 }
 
-#[derive(Debug, Default, sqlx::FromRow, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BoardIdentifier {
     pub name: String,
     pub tags: String,
 }
 
-#[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
-// Takes the place of "about" in BoardMetadata, identifies a board as a user mail stream
-pub struct UserMailStreamIdentifier {
-    pub _is_user_mail_stream: bool, // always going to be true ... cannot be edited into board about ANYWHERE
-    pub user1: String,              // username of first user
-    pub user2: String,              // username of second user
-}
-
-#[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
-pub struct UserFollow {
-    pub user: String,         // the user that is following `is_following`
-    pub is_following: String, // use user that `user` is following
-}
-
-#[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
-pub struct Notification {
-    pub user: String,    // the user that is being notified
-    pub content: String, // notification text
-    pub address: String, // notification redirect url
-}
-
 // ...
 #[derive(Clone)]
-#[cfg(feature = "postgres")]
-pub struct BundlesDB {
-    pub db: Database<sqlx::PgPool>,
-    pub options: DatabaseOpts,
-    pub cachedb: CacheDB,
+pub struct Database {
+    pub base: dorsal::StarterDatabase,
+    pub auth: dorsal::AuthDatabase,
+    pub logs: dorsal::LogDatabase,
 }
 
-#[derive(Clone)]
-#[cfg(feature = "mysql")]
-pub struct BundlesDB {
-    pub db: Database<sqlx::MySqlPool>,
-    pub options: DatabaseOpts,
-    pub cachedb: CacheDB,
-}
+impl Database {
+    pub async fn new(opts: dorsal::DatabaseOpts) -> Database {
+        let db = dorsal::StarterDatabase::new(opts).await;
 
-#[derive(Clone)]
-#[cfg(feature = "sqlite")]
-pub struct BundlesDB {
-    pub db: Database<sqlx::SqlitePool>,
-    pub options: DatabaseOpts,
-    pub cachedb: CacheDB,
-}
-
-impl BundlesDB {
-    pub async fn new(options: DatabaseOpts) -> BundlesDB {
-        return BundlesDB {
-            db: sql::create_db(options.clone()).await,
-            options,
-            cachedb: CacheDB::new().await,
-        };
+        Database {
+            base: db.clone(),
+            auth: dorsal::AuthDatabase { base: db.clone() },
+            logs: dorsal::LogDatabase { base: db },
+        }
     }
 
     pub async fn init(&self) {
         // create tables
-        let c = &self.db.client;
+        let c = &self.base.db.client;
         // MAX = 1000000
         // we're just using the same max length for everything because lengths are checked before being sent to db
 
-        let _ = sqlx::query(
+        let _ = sqlquery(
             "CREATE TABLE IF NOT EXISTS \"Pastes\" (
                 custom_url VARCHAR(1000000),
                 id VARCHAR(1000000),
@@ -289,7 +182,7 @@ impl BundlesDB {
         .execute(c)
         .await;
 
-        let _ = sqlx::query(
+        let _ = sqlquery(
             "CREATE TABLE IF NOT EXISTS \"Groups\" (
                 name VARCHAR(1000000),
                 submit_password VARCHAR(1000000),
@@ -299,7 +192,7 @@ impl BundlesDB {
         .execute(c)
         .await;
 
-        let _ = sqlx::query(
+        let _ = sqlquery(
             "CREATE TABLE IF NOT EXISTS \"Users\" (
                 username VARCHAR(1000000),
                 id_hashed VARCHAR(1000000),
@@ -311,7 +204,7 @@ impl BundlesDB {
         .execute(c)
         .await;
 
-        let _ = sqlx::query(
+        let _ = sqlquery(
             "CREATE TABLE IF NOT EXISTS \"Logs\" (
                 id VARCHAR(1000000),
                 logtype VARCHAR(1000000),
@@ -322,7 +215,7 @@ impl BundlesDB {
         .execute(c)
         .await;
 
-        let _ = sqlx::query(
+        let _ = sqlquery(
             "CREATE TABLE IF NOT EXISTS \"Boards\" (
                 name VARCHAR(1000000),
                 timestamp VARCHAR(1000000),
@@ -401,79 +294,9 @@ impl BundlesDB {
     // users
 
     // GET
-    /// Get a user by their hashed ID
+    /// Get a user by their unhashed ID (hashes ID and then calls [`Database::get_user_by_hashed()`])
     ///
-    /// # Arguments:
-    /// * `hashed` - `String` of the user's hashed ID
-    pub async fn get_user_by_hashed(
-        &self,
-        hashed: String,
-    ) -> DefaultReturn<Option<FullUser<String>>> {
-        // fetch from database
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            "SELECT * FROM \"Users\" WHERE \"id_hashed\" = ?"
-        } else {
-            "SELECT * FROM \"Users\" WHERE \"id_hashed\" = $1"
-        };
-
-        let c = &self.db.client;
-        let res = sqlx::query(query)
-            .bind::<&String>(&hashed)
-            .fetch_one(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from("User does not exist"),
-                payload: Option::None,
-            };
-        }
-
-        // ...
-        let row = res.unwrap();
-        let row = self.textify_row(row).data;
-
-        let role = row.get("role").unwrap().to_string();
-        if role == "banned" {
-            return DefaultReturn {
-                success: false,
-                message: String::from("User is banned"),
-                payload: Option::None,
-            };
-        }
-
-        // ...
-        let meta = row.get("metadata"); // for compatability - users did not have metadata until Bundlrs v0.10.6
-        let user = UserState {
-            username: row.get("username").unwrap().to_string(),
-            id_hashed: row.get("id_hashed").unwrap().to_string(),
-            role: role.clone(),
-            timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
-            metadata: if meta.is_some() {
-                meta.unwrap().to_string()
-            } else {
-                String::new()
-            },
-        };
-
-        // fetch level from role
-        let level = self.get_level_by_role(role).await;
-
-        // return
-        return DefaultReturn {
-            success: true,
-            message: String::from("User exists"),
-            payload: Option::Some(FullUser {
-                user,
-                level: level.payload.level,
-            }),
-        };
-    }
-
-    /// Get a user by their unhashed ID (hashes ID and then calls [`BundlesDB::get_user_by_hashed()`])
-    ///
-    /// Calls [`BundlesDB::get_user_by_unhashed_st()`] if user is invalid.
+    /// Calls [`Database::get_user_by_unhashed_st()`] if user is invalid.
     ///
     /// # Arguments:
     /// * `unhashed` - `String` of the user's unhashed ID
@@ -481,89 +304,7 @@ impl BundlesDB {
         &self,
         unhashed: String,
     ) -> DefaultReturn<Option<FullUser<String>>> {
-        let res = self
-            .get_user_by_hashed(utility::hash(unhashed.clone()))
-            .await;
-
-        if res.success == false {
-            // treat unhashed as a secondary token and try again
-            return self.get_user_by_unhashed_st(unhashed).await;
-        }
-
-        res
-    }
-
-    /// Get a user by their unhashed secondary token
-    ///
-    /// # Arguments:
-    /// * `unhashed` - `String` of the user's unhashed secondary token
-    pub async fn get_user_by_unhashed_st(
-        &self,
-        unhashed: String,
-    ) -> DefaultReturn<Option<FullUser<String>>> {
-        // fetch from database
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            "SELECT * FROM \"Users\" WHERE \"metadata\" LIKE ?"
-        } else {
-            "SELECT * FROM \"Users\" WHERE \"metadata\" LIKE $1"
-        };
-
-        let c = &self.db.client;
-        let res = sqlx::query(query)
-            .bind::<&String>(&format!(
-                "%\"secondary_token\":\"{}\"%",
-                crate::utility::hash(unhashed)
-            ))
-            .fetch_one(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from("User does not exist"),
-                payload: Option::None,
-            };
-        }
-
-        // ...
-        let row = res.unwrap();
-        let row = self.textify_row(row).data;
-
-        let role = row.get("role").unwrap().to_string();
-        if role == "banned" {
-            return DefaultReturn {
-                success: false,
-                message: String::from("User is banned"),
-                payload: Option::None,
-            };
-        }
-
-        // ...
-        let meta = row.get("metadata"); // for compatability - users did not have metadata until Bundlrs v0.10.6
-        let user = UserState {
-            username: row.get("username").unwrap().to_string(),
-            id_hashed: row.get("id_hashed").unwrap().to_string(),
-            role: role.clone(),
-            timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
-            metadata: if meta.is_some() {
-                meta.unwrap().to_string()
-            } else {
-                String::new()
-            },
-        };
-
-        // fetch level from role
-        let level = self.get_level_by_role(role).await;
-
-        // return
-        return DefaultReturn {
-            success: true,
-            message: String::from("User exists"),
-            payload: Option::Some(FullUser {
-                user,
-                level: level.payload.level,
-            }),
-        };
+        self.auth.get_user_by_unhashed(unhashed).await
     }
 
     /// Get a user by their username
@@ -574,174 +315,7 @@ impl BundlesDB {
         &self,
         username: String,
     ) -> DefaultReturn<Option<FullUser<String>>> {
-        // check in cache
-        let cached = self.cachedb.get(format!("user:{}", username)).await;
-
-        if cached.is_some() {
-            // ...
-            let user = serde_json::from_str::<UserState<String>>(cached.unwrap().as_str()).unwrap();
-
-            // get role
-            let role = user.role.clone();
-            if role == "banned" {
-                // account banned - we're going to act like it simply does not exist
-                return DefaultReturn {
-                    success: false,
-                    message: String::from("User is banned"),
-                    payload: Option::None,
-                };
-            }
-
-            // fetch level from role
-            let level = self.get_level_by_role(role.clone()).await;
-
-            // ...
-            return DefaultReturn {
-                success: true,
-                message: String::from("User exists (cache)"),
-                payload: Option::Some(FullUser {
-                    user,
-                    level: level.payload.level,
-                }),
-            };
-        }
-
-        // ...
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            "SELECT * FROM \"Users\" WHERE \"username\" = ?"
-        } else {
-            "SELECT * FROM \"Users\" WHERE \"username\" = $1"
-        };
-
-        let c = &self.db.client;
-        let res = sqlx::query(query)
-            .bind::<&String>(&username)
-            .fetch_one(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from("User does not exist"),
-                payload: Option::None,
-            };
-        }
-
-        // ...
-        let row = res.unwrap();
-        let row = self.textify_row(row).data;
-
-        let role = row.get("role").unwrap().to_string();
-        if role == "banned" {
-            // account banned - we're going to act like it simply does not exist
-            return DefaultReturn {
-                success: false,
-                message: String::from("User is banned"),
-                payload: Option::None,
-            };
-        }
-
-        // fetch level from role
-        let level = self.get_level_by_role(role.clone()).await;
-
-        // store in cache
-        let meta = row.get("metadata");
-        let user = UserState {
-            username: row.get("username").unwrap().to_string(),
-            id_hashed: row.get("id_hashed").unwrap().to_string(),
-            role,
-            timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
-            metadata: if meta.is_some() {
-                meta.unwrap().to_string()
-            } else {
-                String::new()
-            },
-        };
-
-        self.cachedb
-            .set(
-                format!("user:{}", username),
-                serde_json::to_string::<UserState<String>>(&user).unwrap(),
-            )
-            .await;
-
-        // return
-        return DefaultReturn {
-            success: true,
-            message: String::from("User exists (new)"),
-            payload: Option::Some(FullUser {
-                user,
-                level: level.payload.level,
-            }),
-        };
-    }
-
-    /// Get a [`RoleLevel`] by its `name`
-    ///
-    /// # Arguments:
-    /// * `name` - `String` of the level's role name
-    pub async fn get_level_by_role(&self, name: String) -> DefaultReturn<RoleLevelLog> {
-        // check if level already exists in cache
-        let cached = self.cachedb.get(format!("level:{}", name)).await;
-
-        if cached.is_some() {
-            return DefaultReturn {
-                success: true,
-                message: String::from("Level exists (cache)"),
-                payload: serde_json::from_str::<RoleLevelLog>(cached.unwrap().as_str()).unwrap(),
-            };
-        }
-
-        // ...
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'level' AND \"content\" LIKE ?"
-        } else {
-            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'level' AND \"content\" LIKE $1"
-        };
-
-        let c = &self.db.client;
-        let res = sqlx::query(query)
-            .bind::<&String>(&format!("%\"name\":\"{}\"%", name))
-            .fetch_one(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: true,
-                message: String::from("Level does not exist, using default"),
-                payload: RoleLevelLog {
-                    id: String::new(),
-                    level: RoleLevel {
-                        name: String::from("member"),
-                        elevation: 0,
-                        permissions: Vec::new(),
-                    },
-                },
-            };
-        }
-
-        // ...
-        let row = res.unwrap();
-        let row = self.textify_row(row).data;
-
-        // store in cache
-        let id = row.get("id").unwrap().to_string();
-        let level = serde_json::from_str::<RoleLevel>(row.get("content").unwrap()).unwrap();
-
-        let level = RoleLevelLog { id, level };
-        self.cachedb
-            .set(
-                format!("level:{}", name),
-                serde_json::to_string::<RoleLevelLog>(&level).unwrap(),
-            )
-            .await;
-
-        // return
-        return DefaultReturn {
-            success: true,
-            message: String::from("Level exists (new)"),
-            payload: level,
-        };
+        self.auth.get_user_by_username(username).await
     }
 
     // SET
@@ -768,14 +342,14 @@ impl BundlesDB {
         }
 
         // update user
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "UPDATE \"Users\" SET \"role\" = ? WHERE \"username\" = ?"
         } else {
             "UPDATE \"Users\" SET (\"role\") = ($1) WHERE \"username\" = $2"
         };
 
-        let c = &self.db.client;
-        let res = sqlx::query(query)
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
             .bind::<&str>("banned")
             .bind::<&String>(&name)
             .execute(c)
@@ -790,15 +364,15 @@ impl BundlesDB {
         }
 
         // lock user assets
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "UPDATE \"Pastes\" SET \"metadata\" = ? WHERE \"metadata\" LIKE ?"
         } else {
             "UPDATE \"Pastes\" SET (\"metadata\") = ($1) WHERE \"metadata\" LIKE $2"
         };
 
-        let c = &self.db.client;
+        let c = &self.base.db.client;
         // TODO: some kind of bulk cache update to handle this
-        let res = sqlx::query(query)
+        let res = sqlquery(query)
             .bind::<&String>(
                 &serde_json::to_string::<PasteMetadata>(&PasteMetadata {
                     // lock editors out
@@ -830,7 +404,7 @@ impl BundlesDB {
         }
 
         // update cache
-        let existing_in_cache = self.cachedb.get(format!("user:{}", name)).await;
+        let existing_in_cache = self.base.cachedb.get(format!("user:{}", name)).await;
 
         if existing_in_cache.is_some() {
             let mut user =
@@ -838,7 +412,8 @@ impl BundlesDB {
             user.role = String::from("banned"); // update role
 
             // update cache
-            self.cachedb
+            self.base
+                .cachedb
                 .update(
                     format!("user:{}", name),
                     serde_json::to_string::<UserState<String>>(&user).unwrap(),
@@ -854,66 +429,20 @@ impl BundlesDB {
         };
     }
 
-    // logs
-
-    // SET
-    /// Create a log given its type and content
-    ///
-    /// # Arguments:
-    /// * `logtype` - `String` of the log's `logtype`
-    /// * `content` - `String` of the log's `content`
-    pub async fn create_log(
-        &self,
-        logtype: String,
-        content: String,
-    ) -> DefaultReturn<Option<String>> {
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            "INSERT INTO \"Logs\" VALUES (?, ?, ?, ?)"
-        } else {
-            "INSERT INTO \"Logs\" VALUES ($1, $2, $3, $4)"
-        };
-
-        let log_id: String = utility::random_id();
-
-        let c = &self.db.client;
-        let res = sqlx::query(query)
-            .bind::<&String>(&log_id)
-            .bind::<String>(logtype)
-            .bind::<String>(utility::unix_epoch_timestamp().to_string())
-            .bind::<String>(content)
-            .execute(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from(res.err().unwrap().to_string()),
-                payload: Option::None,
-            };
-        }
-
-        // return
-        return DefaultReturn {
-            success: true,
-            message: String::from("Log created!"),
-            payload: Option::Some(log_id),
-        };
-    }
-
     // pastes
 
     /// Count the `view_paste` logs for a specific [`Paste`]
     async fn count_paste_views(&self, custom_url: String) -> usize {
-        let c = &self.db.client;
+        let c = &self.base.db.client;
 
         // count views
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "SELECT \"ID\" FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE ?"
         } else {
             "SELECT \"ID\" FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE $1"
         };
 
-        let views_res = sqlx::query(query)
+        let views_res = sqlquery(query)
             .bind::<&String>(&format!("{}::%", &custom_url))
             .fetch_all(c)
             .await;
@@ -932,7 +461,7 @@ impl BundlesDB {
         selector: &str,
     ) -> DefaultReturn<Option<FullPaste<PasteMetadata, String>>> {
         // check in cache
-        let cached = self.cachedb.get(format!("paste:{}", selector)).await;
+        let cached = self.base.cachedb.get(format!("paste:{}", selector)).await;
 
         if cached.is_some() {
             // ...
@@ -959,8 +488,8 @@ impl BundlesDB {
         }
 
         // fetch from db
-        let c = &self.db.client;
-        let res = sqlx::query(query)
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
             .bind::<&String>(&selector.to_lowercase())
             .fetch_one(c)
             .await;
@@ -975,7 +504,7 @@ impl BundlesDB {
 
         // ...
         let row = res.unwrap();
-        let row = self.textify_row(row).data;
+        let row = self.base.textify_row(row).data;
 
         // get views
         let views = &self
@@ -999,7 +528,8 @@ impl BundlesDB {
         };
 
         // store in cache
-        self.cachedb
+        self.base
+            .cachedb
             .set(
                 format!("paste:{}", paste.custom_url),
                 serde_json::to_string::<Paste<PasteMetadata>>(&paste).unwrap(),
@@ -1034,7 +564,7 @@ impl BundlesDB {
         &self,
         url: String,
     ) -> DefaultReturn<Option<FullPaste<PasteMetadata, String>>> {
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"custom_url\" = ?"
         } else {
             "SELECT * FROM \"Pastes\" WHERE \"custom_url\" = $1"
@@ -1051,7 +581,7 @@ impl BundlesDB {
         &self,
         id: String,
     ) -> DefaultReturn<Option<FullPaste<PasteMetadata, String>>> {
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"id\" = ?"
         } else {
             "SELECT * FROM \"Pastes\" WHERE \"id\" = $1"
@@ -1074,6 +604,7 @@ impl BundlesDB {
 
         // check in cache
         let cached = self
+            .base
             .cachedb
             .get(format!("pastes-by-owner:{}:offset{}", owner, offset))
             .await;
@@ -1092,14 +623,14 @@ impl BundlesDB {
         }
 
         // ...
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE ? ORDER BY \"pub_date\" DESC LIMIT 50 OFFSET ?"
         } else {
             "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE $1 ORDER BY \"pub_date\" DESC LIMIT 50 OFFSET $2"
         };
 
-        let c = &self.db.client;
-        let res = sqlx::query(query)
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
             .bind::<&String>(&format!("%\"owner\":\"{}\"%", &owner))
             .bind(offset)
             .fetch_all(c)
@@ -1117,7 +648,7 @@ impl BundlesDB {
         let mut full_res: Vec<PasteIdentifier> = Vec::new();
 
         for row in res.unwrap() {
-            let row = self.textify_row(row).data;
+            let row = self.base.textify_row(row).data;
             full_res.push(PasteIdentifier {
                 custom_url: row.get("custom_url").unwrap().to_string(),
                 id: row.get("id").unwrap().to_string(),
@@ -1125,7 +656,8 @@ impl BundlesDB {
         }
 
         // store in cache
-        self.cachedb
+        self.base
+            .cachedb
             .set(
                 format!("pastes-by-owner:{}:offset{}", owner, offset),
                 serde_json::to_string::<Vec<PasteIdentifier>>(&full_res).unwrap(),
@@ -1150,6 +682,7 @@ impl BundlesDB {
     ) -> DefaultReturn<Option<Vec<PasteIdentifier>>> {
         // check in cache
         let cached = self
+            .base
             .cachedb
             .get(format!("pastes-by-owner-atomic:{}:atomic", owner))
             .await;
@@ -1168,14 +701,14 @@ impl BundlesDB {
         }
 
         // ...
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE ? AND \"content\" LIKE ?"
         } else {
             "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE $1 AND \"content\" LIKE $2"
         };
 
-        let c = &self.db.client;
-        let res = sqlx::query(query)
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
             .bind::<&String>(&format!("%\"owner\":\"{}\"%", &owner))
             .bind("%\"_is_atomic\":true%")
             .fetch_all(c)
@@ -1193,7 +726,7 @@ impl BundlesDB {
         let mut full_res: Vec<PasteIdentifier> = Vec::new();
 
         for row in res.unwrap() {
-            let row = self.textify_row(row).data;
+            let row = self.base.textify_row(row).data;
             full_res.push(PasteIdentifier {
                 custom_url: row.get("custom_url").unwrap().to_string(),
                 id: row.get("id").unwrap().to_string(),
@@ -1201,7 +734,8 @@ impl BundlesDB {
         }
 
         // store in cache
-        self.cachedb
+        self.base
+            .cachedb
             .set(
                 format!("pastes-by-owner:{}:atomic", owner),
                 serde_json::to_string::<Vec<PasteIdentifier>>(&full_res).unwrap(),
@@ -1284,7 +818,7 @@ impl BundlesDB {
         }
 
         // (characters used)
-        let regex = regex::RegexBuilder::new("^[\\w\\_\\-\\.\\!]+$")
+        let regex = regex::RegexBuilder::new("^[\\w\\_\\-\\.\\!\\p{Extended_Pictographic}]+$")
             .multi_line(true)
             .build()
             .unwrap();
@@ -1352,13 +886,13 @@ impl BundlesDB {
         }
 
         // create paste
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "INSERT INTO \"Pastes\" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         } else {
             "INSERT INTO \"Pastes\" VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
         };
 
-        let c = &self.db.client;
+        let c = &self.base.db.client;
         let p: &mut Paste<String> = &mut props.clone();
         p.id = utility::random_id();
 
@@ -1368,7 +902,7 @@ impl BundlesDB {
         let edit_date = &p.edit_date;
         let pub_date = &p.pub_date;
 
-        let res = sqlx::query(query)
+        let res = sqlquery(query)
             .bind::<&String>(&p.custom_url)
             .bind::<&String>(&p.id)
             .bind::<&String>(&p.group_name)
@@ -1391,7 +925,8 @@ impl BundlesDB {
 
         // update cache
         if as_user.is_some() {
-            self.cachedb
+            self.base
+                .cachedb
                 .remove_starting_with(format!("pastes-by-owner:{}*", as_user.unwrap()))
                 .await;
         }
@@ -1471,7 +1006,7 @@ impl BundlesDB {
         }
 
         // update paste
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "UPDATE \"Pastes\" SET \"content\" = ?, \"content_html\" = ?, \"edit_password\" = ?, \"custom_url\" = ?, \"edit_date\" = ? WHERE \"custom_url\" = ?"
         } else {
             "UPDATE \"Pastes\" SET (\"content\", \"content_html\", \"edit_password\", \"custom_url\", \"edit_date\") = ($1, $2, $3, $4, $5) WHERE \"custom_url\" = $6"
@@ -1480,8 +1015,8 @@ impl BundlesDB {
         let content_html = &crate::markdown::render::parse_markdown(&content);
         let edit_date = &utility::unix_epoch_timestamp().to_string();
 
-        let c = &self.db.client;
-        let res = sqlx::query(query)
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
             .bind::<&String>(&content)
             .bind::<&String>(content_html)
             .bind::<&String>(&edit_password_hash)
@@ -1500,7 +1035,7 @@ impl BundlesDB {
         }
 
         // update cache
-        let existing_in_cache = self.cachedb.get(format!("paste:{}", url)).await;
+        let existing_in_cache = self.base.cachedb.get(format!("paste:{}", url)).await;
 
         if existing_in_cache.is_some() {
             let mut paste =
@@ -1513,7 +1048,8 @@ impl BundlesDB {
             paste.custom_url = custom_url.to_string(); // update custom_url
 
             // update cache
-            self.cachedb
+            self.base
+                .cachedb
                 .update(
                     format!("paste:{}", url),
                     serde_json::to_string::<Paste<PasteMetadata>>(&paste).unwrap(),
@@ -1582,14 +1118,14 @@ impl BundlesDB {
         }
 
         // update paste
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "UPDATE \"Pastes\" SET \"metadata\" = ? WHERE \"custom_url\" = ?"
         } else {
             "UPDATE \"Pastes\" SET (\"metadata\") = ($1) WHERE \"custom_url\" = $2"
         };
 
-        let c = &self.db.client;
-        let res = sqlx::query(query)
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
             .bind::<&String>(&serde_json::to_string(&metadata).unwrap())
             .bind::<&String>(&url)
             .execute(c)
@@ -1604,7 +1140,7 @@ impl BundlesDB {
         }
 
         // update cache
-        let existing_in_cache = self.cachedb.get(format!("paste:{}", url)).await;
+        let existing_in_cache = self.base.cachedb.get(format!("paste:{}", url)).await;
 
         if existing_in_cache.is_some() {
             let mut paste =
@@ -1612,7 +1148,8 @@ impl BundlesDB {
             paste.metadata = metadata; // update metadata
 
             // update cache
-            self.cachedb
+            self.base
+                .cachedb
                 .update(
                     format!("paste:{}", url),
                     serde_json::to_string::<Paste<PasteMetadata>>(&paste).unwrap(),
@@ -1648,14 +1185,14 @@ impl BundlesDB {
         }
 
         // check for existing view log
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE ?"
         } else {
             "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE $1"
         };
 
-        let c = &self.db.client;
-        let res = sqlx::query(query)
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
             .bind::<&String>(&format!("{}::{}", &url, &view_as))
             .fetch_one(c)
             .await;
@@ -1666,14 +1203,15 @@ impl BundlesDB {
 
             // count view if message says no rows were returned
             if err_message.starts_with("no rows returned") {
-                self.create_log(
-                    String::from("view_paste"),
-                    format!("{}::{}", &url, &view_as),
-                )
-                .await;
+                self.logs
+                    .create_log(
+                        String::from("view_paste"),
+                        format!("{}::{}", &url, &view_as),
+                    )
+                    .await;
 
                 // update cache
-                let existing_in_cache = self.cachedb.get(format!("paste:{}", url)).await;
+                let existing_in_cache = self.base.cachedb.get(format!("paste:{}", url)).await;
 
                 if existing_in_cache.is_some() {
                     let mut paste =
@@ -1682,7 +1220,8 @@ impl BundlesDB {
                     paste.views += 1;
 
                     // update cache
-                    self.cachedb
+                    self.base
+                        .cachedb
                         .update(
                             format!("paste:{}", url),
                             serde_json::to_string::<Paste<PasteMetadata>>(&paste).unwrap(),
@@ -1765,14 +1304,14 @@ impl BundlesDB {
         }
 
         // delete paste
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "DELETE FROM \"Pastes\" WHERE \"custom_url\" = ?"
         } else {
             "DELETE FROM \"Pastes\" WHERE \"custom_url\" = $1"
         };
 
-        let c = &self.db.client;
-        let res = sqlx::query(query).bind::<&String>(&url).execute(c).await;
+        let c = &self.base.db.client;
+        let res = sqlquery(query).bind::<&String>(&url).execute(c).await;
 
         if res.is_err() {
             return DefaultReturn {
@@ -1783,14 +1322,14 @@ impl BundlesDB {
         }
 
         // delete paste views
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "DELETE FROM \"Logs\" WHERE \"content\" LIKE ?"
         } else {
             "DELETE FROM \"Logs\" WHERE \"content\" LIKE $1"
         };
 
-        let c = &self.db.client;
-        let res = sqlx::query(query)
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
             .bind::<&String>(&format!("{}::%", &url))
             .execute(c)
             .await;
@@ -1804,7 +1343,7 @@ impl BundlesDB {
         }
 
         // update cache
-        self.cachedb.remove(format!("paste:{}", url)).await;
+        self.base.cachedb.remove(format!("paste:{}", url)).await;
 
         // return
         return DefaultReturn {
@@ -1822,14 +1361,14 @@ impl BundlesDB {
     /// # Arguments:
     /// * `url` - group name
     pub async fn get_group_by_name(&self, url: String) -> DefaultReturn<Option<Group<String>>> {
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "SELECT * FROM \"Groups\" WHERE \"name\" = ?"
         } else {
             "SELECT * FROM \"Groups\" WHERE \"name\" = $1"
         };
 
-        let c = &self.db.client;
-        let res = sqlx::query(query).bind::<&String>(&url).fetch_one(c).await;
+        let c = &self.base.db.client;
+        let res = sqlquery(query).bind::<&String>(&url).fetch_one(c).await;
 
         if res.is_err() {
             return DefaultReturn {
@@ -1841,15 +1380,16 @@ impl BundlesDB {
 
         // ...
         let row = res.unwrap();
+        let row = self.base.textify_row(row).data;
 
         // return
         return DefaultReturn {
             success: true,
             message: String::from("Group exists"),
             payload: Option::Some(Group {
-                name: row.get("name"),
-                submit_password: row.get("submit_password"),
-                metadata: row.get("metadata"),
+                name: row.get("name").unwrap().to_string(),
+                submit_password: row.get("submit_password").unwrap().to_string(),
+                metadata: row.get("metadata").unwrap().to_string(),
             }),
         };
     }
@@ -1875,17 +1415,17 @@ impl BundlesDB {
         }
 
         // create group
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "INSERT INTO \"Groups\" VALUES (?, ?, ?)"
         } else {
             "INSERT INTO \"Groups\" VALUES ($1, $2, $3)"
         };
 
-        let c = &self.db.client;
+        let c = &self.base.db.client;
         let p: &mut Group<GroupMetadata> = &mut props.clone();
 
         p.submit_password = utility::hash(p.submit_password.clone());
-        let res = sqlx::query(query)
+        let res = sqlquery(query)
             .bind::<&String>(&p.name)
             .bind::<&String>(&p.submit_password)
             .bind::<&String>(&serde_json::to_string(&p.metadata).unwrap())
@@ -1908,188 +1448,6 @@ impl BundlesDB {
         };
     }
 
-    // boards
-
-    // GET
-    /// Get a [`UserMailStreamIdentifier`] [`Board`] by its users
-    ///
-    /// # Arguments:
-    /// * `props` - [`UserMailStreamIdentifier`]
-    #[allow(dead_code)]
-    pub async fn get_mail_stream_by_users(
-        &self,
-        props: UserMailStreamIdentifier,
-    ) -> DefaultReturn<Option<Board<String>>> {
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            "SELECT * FROM \"Boards\" WHERE \"metadata\" LIKE ?"
-        } else {
-            "SELECT * FROM \"Boards\" WHERE \"metadata\" LIKE $1"
-        };
-
-        let c = &self.db.client;
-        let res = sqlx::query(query)
-            .bind::<&String>(&format!(
-                "%\"about\":\"{}\"%",
-                if &self.db._type == "mysql" {
-                    serde_json::to_string::<UserMailStreamIdentifier>(&props)
-                        .unwrap()
-                        .replace("\"", "\\\\\"")
-                } else {
-                    serde_json::to_string::<UserMailStreamIdentifier>(&props)
-                        .unwrap()
-                        .replace("\"", "\\\"")
-                }
-            ))
-            .fetch_one(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Board does not exist"),
-                payload: Option::None,
-            };
-        }
-
-        // ...
-        let row = res.unwrap();
-        let row = self.textify_row(row).data;
-
-        // return
-        return DefaultReturn {
-            success: true,
-            message: String::from("Board exists"),
-            payload: Option::Some(Board {
-                name: row.get("name").unwrap().to_string(),
-                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
-                metadata: row.get("metadata").unwrap().to_string(),
-            }),
-        };
-    }
-
-    /// Get all [`UserMailStreamIdentifier`] [`Board`] by a single participating user
-    ///
-    /// # Arguments:
-    /// * `user` - username of the user
-    /// * `offset` - optional value representing the SQL fetch offset
-    pub async fn get_user_mail_streams(
-        &self,
-        user: String,
-        offset: Option<i32>,
-    ) -> DefaultReturn<Vec<BoardIdentifier>> {
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            "SELECT * FROM \"Boards\" WHERE \"metadata\" LIKE ? OR \"metadata\" LIKE ? ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
-        } else {
-            "SELECT * FROM \"Boards\" WHERE \"metadata\" LIKE $1 OR \"metadata\" LIKE $2 ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $3"
-        };
-
-        let c = &self.db.client;
-        let res = sqlx::query(query)
-            .bind::<String>(if &self.db._type == "mysql" {
-                format!("%\\\\\"user1\\\\\":\\\\\"{}\\\\\"%", user)
-            } else {
-                format!("%\\\"user1\\\":\\\"{}\\\"%", user)
-            })
-            .bind::<String>(if &self.db._type == "mysql" {
-                format!("%\\\\\"user2\\\\\":\\\\\"{}\\\\\"%", user)
-            } else {
-                format!("%\\\"user2\\\":\\\"{}\\\"%", user)
-            })
-            .bind(if offset.is_some() { offset.unwrap() } else { 0 })
-            .fetch_all(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Boards do not exist"),
-                payload: Vec::new(),
-            };
-        }
-
-        // ...
-        let rows = res.unwrap();
-        let mut output: Vec<BoardIdentifier> = Vec::new();
-
-        for row in rows {
-            let row = self.textify_row(row).data;
-
-            let metadata =
-                serde_json::from_str::<BoardMetadata>(row.get("metadata").unwrap()).unwrap();
-
-            let mailstream =
-                serde_json::from_str::<UserMailStreamIdentifier>(&metadata.about.unwrap()).unwrap();
-
-            output.push(BoardIdentifier {
-                name: row.get("name").unwrap().to_string(),
-                // we're going to use tags to store the name of the other user
-                tags: if user == mailstream.user1 {
-                    mailstream.user2
-                } else {
-                    mailstream.user1
-                },
-            });
-        }
-
-        // return
-        return DefaultReturn {
-            success: true,
-            message: String::from("Boards exists"),
-            payload: output,
-        };
-    }
-
-    /// Get most recent posts from all [`Boards`](Board)
-    ///
-    /// # Arguments:
-    /// * `offset` - optional value representing the SQL fetch offset
-    pub async fn fetch_most_recent_posts(
-        &self,
-        offset: Option<i32>,
-    ) -> DefaultReturn<Option<Vec<Log>>> {
-        // ...
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
-            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'board_post' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
-        } else {
-            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'board_post' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $1"
-        };
-
-        let c = &self.db.client;
-        let res = sqlx::query(query)
-            .bind(if offset.is_some() { offset.unwrap() } else { 0 })
-            .fetch_all(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Failed to fetch posts"),
-                payload: Option::None,
-            };
-        }
-
-        // ...
-        let rows = res.unwrap();
-        let mut output: Vec<Log> = Vec::new();
-
-        for row in rows {
-            let row = self.textify_row(row).data;
-            output.push(Log {
-                id: row.get("id").unwrap().to_string(),
-                logtype: row.get("logtype").unwrap().to_string(),
-                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
-                content: row.get("content").unwrap().to_string(),
-            });
-        }
-
-        // return
-        return DefaultReturn {
-            success: true,
-            message: String::from("Successfully fetched posts"),
-            payload: Option::Some(output),
-        };
-    }
-
     // notifications
 
     // GET
@@ -2102,14 +1460,14 @@ impl BundlesDB {
         user: String,
         offset: Option<i32>,
     ) -> DefaultReturn<Option<Vec<Log>>> {
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? AND \"logtype\" = 'notification' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
         } else {
             "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 AND \"logtype\" = 'notification' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $2"
         };
 
-        let c = &self.db.client;
-        let res = sqlx::query(query)
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
             .bind::<&String>(&format!("%\"user\":\"{user}\"%"))
             .bind(if offset.is_some() { offset.unwrap() } else { 0 })
             .fetch_all(c)
@@ -2128,7 +1486,7 @@ impl BundlesDB {
         let mut output: Vec<Log> = Vec::new();
 
         for row in rows {
-            let row = self.textify_row(row).data;
+            let row = self.base.textify_row(row).data;
             output.push(Log {
                 id: row.get("id").unwrap().to_string(),
                 logtype: row.get("logtype").unwrap().to_string(),
@@ -2150,14 +1508,14 @@ impl BundlesDB {
     /// # Arguments:
     /// * `user` - username of user to check
     pub async fn user_has_notification(&self, user: String) -> DefaultReturn<Option<Vec<Log>>> {
-        let query: &str = if (self.db._type == "sqlite") | (self.db._type == "mysql") {
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? AND \"logtype\" = 'notification' LIMIT 1"
         } else {
             "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 AND \"logtype\" = 'notification' LIMIT 1"
         };
 
-        let c = &self.db.client;
-        let res = sqlx::query(query)
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
             .bind::<&String>(&format!("%\"user\":\"{user}\"%"))
             .fetch_all(c)
             .await;
@@ -2213,10 +1571,137 @@ impl BundlesDB {
         }
 
         // return
-        self.create_log(
-            String::from("notification"),
-            serde_json::to_string::<Notification>(&p).unwrap(),
-        )
-        .await
+        self.logs
+            .create_log(
+                String::from("notification"),
+                serde_json::to_string::<Notification>(&p).unwrap(),
+            )
+            .await
+    }
+
+    // boards
+
+    // GET
+    /// Get all [`UserMailStreamIdentifier`] [`Board`] by a single participating user
+    ///
+    /// # Arguments:
+    /// * `user` - username of the user
+    /// * `offset` - optional value representing the SQL fetch offset
+    pub async fn get_user_mail_streams(
+        &self,
+        user: String,
+        offset: Option<i32>,
+    ) -> DefaultReturn<Vec<BoardIdentifier>> {
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
+            "SELECT * FROM \"Boards\" WHERE \"metadata\" LIKE ? OR \"metadata\" LIKE ? ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
+        } else {
+            "SELECT * FROM \"Boards\" WHERE \"metadata\" LIKE $1 OR \"metadata\" LIKE $2 ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $3"
+        };
+
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
+            .bind::<String>(if &self.base.db._type == "mysql" {
+                format!("%\\\\\"user1\\\\\":\\\\\"{}\\\\\"%", user)
+            } else {
+                format!("%\\\"user1\\\":\\\"{}\\\"%", user)
+            })
+            .bind::<String>(if &self.base.db._type == "mysql" {
+                format!("%\\\\\"user2\\\\\":\\\\\"{}\\\\\"%", user)
+            } else {
+                format!("%\\\"user2\\\":\\\"{}\\\"%", user)
+            })
+            .bind(if offset.is_some() { offset.unwrap() } else { 0 })
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Boards do not exist"),
+                payload: Vec::new(),
+            };
+        }
+
+        // ...
+        let rows = res.unwrap();
+        let mut output: Vec<BoardIdentifier> = Vec::new();
+
+        for row in rows {
+            let row = self.base.textify_row(row).data;
+
+            let metadata =
+                serde_json::from_str::<BoardMetadata>(row.get("metadata").unwrap()).unwrap();
+
+            let mailstream =
+                serde_json::from_str::<UserMailStreamIdentifier>(&metadata.about.unwrap()).unwrap();
+
+            output.push(BoardIdentifier {
+                name: row.get("name").unwrap().to_string(),
+                // we're going to use tags to store the name of the other user
+                tags: if user == mailstream.user1 {
+                    mailstream.user2
+                } else {
+                    mailstream.user1
+                },
+            });
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Boards exists"),
+            payload: output,
+        };
+    }
+
+    /// Get most recent posts from all [`Boards`](Board)
+    ///
+    /// # Arguments:
+    /// * `offset` - optional value representing the SQL fetch offset
+    pub async fn fetch_most_recent_posts(
+        &self,
+        offset: Option<i32>,
+    ) -> DefaultReturn<Option<Vec<Log>>> {
+        // ...
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
+            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'board_post' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
+        } else {
+            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'board_post' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $1"
+        };
+
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
+            .bind(if offset.is_some() { offset.unwrap() } else { 0 })
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Failed to fetch posts"),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let rows = res.unwrap();
+        let mut output: Vec<Log> = Vec::new();
+
+        for row in rows {
+            let row = self.base.textify_row(row).data;
+            output.push(Log {
+                id: row.get("id").unwrap().to_string(),
+                logtype: row.get("logtype").unwrap().to_string(),
+                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+                content: row.get("content").unwrap().to_string(),
+            });
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::from("Successfully fetched posts"),
+            payload: Option::Some(output),
+        };
     }
 }

@@ -6,7 +6,7 @@ use yew::ServerRenderer;
 
 use crate::components::avatar::AvatarDisplay;
 use crate::components::navigation::{Footer, GlobalMenu};
-use crate::db::{self, bundlesdb};
+use crate::db::{self, AppData};
 use crate::utility::format_html;
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
@@ -19,21 +19,21 @@ struct Props {
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 struct DashboardProps {
-    pub user: bundlesdb::UserState<String>,
+    pub user: db::UserState<String>,
     pub has_unread_notification: bool,
     pub auth_state: Option<bool>,
 }
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 struct NotificationsProps {
-    pub notifications: Vec<bundlesdb::Log>,
+    pub notifications: Vec<db::Log>,
     pub offset: i32,
     pub auth_state: Option<bool>,
 }
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 struct InboxProps {
-    pub boards: Vec<bundlesdb::BoardIdentifier>,
+    pub boards: Vec<db::BoardIdentifier>,
     pub offset: i32,
     pub auth_state: Option<bool>,
 }
@@ -218,7 +218,7 @@ fn build_renderer_with_props(props: Props) -> ServerRenderer<Home> {
 /// Available at "/"
 pub async fn home_request(
     req: HttpRequest,
-    data: web::Data<db::bundlesdb::AppData>,
+    data: web::Data<AppData>,
     info: web::Query<Props>,
 ) -> impl Responder {
     // verify auth status
@@ -488,10 +488,7 @@ fn build_dashboard_renderer_with_props(props: DashboardProps) -> ServerRenderer<
 
 #[get("/d")]
 /// Available at "/d"
-pub async fn dashboard_request(
-    req: HttpRequest,
-    data: web::Data<db::bundlesdb::AppData>,
-) -> impl Responder {
+pub async fn dashboard_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
     // verify auth status
     let token_cookie = req.cookie("__Secure-Token");
     let mut set_cookie: &str = "";
@@ -591,7 +588,7 @@ fn Notifications(props: &NotificationsProps) -> Html {
 
                         <div class="flex g-4 flex-wrap">
                             {for props.notifications.iter().map(|n| {
-                                let notif = serde_json::from_str::<bundlesdb::Notification>(&n.content).unwrap();
+                                let notif = serde_json::from_str::<db::Notification>(&n.content).unwrap();
 
                                 html! {
                                     <a class="button secondary round full justify-start" href={notif.address} title={notif.content.clone()}>
@@ -631,7 +628,7 @@ fn build_notifications_renderer_with_props(
 /// Available at "/d/notifications"
 pub async fn notifications_request(
     req: HttpRequest,
-    data: web::Data<db::bundlesdb::AppData>,
+    data: web::Data<AppData>,
     info: web::Query<crate::api::pastes::OffsetQueryProps>,
 ) -> impl Responder {
     // verify auth status
@@ -783,7 +780,7 @@ fn build_inbox_renderer_with_props(props: InboxProps) -> ServerRenderer<Inbox> {
 /// Available at "/d/inbox"
 pub async fn inbox_request(
     req: HttpRequest,
-    data: web::Data<db::bundlesdb::AppData>,
+    data: web::Data<AppData>,
     info: web::Query<crate::api::pastes::OffsetQueryProps>,
 ) -> impl Responder {
     // verify auth status

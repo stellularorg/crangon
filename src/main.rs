@@ -2,7 +2,6 @@ use actix_files as fs;
 use actix_web::{web, App, HttpResponse, HttpServer};
 use dotenv;
 
-use sqlx;
 use yew::ServerRenderer;
 
 mod config;
@@ -16,8 +15,7 @@ mod pages;
 mod markdown;
 mod ssm;
 
-use crate::db::bundlesdb::{AppData, BundlesDB};
-use crate::db::sql::DatabaseOpts;
+use crate::db::{AppData, Database};
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -53,8 +51,7 @@ async fn main() -> std::io::Result<()> {
         panic!("Missing required database config settings!");
     }
 
-    sqlx::any::install_default_drivers(); // install database drivers
-    let db: BundlesDB = BundlesDB::new(DatabaseOpts {
+    let db: Database = Database::new(dorsal::DatabaseOpts {
         _type: db_type,
         host: db_host,
         user: if db_is_other {

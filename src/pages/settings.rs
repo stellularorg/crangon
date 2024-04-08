@@ -4,7 +4,7 @@ use actix_web::{get, web, HttpRequest, Responder};
 use yew::prelude::*;
 use yew::ServerRenderer;
 
-use crate::db::bundlesdb::{self, AppData, FullPaste, Paste, PasteMetadata};
+use crate::db::{self, AppData, FullPaste, Paste, PasteMetadata};
 use crate::utility::format_html;
 
 use crate::components::navigation::Footer;
@@ -151,7 +151,7 @@ pub async fn paste_settings_request(
     let url: String = req.match_info().get("url").unwrap().to_string();
     let url_c = url.clone();
 
-    let paste: bundlesdb::DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
+    let paste: db::DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
         data.db.get_paste_by_url(url).await;
 
     if paste.success == false {

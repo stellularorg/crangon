@@ -1,6 +1,6 @@
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
 
-use crate::db::bundlesdb::{self, AtomicPasteFSFile, DefaultReturn, FullPaste, PasteMetadata};
+use crate::db::{self, AtomicPasteFSFile, DefaultReturn, FullPaste, PasteMetadata};
 use crate::{markdown, ssm, utility};
 
 #[derive(Default, PartialEq, serde::Deserialize)]
@@ -47,7 +47,7 @@ struct DeleteInfo {
 struct MetadataInfo {
     custom_url: String,
     edit_password: String,
-    metadata: bundlesdb::PasteMetadata,
+    metadata: db::PasteMetadata,
 }
 
 #[post("/api/markdown")]
@@ -67,7 +67,7 @@ pub async fn render_ssm_request(body: web::Json<RenderInfo>) -> impl Responder {
 #[get("/api/ssm/{url:.*}")]
 pub async fn render_paste_ssm_request(
     req: HttpRequest,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<db::AppData>,
 ) -> impl Responder {
     let custom_url: String = req.match_info().get("url").unwrap().to_string();
     let res = data.db.get_paste_by_url(custom_url).await;
@@ -109,7 +109,7 @@ pub async fn render_paste_ssm_request(
 pub async fn create_request(
     req: HttpRequest,
     body: web::Json<CreateInfo>,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<db::AppData>,
 ) -> impl Responder {
     let custom_url: String = body.custom_url.trim().to_string();
     let edit_password: &String = &body.edit_password;
@@ -153,7 +153,7 @@ pub async fn create_request(
     let res = data
         .db
         .create_paste(
-            &mut bundlesdb::Paste {
+            &mut db::Paste {
                 custom_url: custom_url.clone(),
                 id: String::new(), // reassigned anyways, this doesn't matter
                 edit_password: edit_password.to_string(),
@@ -184,7 +184,7 @@ pub async fn create_request(
 pub async fn edit_request(
     req: HttpRequest,
     body: web::Json<EditInfo>,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<db::AppData>,
 ) -> impl Responder {
     let custom_url: String = body.custom_url.trim().to_string();
     let content: String = body.content.trim().to_string();
@@ -239,7 +239,7 @@ pub async fn edit_request(
 pub async fn edit_atomic_request(
     req: HttpRequest,
     body: web::Json<EditAtomicInfo>,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<db::AppData>,
 ) -> impl Responder {
     // this is essentially the same as edit_request but it handles the atomic JSON file system
     // ...it does NOT accept an edit password! users must be authenticated
@@ -285,7 +285,7 @@ pub async fn edit_atomic_request(
     }
 
     // get file from path
-    let real_content = serde_json::from_str::<bundlesdb::AtomicPaste>(&unwrap.paste.content);
+    let real_content = serde_json::from_str::<db::AtomicPaste>(&unwrap.paste.content);
 
     if real_content.is_err() {
         return HttpResponse::NotAcceptable().body("Paste failed to deserialize");
@@ -312,7 +312,7 @@ pub async fn edit_atomic_request(
         .db
         .edit_paste_by_url(
             custom_url,
-            serde_json::to_string::<bundlesdb::AtomicPaste>(&decoded).unwrap(), // encode content
+            serde_json::to_string::<db::AtomicPaste>(&decoded).unwrap(), // encode content
             String::new(),
             Option::None,
             Option::None,
@@ -335,7 +335,7 @@ pub async fn edit_atomic_request(
 pub async fn delete_request(
     req: HttpRequest,
     body: web::Json<DeleteInfo>,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<db::AppData>,
 ) -> impl Responder {
     let custom_url: String = body.custom_url.trim().to_string();
     let edit_password: String = body.edit_password.to_owned();
@@ -384,13 +384,13 @@ pub async fn delete_request(
 pub async fn metadata_request(
     req: HttpRequest,
     body: web::Json<MetadataInfo>,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<db::AppData>,
 ) -> impl Responder {
     let custom_url: String = body.custom_url.trim().to_string();
     let edit_password: String = body.edit_password.to_owned();
 
     let m = body.metadata.to_owned();
-    let metadata: bundlesdb::PasteMetadata = m;
+    let metadata: db::PasteMetadata = m;
 
     // get token user
     let token_cookie = req.cookie("__Secure-Token");
@@ -434,10 +434,7 @@ pub async fn metadata_request(
 
 #[get("/api/exists/{url:.*}")]
 /// Check if a paste exists
-pub async fn exists_request(
-    req: HttpRequest,
-    data: web::Data<bundlesdb::AppData>,
-) -> impl Responder {
+pub async fn exists_request(req: HttpRequest, data: web::Data<db::AppData>) -> impl Responder {
     let custom_url: String = req.match_info().get("url").unwrap().to_string();
     let res = data.db.get_paste_by_url(custom_url).await;
 
@@ -451,7 +448,7 @@ pub async fn exists_request(
 /// Get paste by `custom_url`
 pub async fn get_from_url_request(
     req: HttpRequest,
-    data: web::Data<bundlesdb::AppData>,
+    data: web::Data<db::AppData>,
 ) -> impl Responder {
     let custom_url: String = req.match_info().get("url").unwrap().to_string();
     let res: DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
@@ -489,10 +486,7 @@ pub async fn get_from_url_request(
 
 #[get("/api/id/{id:.*}")]
 /// Get paste by ID
-pub async fn get_from_id_request(
-    req: HttpRequest,
-    data: web::Data<bundlesdb::AppData>,
-) -> impl Responder {
+pub async fn get_from_id_request(req: HttpRequest, data: web::Data<db::AppData>) -> impl Responder {
     let id: String = req.match_info().get("id").unwrap().to_string();
     let res: DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
         data.db.get_paste_by_id(id).await;
