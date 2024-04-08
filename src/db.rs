@@ -226,71 +226,6 @@ impl Database {
         .await;
     }
 
-    #[cfg(feature = "sqlite")]
-    fn textify_row(&self, row: sqlx::sqlite::SqliteRow) -> DatabaseReturn {
-        // get all columns
-        let columns = row.columns();
-
-        // create output
-        let mut out: HashMap<String, String> = HashMap::new();
-
-        for column in columns {
-            let value = row.get(column.name());
-            out.insert(column.name().to_string(), value);
-        }
-
-        // return
-        return DatabaseReturn { data: out };
-    }
-
-    #[cfg(feature = "postgres")]
-    fn textify_row(&self, row: sqlx::postgres::PgRow) -> DatabaseReturn {
-        // get all columns
-        let columns = row.columns();
-
-        // create output
-        let mut out: HashMap<String, String> = HashMap::new();
-
-        for column in columns {
-            let value = row.get(column.name());
-            out.insert(column.name().to_string(), value);
-        }
-
-        // return
-        return DatabaseReturn { data: out };
-    }
-
-    #[cfg(feature = "mysql")]
-    fn textify_row(&self, row: sqlx::mysql::MySqlRow) -> DatabaseReturn {
-        // get all columns
-        let columns = row.columns();
-
-        // create output
-        let mut out: HashMap<String, String> = HashMap::new();
-
-        for column in columns {
-            let value = row.try_get::<Vec<u8>, _>(column.name());
-
-            if value.is_ok() {
-                // returned bytes instead of text :(
-                // we're going to convert this to a string and then add it to the output!
-                out.insert(
-                    column.name().to_string(),
-                    std::str::from_utf8(value.unwrap().as_slice())
-                        .unwrap()
-                        .to_string(),
-                );
-            } else {
-                // already text
-                let value = row.get(column.name());
-                out.insert(column.name().to_string(), value);
-            }
-        }
-
-        // return
-        return DatabaseReturn { data: out };
-    }
-
     // users
 
     // GET
@@ -562,8 +497,14 @@ impl Database {
     /// * `url` - `String` of the paste's `custom_url`
     pub async fn get_paste_by_url(
         &self,
-        url: String,
+        mut url: String,
     ) -> DefaultReturn<Option<FullPaste<PasteMetadata, String>>> {
+        url = idna::punycode::encode_str(&url).unwrap();
+
+        if url.ends_with("-") {
+            url.pop();
+        }
+
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "SELECT * FROM \"Pastes\" WHERE \"custom_url\" = ?"
         } else {
@@ -885,6 +826,8 @@ impl Database {
             };
         }
 
+        p.custom_url = idna::punycode::encode_str(&p.custom_url).unwrap();
+
         // create paste
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "INSERT INTO \"Pastes\" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -943,13 +886,19 @@ impl Database {
     /// Edit an existing [`Paste`] given its `custom_url`
     pub async fn edit_paste_by_url(
         &self,
-        url: String,
+        mut url: String,
         content: String,
         edit_password: String,
         new_url: Option<String>,
         new_edit_password: Option<String>,
         edit_as: Option<String>, // username of account that is editing this paste
     ) -> DefaultReturn<Option<String>> {
+        url = idna::punycode::encode_str(&url).unwrap();
+
+        if url.ends_with("-") {
+            url.pop();
+        }
+
         // make sure paste exists
         let existing = &self.get_paste_by_url(url.clone()).await;
         if !existing.success {
@@ -986,13 +935,6 @@ impl Database {
             edit_password.to_owned()
         };
 
-        let custom_url = if new_url.is_some() {
-            new_url.as_ref().unwrap()
-        } else {
-            // get old custom url
-            &paste.custom_url
-        };
-
         // if we're changing url, make sure this paste doesn't already exist
         if new_url.is_some() {
             let existing = &self.get_paste_by_url(new_url.clone().unwrap()).await;
@@ -1003,6 +945,17 @@ impl Database {
                     payload: Option::None,
                 };
             }
+        }
+
+        let mut custom_url = if new_url.is_some() {
+            idna::punycode::encode_str(new_url.as_ref().unwrap()).unwrap()
+        } else {
+            // get old custom url
+            paste.custom_url.clone()
+        };
+
+        if custom_url.ends_with("-") {
+            custom_url.pop();
         }
 
         // update paste
@@ -1068,11 +1021,17 @@ impl Database {
     /// Update a [`Paste`]'s metadata by its `custom_url`
     pub async fn edit_paste_metadata_by_url(
         &self,
-        url: String,
+        mut url: String,
         metadata: PasteMetadata,
         edit_password: String,
         edit_as: Option<String>, // username of account that is editing this paste
     ) -> DefaultReturn<Option<String>> {
+        url = idna::punycode::encode_str(&url).unwrap();
+
+        if url.ends_with("-") {
+            url.pop();
+        }
+
         // make sure paste exists
         let existing = &self.get_paste_by_url(url.clone()).await;
         if !existing.success {
@@ -1174,6 +1133,8 @@ impl Database {
         url: &String,
         view_as: &String, // username of account that is viewing this paste
     ) -> DefaultReturn<Option<String>> {
+        let url = &idna::punycode::encode_str(&url).unwrap();
+
         // make sure paste exists
         let existing = &self.get_paste_by_url(url.clone()).await;
         if !existing.success {
@@ -1256,10 +1217,16 @@ impl Database {
     /// Delete a [`Paste`] given its `custom_url` and `edit_password`
     pub async fn delete_paste_by_url(
         &self,
-        url: String,
+        mut url: String,
         edit_password: String,
         delete_as: Option<String>,
     ) -> DefaultReturn<Option<String>> {
+        url = idna::punycode::encode_str(&url).unwrap();
+
+        if url.ends_with("-") {
+            url.pop();
+        }
+
         // make sure paste exists
         let existing = &self.get_paste_by_url(url.clone()).await;
         if !existing.success {
