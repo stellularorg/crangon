@@ -112,12 +112,15 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::pastes::render_request)
             .service(crate::api::pastes::create_request)
             .service(crate::api::pastes::edit_request)
-            .service(crate::api::pastes::edit_atomic_request)
             .service(crate::api::pastes::delete_request)
             .service(crate::api::pastes::metadata_request)
             // POST api::pastes SSM
             .service(crate::api::pastes::render_ssm_request)
             .service(crate::api::pastes::render_paste_ssm_request)
+            // atomic api
+            .service(crate::api::pastes::read_atomic_request)
+            .service(crate::api::pastes::update_atomic_request)
+            .service(crate::api::pastes::delete_atomic_request)
             // GET api
             .service(crate::api::pastes::get_from_url_request)
             .service(crate::api::pastes::get_from_id_request)

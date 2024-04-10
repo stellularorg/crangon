@@ -1,4 +1,4 @@
-use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
+use actix_web::{delete, get, post, web, HttpRequest, HttpResponse, Responder};
 
 use crate::db::{self, AtomicPasteFSFile, DefaultReturn, FullPaste, PasteMetadata};
 use crate::{markdown, ssm, utility};
@@ -28,13 +28,6 @@ struct EditInfo {
     edit_password: String,
     new_edit_password: Option<String>,
     new_custom_url: Option<String>,
-}
-
-#[derive(serde::Deserialize)]
-struct EditAtomicInfo {
-    custom_url: String,
-    path: String,
-    content: String,
 }
 
 #[derive(serde::Deserialize)]
@@ -220,102 +213,6 @@ pub async fn edit_request(
             edit_password,
             new_url,
             new_edit_password,
-            if token_user.is_some() {
-                Option::Some(token_user.unwrap().payload.unwrap().user.username)
-            } else {
-                Option::None
-            },
-        )
-        .await;
-
-    // return
-    return HttpResponse::Ok()
-        .append_header(("Content-Type", "application/json"))
-        .body(serde_json::to_string(&res).unwrap());
-}
-
-#[post("/api/edit-atomic")]
-/// Edit an atomic paste's "file system"
-pub async fn edit_atomic_request(
-    req: HttpRequest,
-    body: web::Json<EditAtomicInfo>,
-    data: web::Data<db::AppData>,
-) -> impl Responder {
-    // this is essentially the same as edit_request but it handles the atomic JSON file system
-    // ...it does NOT accept an edit password! users must be authenticated
-    let custom_url: String = body.custom_url.trim().to_string();
-    let path: String = body.path.trim().to_string();
-    let content: String = body.content.trim().to_string();
-
-    // get token user
-    let token_cookie = req.cookie("__Secure-Token");
-    let token_user = if token_cookie.is_some() {
-        Option::Some(
-            data.db
-                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
-                .await,
-        )
-    } else {
-        Option::None
-    };
-
-    if token_user.is_some() {
-        // make sure user exists
-        if token_user.as_ref().unwrap().success == false {
-            return HttpResponse::NotFound().body("Invalid token");
-        }
-    }
-
-    // get paste
-    let paste: DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
-        data.db.get_paste_by_url(custom_url.clone()).await;
-
-    if paste.success == false {
-        return HttpResponse::Ok()
-            .append_header(("Content-Type", "application/json"))
-            .body(serde_json::to_string(&paste).unwrap());
-    }
-
-    // make sure paste is an atomic paste
-    let unwrap = paste.payload.unwrap();
-    let is_atomic = unwrap.paste.content.contains("\"_is_atomic\":true");
-
-    if is_atomic == false {
-        return HttpResponse::NotFound().body("Paste is not atomic");
-    }
-
-    // get file from path
-    let real_content = serde_json::from_str::<db::AtomicPaste>(&unwrap.paste.content);
-
-    if real_content.is_err() {
-        return HttpResponse::NotAcceptable().body("Paste failed to deserialize");
-    }
-
-    let mut decoded = real_content.unwrap();
-
-    // check for existing file in atomic paste fs
-    let existing = decoded.files.iter().position(|f| f.path == path);
-
-    if existing.is_some() {
-        // remove existing file
-        decoded.files.remove(existing.unwrap());
-    }
-
-    // insert file
-    decoded.files.push(AtomicPasteFSFile {
-        path,
-        content: content.clone(),
-    });
-
-    // ...
-    let res = data
-        .db
-        .edit_paste_by_url(
-            custom_url,
-            serde_json::to_string::<db::AtomicPaste>(&decoded).unwrap(), // encode content
-            String::new(),
-            Option::None,
-            Option::None,
             if token_user.is_some() {
                 Option::Some(token_user.unwrap().payload.unwrap().user.username)
             } else {
@@ -519,4 +416,256 @@ pub async fn get_from_id_request(req: HttpRequest, data: web::Data<db::AppData>)
             serde_json::to_string::<DefaultReturn<Option<FullPaste<PasteMetadata, String>>>>(&res)
                 .unwrap(),
         );
+}
+
+// atomic "CRUD" operations
+#[get("/api/atomic/crud/{url:.*}/{path:.*}")]
+/// Read an atomic paste's "file system"
+pub async fn read_atomic_request(req: HttpRequest, data: web::Data<db::AppData>) -> impl Responder {
+    let custom_url: String = req.match_info().get("url").unwrap().to_string();
+    let path: String = format!("/{}", req.match_info().get("path").unwrap());
+
+    // get token user
+    let token_cookie = req.cookie("__Secure-Token");
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists
+        if token_user.as_ref().unwrap().success == false {
+            return HttpResponse::NotFound().body("Invalid token");
+        }
+    }
+
+    // get paste
+    let paste: DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
+        data.db.get_paste_by_url(custom_url.clone()).await;
+
+    if paste.success == false {
+        return HttpResponse::Ok()
+            .append_header(("Content-Type", "application/json"))
+            .body(serde_json::to_string(&paste).unwrap());
+    }
+
+    // make sure paste is an atomic paste
+    let unwrap = paste.payload.unwrap();
+    let is_atomic = unwrap.paste.content.contains("\"_is_atomic\":true");
+
+    if is_atomic == false {
+        return HttpResponse::NotFound().body("Paste is not atomic");
+    }
+
+    // get file from path
+    let real_content = serde_json::from_str::<db::AtomicPaste>(&unwrap.paste.content);
+
+    if real_content.is_err() {
+        return HttpResponse::NotAcceptable().body("Paste failed to deserialize");
+    }
+
+    let decoded = real_content.unwrap();
+
+    // check for existing file in atomic paste fs
+    let existing = decoded.files.iter().find(|f| f.path == path);
+
+    if existing.is_none() {
+        return HttpResponse::NotFound()
+            .append_header(("Content-Type", "text/plain"))
+            .body("Path does not exist");
+    }
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "text/plain"))
+        .body(existing.unwrap().content.clone());
+}
+
+#[post("/api/atomic/crud/{url:.*}/{path:.*}")]
+/// Update an atomic paste's "file system"
+pub async fn update_atomic_request(
+    req: HttpRequest,
+    body: String, // text/plain
+    data: web::Data<db::AppData>,
+) -> impl Responder {
+    // this is essentially the same as edit_request but it handles the atomic JSON file system
+    // ...it does NOT accept an edit password! users must be authenticated
+    let custom_url: String = req.match_info().get("url").unwrap().to_string();
+    let path: String = format!("/{}", req.match_info().get("path").unwrap());
+    let content: String = body.clone();
+
+    // get token user
+    let token_cookie = req.cookie("__Secure-Token");
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists
+        if token_user.as_ref().unwrap().success == false {
+            return HttpResponse::NotFound().body("Invalid token");
+        }
+    }
+
+    // get paste
+    let paste: DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
+        data.db.get_paste_by_url(custom_url.clone()).await;
+
+    if paste.success == false {
+        return HttpResponse::Ok()
+            .append_header(("Content-Type", "application/json"))
+            .body(serde_json::to_string(&paste).unwrap());
+    }
+
+    // make sure paste is an atomic paste
+    let unwrap = paste.payload.unwrap();
+    let is_atomic = unwrap.paste.content.contains("\"_is_atomic\":true");
+
+    if is_atomic == false {
+        return HttpResponse::NotFound().body("Paste is not atomic");
+    }
+
+    // get file from path
+    let real_content = serde_json::from_str::<db::AtomicPaste>(&unwrap.paste.content);
+
+    if real_content.is_err() {
+        return HttpResponse::NotAcceptable().body("Paste failed to deserialize");
+    }
+
+    let mut decoded = real_content.unwrap();
+
+    // check for existing file in atomic paste fs
+    let existing = decoded.files.iter().position(|f| f.path == path);
+
+    if existing.is_some() {
+        // remove existing file
+        decoded.files.remove(existing.unwrap());
+    }
+
+    // insert file
+    decoded.files.push(AtomicPasteFSFile {
+        path,
+        content: content.clone(),
+    });
+
+    // ...
+    let res = data
+        .db
+        .edit_paste_by_url(
+            custom_url,
+            serde_json::to_string::<db::AtomicPaste>(&decoded).unwrap(), // encode content
+            String::new(),
+            Option::None,
+            Option::None,
+            if token_user.is_some() {
+                Option::Some(token_user.unwrap().payload.unwrap().user.username)
+            } else {
+                Option::None
+            },
+        )
+        .await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string(&res).unwrap());
+}
+
+#[delete("/api/atomic/crud/{url:.*}/{path:.*}")]
+/// Delete in an atomic paste's "file system"
+pub async fn delete_atomic_request(
+    req: HttpRequest,
+    data: web::Data<db::AppData>,
+) -> impl Responder {
+    // this is essentially the same as edit_request but it handles the atomic JSON file system
+    // ...it does NOT accept an edit password! users must be authenticated
+    let custom_url: String = req.match_info().get("url").unwrap().to_string();
+    let path: String = format!("/{}", req.match_info().get("path").unwrap());
+
+    // get token user
+    let token_cookie = req.cookie("__Secure-Token");
+    let token_user = if token_cookie.is_some() {
+        Option::Some(
+            data.db
+                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+                .await,
+        )
+    } else {
+        Option::None
+    };
+
+    if token_user.is_some() {
+        // make sure user exists
+        if token_user.as_ref().unwrap().success == false {
+            return HttpResponse::NotFound().body("Invalid token");
+        }
+    }
+
+    // get paste
+    let paste: DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
+        data.db.get_paste_by_url(custom_url.clone()).await;
+
+    if paste.success == false {
+        return HttpResponse::Ok()
+            .append_header(("Content-Type", "application/json"))
+            .body(serde_json::to_string(&paste).unwrap());
+    }
+
+    // make sure paste is an atomic paste
+    let unwrap = paste.payload.unwrap();
+    let is_atomic = unwrap.paste.content.contains("\"_is_atomic\":true");
+
+    if is_atomic == false {
+        return HttpResponse::NotFound().body("Paste is not atomic");
+    }
+
+    // get file from path
+    let real_content = serde_json::from_str::<db::AtomicPaste>(&unwrap.paste.content);
+
+    if real_content.is_err() {
+        return HttpResponse::NotAcceptable().body("Paste failed to deserialize");
+    }
+
+    let mut decoded = real_content.unwrap();
+
+    // check for existing file in atomic paste fs
+    let existing = decoded.files.iter().position(|f| f.path == path);
+
+    if existing.is_some() {
+        // remove existing file
+        decoded.files.remove(existing.unwrap());
+    }
+
+    // ...
+    let res = data
+        .db
+        .edit_paste_by_url(
+            custom_url,
+            serde_json::to_string::<db::AtomicPaste>(&decoded).unwrap(), // encode content
+            String::new(),
+            Option::None,
+            Option::None,
+            if token_user.is_some() {
+                Option::Some(token_user.unwrap().payload.unwrap().user.username)
+            } else {
+                Option::None
+            },
+        )
+        .await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .body(serde_json::to_string(&res).unwrap());
 }

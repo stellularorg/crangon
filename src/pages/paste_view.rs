@@ -384,8 +384,9 @@ pub async fn paste_view_request(
         ));
 }
 
-#[get("/h/{url:.*}/{path:.*}")]
-/// Available at "/h/{custom_url}/{file_path}"
+// #[get("/h/{url:.*}/{path:.*}")]
+#[get("/+{url:.*}/{path:.*}")]
+/// Available at "/+{custom_url}/{file_path}"
 pub async fn atomic_paste_view_request(
     req: HttpRequest,
     data: web::Data<AppData>,

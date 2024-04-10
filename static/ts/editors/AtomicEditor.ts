@@ -32,6 +32,7 @@ import {
 
 import { basicSetup } from "codemirror";
 import { html, htmlCompletionSource } from "@codemirror/lang-html";
+import { javascript } from "@codemirror/lang-javascript";
 import { css, cssCompletionSource } from "@codemirror/lang-css";
 import { tags } from "@lezer/highlight";
 
@@ -193,6 +194,7 @@ export function create_editor(
     path: string
 ) {
     if (globalThis.Bun) return; // must be run from client
+    const file_type = path.split(".").pop();
 
     const view = new EditorView({
         // @ts-ignore
@@ -232,7 +234,11 @@ export function create_editor(
                 indentOnInput(),
                 indentUnit.of("    "),
                 // language
-                path.endsWith("css") ? css() : html({ autoCloseTags: true }),
+                path.endsWith("css")
+                    ? css()
+                    : path.endsWith("js")
+                      ? javascript()
+                      : html({ autoCloseTags: true }),
                 path.endsWith("html") ? HTMLLint : EmptyLint,
                 // default
                 basicSetup,
@@ -289,11 +295,49 @@ export function create_editor(
     };
 
     // handle interactions
+    let view_split: boolean = false;
+
     const preview_button = document.getElementById(
         "preview"
     ) as HTMLButtonElement | null;
 
-    if (preview_button) {
+    const split_button = document.getElementById(
+        "split_view"
+    ) as HTMLButtonElement | null;
+
+    const preview_browser = document.getElementById(
+        "_preview_browser"
+    ) as HTMLDivElement | null;
+
+    const preview_pane = document.getElementById(
+        "_preview_pane"
+    ) as HTMLIFrameElement | null;
+
+    if (split_button && preview_browser) {
+        if (file_type !== "html") {
+            split_button.remove();
+        }
+
+        // split view on click
+        split_button.addEventListener("click", () => {
+            view_split = !view_split;
+
+            if (view_split) {
+                preview_browser.style.display = "block";
+
+                split_button.classList.remove("red");
+                split_button.classList.add("green");
+                preview_button?.click(); // refresh preview
+            } else {
+                preview_browser.style.display = "none";
+
+                split_button.classList.remove("green");
+                split_button.classList.add("red");
+            }
+        });
+    }
+
+    if (preview_button && preview_pane) {
         let url: string = "";
         preview_button.addEventListener("click", () => {
             if (url.length > 0) {
@@ -308,8 +352,8 @@ export function create_editor(
             // get url
             url = URL.createObjectURL(blob);
 
-            // open
-            window.open(url);
+            // load
+            preview_pane.src = url;
         });
     }
 
@@ -319,15 +363,11 @@ export function create_editor(
 
     if (save_button) {
         save_button.addEventListener("click", async () => {
-            const res = await fetch("/api/edit-atomic", {
+            const res = await fetch(`/api/atomic/crud/${custom_url}${path}`, {
                 method: "POST",
-                body: JSON.stringify({
-                    custom_url,
-                    path,
-                    content: (globalThis as any).AtomicEditor.Content,
-                }),
+                body: (globalThis as any).AtomicEditor.Content,
                 headers: {
-                    "Content-Type": "application/json",
+                    "Content-Type": "text/plain",
                 },
             });
 
@@ -341,44 +381,11 @@ export function create_editor(
         });
     }
 
-    const delete_button = document.getElementById(
-        "delete"
-    ) as HTMLButtonElement | null;
-
-    if (delete_button) {
-        delete_button.addEventListener("click", async () => {
-            const _confirm = confirm(
-                "Are you sure you would like to do this? This URL will be available for anybody to claim. **This will delete the paste, not the page!"
-            );
-
-            if (!_confirm) return;
-
-            const edit_password = prompt(
-                "Please enter this paste's custom URL to confirm:"
-            );
-
-            if (!edit_password) return;
-
-            const res = await fetch("/api/delete", {
-                method: "POST",
-                body: JSON.stringify({
-                    custom_url,
-                    edit_password: edit_password,
-                }),
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-
-            const json = await res.json();
-
-            if (json.success === false) {
-                return alert(json.message);
-            } else {
-                window.location.href = "/";
-            }
-        });
-    }
+    // prevent exit
+    window.addEventListener("beforeunload", (e) => {
+        e.preventDefault();
+        e.returnValue = true;
+    });
 
     // return
     return view;
