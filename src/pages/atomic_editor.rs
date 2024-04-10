@@ -285,6 +285,8 @@ fn EditPaste(props: &EditProps) -> Html {
             <div class="card secondary flex mobile:justify-center justify-space-between align-center" style="
                 overflow: auto hidden;
                 border-top: 1px solid var(--background-surface2a);
+                padding: var(--u-04);
+                height: 47.8px;
             ">
                 // editor actions
                 <b style="min-width: max-content;" class="device:desktop">{&props.file.path}</b>

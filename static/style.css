@@ -70,6 +70,10 @@
     border-radius: var(--u-02) !important;
 }
 
+.card.less-padding {
+    padding: var(--u-04);
+}
+
 /* svg */
 svg {
     fill: transparent;
