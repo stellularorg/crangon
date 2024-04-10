@@ -410,6 +410,29 @@ export function create_editor(
 }
 
 // ...
+function build_element_attribute_field(
+    property_display: string,
+    property_name: string,
+    value: string
+): HTMLDivElement {
+    const field = document.createElement("div");
+
+    field.className =
+        "card less-padding secondary border round full flex flex-column g-2";
+
+    field.innerHTML = `<b>${property_display}</b><input 
+        value="${value}" 
+        placeholder="${property_name}"
+        oninput="current_element.setAttribute('${property_name}', event.target.value); window.update_document_content();"
+        onchange="window.AtomicEditor.Format();"
+        class="full round"
+        style="height: 35px !important;"
+    />`;
+
+    // return
+    return field;
+}
+
 function build_element_style_field(
     property_display: string,
     property_name: string,
@@ -545,7 +568,44 @@ function build_element_property_window(element: HTMLElement): void {
 
     property_window.appendChild(build_element_field("ID", "id", element.id));
 
+    // attributes
+    property_window.appendChild(document.createElement("hr"));
+
+    const attribute_list = document.createElement("div");
+    attribute_list.className = "flex flex-column g-2";
+    attribute_list.id = "attribute_list";
+    property_window.appendChild(attribute_list);
+
+    // "add field" button
+    const add_attr_button = document.createElement("button");
+    add_attr_button.innerText = "Add Custom Attribute";
+    add_attr_button.className = "full round";
+    add_attr_button.addEventListener("click", () => {
+        const name = prompt("Attribute Name: ");
+
+        if (!name) {
+            return;
+        }
+
+        attribute_list.appendChild(
+            build_element_attribute_field(name, name, "")
+        );
+    });
+
+    attribute_list.appendChild(add_attr_button);
+
+    // from existing attributes
+    const attributes = element.attributes;
+
+    for (const attr of Object.values(attributes)) {
+        attribute_list.appendChild(
+            build_element_attribute_field(attr.name, attr.name, attr.value)
+        );
+    }
+
     // style fields
+    property_window.appendChild(document.createElement("hr"));
+
     property_window.appendChild(
         build_element_style_field(
             "Background",
@@ -578,7 +638,6 @@ function build_element_property_window(element: HTMLElement): void {
         build_element_style_field("Display", "display", element.style.display)
     );
 
-    // ...
     property_window.appendChild(document.createElement("hr"));
 
     // "add field" button
@@ -598,6 +657,11 @@ function build_element_property_window(element: HTMLElement): void {
     property_window.appendChild(add_button);
 
     // from style attribute
+    const styles_list = document.createElement("div");
+    styles_list.className = "flex flex-column g-2";
+    styles_list.id = "styles_list";
+    property_window.appendChild(styles_list);
+
     const styles_from_attribute = element.style;
 
     if (styles_from_attribute) {
@@ -608,7 +672,7 @@ function build_element_property_window(element: HTMLElement): void {
                 continue;
             }
 
-            property_window.appendChild(
+            styles_list.appendChild(
                 build_element_style_field(style, style, value)
             );
         }
