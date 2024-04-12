@@ -122,6 +122,24 @@ export function HandleCustomElements() {
         ))
             (element as HTMLElement).style.color = "";
     }
+
+    // copy buttons
+    const preElements = Array.from(
+        document.querySelectorAll("pre")
+    ) as HTMLElement[];
+
+    for (const element of preElements) {
+        element.style.position = "relative";
+        element.innerHTML += `<button class="copy-button" onclick="window.copy_pre_code(event)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-copy"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+        </button>`;
+    }
+
+    (globalThis as any).copy_pre_code = (e: any) => {
+        navigator.clipboard.writeText(
+            e.target.parentElement.querySelector("code").innerText
+        );
+    };
 }
 
 /**

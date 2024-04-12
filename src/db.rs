@@ -229,10 +229,8 @@ impl Database {
     // users
 
     // GET
-    /// Get a user by their unhashed ID (hashes ID and then calls [`Database::get_user_by_hashed()`])
-    ///
-    /// Calls [`Database::get_user_by_unhashed_st()`] if user is invalid.
-    ///
+    /// Get a user by their unhashed ID 
+    /// 
     /// # Arguments:
     /// * `unhashed` - `String` of the user's unhashed ID
     pub async fn get_user_by_unhashed(
@@ -818,7 +816,7 @@ impl Database {
         let existing: DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
             self.get_paste_by_url(p.custom_url.to_owned()).await;
 
-        if existing.success {
+        if existing.success | existing.payload.is_some() {
             return DefaultReturn {
                 success: false,
                 message: String::from("Paste already exists!"),
@@ -1553,7 +1551,7 @@ impl Database {
     // boards
 
     // GET
-    /// Get all [`UserMailStreamIdentifier`] [`Board`] by a single participating user
+    /// Get all [`UserMailStreamIdentifier`] boards by a single participating user
     ///
     /// # Arguments:
     /// * `user` - username of the user
@@ -1625,7 +1623,7 @@ impl Database {
         };
     }
 
-    /// Get most recent posts from all [`Boards`](Board)
+    /// Get most recent posts from all boards
     ///
     /// # Arguments:
     /// * `offset` - optional value representing the SQL fetch offset
