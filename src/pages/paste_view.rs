@@ -41,18 +41,18 @@ pub fn paste_view_hb_template() -> String {
 </div>
 
 <div class=\"flex justify-space-between g-4 full\" id=\"paste-info-box\">
-    <div class=\"flex g-4 flex-wrap mobile:flex-column\">
+    <div class=\"flex g-4 flex-wrap\">
         {{{ edit_button }}}
         {{{ config_button }}}
     </div>
 
-    <div class=\"flex flex-column g-2 text-right\" style=\"color: var(--text-color-faded); min-width: max-content;\">
-        <span class=\"flex justify-center g-4\" id=\"paste-info-pub\">
+    <div class=\"flex flex-column g-2\" style=\"color: var(--text-color-faded); min-width: max-content; align-items: flex-end;\">
+        <span class=\"flex g-4\" id=\"paste-info-pub\">
             <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-cake-slice\"><circle cx=\"9\" cy=\"7\" r=\"2\"/><path d=\"M7.2 7.9 3 11v9c0 .6.4 1 1 1h16c.6 0 1-.4 1-1v-9c0-2-3-6-7-8l-3.6 2.6\"/><path d=\"M16 13H3\"/><path d=\"M16 17H3\"/></svg>
             Pub: <span class=\"date-time-to-localize\">{{ pub_date }}</span>
         </span>
 
-        <span class=\"flex justify-center g-4\" id=\"paste-info-edit\">
+        <span class=\"flex g-4\" id=\"paste-info-edit\">
             <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-pencil\"><path d=\"M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z\"/><path d=\"m15 5 4 4\"/></svg>
             Edit: <span class=\"date-time-to-localize\">{{ edit_date }}</span>
         </span>
@@ -84,9 +84,9 @@ fn PasteView(props: &Props) -> Html {
         Edit
     </a>", &props.paste.custom_url);
 
-    let config_button = format!("<a href=\"/d/settings/paste/{}\" class=\"button border round\">
-        <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-file-cog\"><path d=\"M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v2\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><circle cx=\"6\" cy=\"14\" r=\"3\"/><path d=\"M6 10v1\"/><path d=\"M6 17v1\"/><path d=\"M10 14H9\"/><path d=\"M3 14H2\"/><path d=\"m9 11-.88.88\"/><path d=\"M3.88 16.12 3 17\"/><path d=\"m9 17-.88-.88\"/><path d=\"M3.88 11.88 3 11\"/></svg>
-        Config
+    let config_button = format!("<a href=\"/d/settings/paste/{}\" class=\"button round\">
+        <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-settings\"><path d=\"M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>
+        <span class=\"device:desktop\">Config</span>
     </a>", &props.paste.custom_url);
 
     let owner_button = format!("<a href=\"::GUPPY_ROOT::/{}\">{}</a>", &metadata.owner, {

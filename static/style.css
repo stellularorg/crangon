@@ -31,6 +31,14 @@
 
 #editor-tab-preview h1 {
     margin: 3.5rem auto 2.5rem auto;
+}
+
+#editor-tab-preview h1,
+#editor-tab-preview h2,
+#editor-tab-preview h3,
+#editor-tab-preview h4,
+#editor-tab-preview h5,
+#editor-tab-preview h6 {
     max-width: 100%;
 }
 
@@ -213,6 +221,15 @@ select:focus {
 /* notes */
 .mdnote {
     border-radius: var(--u-02) !important;
+}
+
+.mdnote-title {
+    display: flex;
+    align-items: center;
+}
+
+.mdnote-title::before {
+    display: flex;
 }
 
 /* chips */
