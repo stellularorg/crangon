@@ -1,0 +1,131 @@
+{% extends "../footer_base.html" %}
+
+{% block title %}{{ site_name }}{% endblock %}
+{% block main_stuff %}style="overflow: hidden; max-height: 100%;"{% endblock %}
+
+{% block content %}
+<div class="tabbar justify-space-between full">
+    <div class="flex">
+        <button id="editor-open-tab-text">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-notebook-pen">
+                <path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4" />
+                <path d="M2 6h4" />
+                <path d="M2 10h4" />
+                <path d="M2 14h4" />
+                <path d="M2 18h4" />
+                <path d="M18.4 2.6a2.17 2.17 0 0 1 3 3L16 11l-4 1 1-4Z" />
+            </svg>
+            Text
+        </button>
+
+        <button id="editor-open-tab-preview" class="secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-paintbrush">
+                <path
+                    d="M18.37 2.63 14 7l-1.59-1.59a2 2 0 0 0-2.82 0L8 7l9 9 1.59-1.59a2 2 0 0 0 0-2.82L17 10l4.37-4.37a2.12 2.12 0 1 0-3-3Z" />
+                <path d="M9 8c-2 3-4 3.5-7 4l8 10c2-1 6-5 6-7" />
+                <path d="M14.5 17.5 4.5 15" />
+            </svg>
+            Preview
+        </button>
+    </div>
+</div>
+
+<div id="-editor" class="tab-container card secondary round"
+    style="border-top-left-radius: 0px !important; padding: var(--u-10) !important;">
+    <div id="editor-tab-text" class="editor-tab -editor active" style="height: 100%;"></div>
+    <div id="editor-tab-preview" class="editor-tab -editor"></div>
+</div>
+
+<form class="flex flex-wrap mobile:justify-center justify-space-between g-4 align-center" id="save-changes">
+    {% if edit_mode == false %}
+    <div class="mobile:justify-center flex g-4 justify-start">
+        <button class="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-plus">
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+            </svg>
+            Publish
+        </button>
+
+        <a class="button round border" href="javascript:document.getElementById('more-modal').showModal();">
+            More
+        </a>
+    </div>
+
+    <div class="mobile:justify-center flex-wrap flex g-4 justify-start">
+        <input class="secondary round" type="text" placeholder="Custom URL" minlength="2" maxlength="500"
+            name="custom_url" id="custom_url" autocomplete="off" />
+
+        <input class="secondary round" type="text" placeholder="Edit Password" minlength="5" name="edit_password" />
+    </div>
+
+    <dialog id="more-modal">
+        <div style="width: 25rem; max-width: 100%;">
+            <h2 class="no-margin full text-center">More Options</h2>
+
+            <hr />
+
+            <details class="full round">
+                <summary>Group Settings</summary>
+
+                <div class="card secondary">
+                    <input class="full secondary round" type="text" placeholder="Group Name" minlength="2"
+                        maxlength="500" name="group_name" id="group_name" autocomplete="off" />
+                </div>
+            </details>
+
+            <hr />
+
+            <div class="full flex justify-right">
+                <a class="button round red" href="javascript:document.getElementById('more-modal').close();">
+                    Close
+                </a>
+            </div>
+        </div>
+    </dialog>
+    {% else %}
+    <div class="mobile:justify-center flex g-4 justify-start full mobile:flex-column">
+        {% if password_not_needed == false %}
+        <input class="secondary round full" type="text" placeholder="Edit Password" minlength="5"
+            name="edit_password" />
+        {% else %}
+        <input class="secondary round full" type="text" placeholder="You're the owner!" minlength="5"
+            name="edit_password" disabled />
+        {% endif %}
+
+        <input class="secondary round full" type="text" placeholder="New Edit Password (optional)" minlength="5"
+            name="new_edit_password" />
+
+        <input class="secondary round full" type="text" placeholder="New Custom URL (optional)" minlength="2"
+            maxlength="500" name="new_custom_url" id="new_custom_url" autocomplete="off" />
+    </div>
+
+    <div class="flex g-4 justify-space-between full">
+        <div class="flex g-4 justify-start">
+            <button class="green round">
+                Save
+            </button>
+
+            <a href="/{{ editing }}" class="border button round">Cancel</a>
+        </div>
+
+        <a href="javascript:" id="delete-btn" class="button round red">Delete</a>
+    </div>
+    {% endif %}
+</form>
+
+<script type="text/plain" style="display: none;" id="edit-mode">{{ edit_mode }}</script>
+<script type="text/plain" style="display: none;" id="editing">{{ editing }}</script>
+
+<script type="module">
+    import CreateEditor from "/static/js/MarkdownEditor.js";
+    CreateEditor("editor-tab-text", `{{ starting_content|safe }}`);
+</script>
+{% call super() %}
+{% endblock %}

@@ -38,3 +38,4 @@ uuid = { version = "1.6.1", features = ["v4"] }
 yew = { version = "0.21.0", features = ["ssr"] }
 handlebars = "5.1.2"
 actix-cors = "0.7.0"
+askama = "0.12.1"

@@ -18,7 +18,7 @@
         document.documentElement.classList.remove("dark-theme");
         (window as any).localStorage.setItem("theme", "light");
 
-        (window as any).SunIcon.style.display = "block";
+        (window as any).SunIcon.style.display = "flex";
         (window as any).MoonIcon.style.display = "none";
     } else {
         /* set dark */
@@ -26,7 +26,7 @@
         (window as any).localStorage.setItem("theme", "dark");
 
         (window as any).SunIcon.style.display = "none";
-        (window as any).MoonIcon.style.display = "block";
+        (window as any).MoonIcon.style.display = "flex";
     }
 };
 
@@ -38,14 +38,14 @@ if (
     document.documentElement.classList.add("dark-theme");
     (window as any).localStorage.setItem("theme", "dark");
     (window as any).SunIcon.style.display = "none";
-    (window as any).MoonIcon.style.display = "block";
+    (window as any).MoonIcon.style.display = "flex";
 } else if (
     (window as any).matchMedia("(prefers-color-scheme: light)").matches &&
     !(window as any).localStorage.getItem("theme")
 ) {
     document.documentElement.classList.remove("dark-theme");
     (window as any).localStorage.setItem("theme", "light");
-    (window as any).SunIcon.style.display = "block";
+    (window as any).SunIcon.style.display = "flex";
     (window as any).MoonIcon.style.display = "none";
 } else if ((window as any).localStorage.getItem("theme")) {
     /* restore theme */
@@ -55,10 +55,10 @@ if (
     if (current.includes("dark")) {
         /* sun icon */
         (window as any).SunIcon.style.display = "none";
-        (window as any).MoonIcon.style.display = "block";
+        (window as any).MoonIcon.style.display = "flex";
     } else {
         /* moon icon */
-        (window as any).SunIcon.style.display = "block";
+        (window as any).SunIcon.style.display = "flex";
         (window as any).MoonIcon.style.display = "none";
     }
 }
@@ -85,6 +85,13 @@ setTimeout(() => {
             parseInt(element.innerText)
         ).toLocaleString();
 }, 50);
+
+// disabled="false"
+for (const element of Array.from(
+    document.querySelectorAll('[disabled="false"]')
+) as HTMLButtonElement[]) {
+    element.removeAttribute("disabled");
+}
 
 // disable "a"
 setTimeout(() => {

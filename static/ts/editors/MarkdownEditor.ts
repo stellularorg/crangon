@@ -612,11 +612,13 @@ export async function ParseMarkdown(content: string): Promise<string> {
 }
 
 // handle submit
+const custom_url = document.getElementById("editing")!.innerText;
+
 const submit_form: HTMLFormElement = document.getElementById(
     "save-changes"
 ) as HTMLFormElement;
 
-if (submit_form.getAttribute("data-edit") === "false") {
+if (!custom_url) {
     // create paste
     submit_form.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -648,7 +650,7 @@ if (submit_form.getAttribute("data-edit") === "false") {
         const res = await fetch("/api/edit", {
             method: "POST",
             body: JSON.stringify({
-                custom_url: submit_form.getAttribute("data-edit"),
+                custom_url,
                 edit_password: submit_form.edit_password.value,
                 content: (window as any).EditorContent,
                 new_custom_url: submit_form.new_custom_url.value || undefined,
@@ -690,7 +692,7 @@ if (submit_form.getAttribute("data-edit") === "false") {
         const res = await fetch("/api/delete", {
             method: "POST",
             body: JSON.stringify({
-                custom_url: submit_form.getAttribute("data-edit"),
+                custom_url,
                 edit_password: edit_password,
             }),
             headers: {

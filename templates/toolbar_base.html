@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block base_content %}
+<!-- global menu -->
+<div class="link-list" style="display: none; box-shadow: -2px 2px 4px hsla(0, 0%, 0%, 25%);" id="upper:globalmenu">
+    <div class="option small full flex align-center g-4 justify-space-between">
+        <a href="/" style="color: inherit;"><b>{{ site_name }}</b></a>
+
+        <a id="theme_button" href="javascript:window.toggle_theme()" title="Toggle Theme"
+            style="color: var(--text-color-faded);">
+            <div id="theme-icon-sun" class="align-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="lucide lucide-sun">
+                    <circle cx="12" cy="12" r="4" />
+                    <path d="M12 2v2" />
+                    <path d="M12 20v2" />
+                    <path d="m4.93 4.93 1.41 1.41" />
+                    <path d="m17.66 17.66 1.41 1.41" />
+                    <path d="M2 12h2" />
+                    <path d="M20 12h2" />
+                    <path d="m6.34 17.66-1.41 1.41" />
+                    <path d="m19.07 4.93-1.41 1.41" />
+                </svg>
+            </div>
+
+            <div id="theme-icon-moon" class="align-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="lucide lucide-moon">
+                    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+                </svg>
+            </div>
+        </a>
+    </div>
+
+    <div class="option full flex flex-column g-4">
+        <h6 class="no-margin">LINKS</h6>
+
+        <a href="{{ info }}" class="button full round border justify-start">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-info">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4" />
+                <path d="M12 8h.01" />
+            </svg>
+            info
+        </a>
+
+        {% if auth_state == false %}
+        <a href="/" class="button full round border justify-start">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-circle-plus">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M8 12h8" />
+                <path d="M12 8v8" />
+            </svg>
+            new
+        </a>
+
+        <a href="{{ guppy }}/d/auth/register" class="button green full round border justify-start"
+            data-wants-redirect="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-at-sign">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8" />
+            </svg>
+            register
+        </a>
+
+        <a href="{{ guppy }}/d/auth/login" class="button green full round border justify-start"
+            data-wants-redirect="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-log-in">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                <polyline points="10 17 15 12 10 7" />
+                <line x1="15" x2="3" y1="12" y2="12" />
+            </svg>
+            login
+        </a>
+        {% else %}
+        <a href="/d" class="button full round border justify-start">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-layout-dashboard">
+                <rect width="7" height="9" x="3" y="3" rx="1" />
+                <rect width="7" height="5" x="14" y="3" rx="1" />
+                <rect width="7" height="9" x="14" y="12" rx="1" />
+                <rect width="7" height="5" x="3" y="16" rx="1" />
+            </svg>
+            dashboard
+        </a>
+
+        <a href="/api/auth/logout" class="button red full round border justify-start">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-log-out">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" x2="9" y1="12" y2="12" />
+            </svg>
+            logout
+        </a>
+        {% endif %}
+    </div>
+
+    <div class="option full flex flex-column g-4">
+        <h6 class="no-margin">HELP</h6>
+
+        <a href="https://code.stellular.org/stellular/bundlrs" class="button full round border justify-start">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-code">
+                <polyline points="16 18 22 12 16 6" />
+                <polyline points="8 6 2 12 8 18" />
+            </svg>
+            source
+        </a>
+
+        <a href="/api/docs/bundlrs/index.html" class="button full round border justify-start">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-braces">
+                <path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1" />
+                <path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1" />
+            </svg>
+            api
+        </a>
+    </div>
+</div>
+
+<!-- toolbar -->
+<div class="toolbar flex justify-space-between">
+    <div class="flex">
+        <button title="Menu" onclick="window.toggle_child_menu(event.target, '#upper\\:globalmenu')"
+            style="border-right: solid 1px var(--background-surface2a); border-left: 0;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-menu">
+                <line x1="4" x2="20" y1="12" y2="12" />
+                <line x1="4" x2="20" y1="6" y2="6" />
+                <line x1="4" x2="20" y1="18" y2="18" />
+            </svg>
+        </button>
+
+        {% block toolbar %}{% endblock %}
+    </div>
+
+    <div class="flex">{% block toolbar_right %}{% endblock %}</div>
+</div>
+
+<!-- page content -->
+<div class="toolbar-layout-wrapper" id="_page" style="height: 100dvh;">
+    {% block content %}{% endblock %}
+</div>
+{% endblock %}

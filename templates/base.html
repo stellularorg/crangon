@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <meta http-equiv="content-security-policy"
+        content="default-src 'self' blob:; img-src * data:; media-src *; font-src *; style-src 'unsafe-inline' 'self' blob: *; script-src 'self' 'unsafe-inline' blob: *; object-src 'self' blob: *; upgrade-insecure-requests; connect-src *; frame-src 'self' blob: data: *" />
+
+    <title>{% block title %}{{ title }}{% endblock %}</title>
+
+    <meta name="theme-color" content="#c262ef" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="{{ site_name }}" />
+
+    {% block head %}{% endblock %}
+
+    <link rel="stylesheet" href="/static/style.css" />
+    <script type="module" src="/static/js/Footer.js"></script>
+</head>
+
+<body>
+    <!-- base content -->
+    {% block base_content %}{% endblock %}
+
+    <!-- ... -->
+    {{ body_embed|safe }}
+</body>
