@@ -330,8 +330,8 @@ fn UsersDashboard(props: &UsersProps) -> Html {
                 </div>
 
                 <main class="small flex flex-column g-4">
-                    <div id="error" class="mdnote note-error full" style="display: none;" />
-                    <div id="success" class="mdnote note-note full" style="display: none;" />
+                    <div id="error" class="mdnote note-error full" style="display: none;"></div>
+                    <div id="success" class="mdnote note-note full" style="display: none;"></div>
 
                     <div class="flex justify-space-between align-center mobile:flex-column g-4">
                         <b>{"Manage Users"}</b>

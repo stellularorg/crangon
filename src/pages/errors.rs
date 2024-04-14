@@ -1,14 +1,39 @@
-use crate::components::navigation::Footer;
-use yew::prelude::*;
+use crate::db::AppData;
 
-#[function_component]
-pub fn _404Page() -> Html {
-    return html! {
-        <main class="flex flex-column g-4 align-center">
-            <h4>{"Error"}</h4>
-            <h5 style="font-weight: normal; margin-top: 0;">{"404 Not Found"}</h5>
+use super::base;
+use actix_web::{web, HttpRequest, HttpResponse};
+use askama::Template;
 
-            <Footer auth_state={Option::None} />
-        </main>
-    };
+#[derive(Template)]
+#[template(path = "general/404.html")]
+struct Error404Template {
+    // required fields (super::base)
+    info: String,
+    auth_state: bool,
+    guppy: String,
+    site_name: String,
+    body_embed: String,
+}
+
+pub async fn error404(req: HttpRequest, data: web::Data<AppData>) -> HttpResponse {
+    // verify auth status
+    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
+
+    // ...
+    let base = base::get_base_values(token_user.is_some());
+    return HttpResponse::NotFound()
+        .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
+        .body(
+            Error404Template {
+                // required fields
+                info: base.info,
+                auth_state: base.auth_state,
+                guppy: base.guppy,
+                site_name: base.site_name,
+                body_embed: base.body_embed,
+            }
+            .render()
+            .unwrap(),
+        );
 }

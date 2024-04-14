@@ -1,0 +1,16 @@
+{% extends "../footer_base.html" %}
+
+{% block head %}
+{{ head_string|safe }}
+{% endblock %}
+
+{% block main_stuff %}class="flex flex-column g-4"{% endblock %}
+
+{% block content %}
+<div id="secret"></div>
+
+<article style="display: contents;">
+    {{ page_content|safe }}
+</article>
+{% call super() %}
+{% endblock %}

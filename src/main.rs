@@ -1,8 +1,6 @@
 use actix_files as fs;
-use actix_web::{web, App, HttpResponse, HttpServer};
+use actix_web::{web, App, HttpServer};
 use dotenv;
-
-use yew::ServerRenderer;
 
 mod config;
 mod db;
@@ -146,16 +144,12 @@ async fn main() -> std::io::Result<()> {
             // GET root
             .service(crate::pages::home::home_request)
             .service(crate::pages::home::robotstxt)
+            .service(crate::pages::home::adstxt)
             .service(crate::pages::paste_view::atomic_paste_view_request)
             .service(crate::pages::paste_view::paste_view_request) // must be run last as it matches all other paths!
             // ERRORS
-            .default_service(web::to(|| async {
-                let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();
-
-                return HttpResponse::NotFound().body(utility::format_html(
-                    renderer.render().await,
-                    "<title>404: Not Found</title>",
-                ));
+            .default_service(web::to(|req, data| async {
+                return crate::pages::errors::error404(req, data).await;
             }))
     })
     .bind(("0.0.0.0", port))?

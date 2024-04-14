@@ -1,34 +1,55 @@
 use actix_web::HttpResponse;
 use actix_web::{get, web, HttpRequest, Responder};
 
+use super::base;
+use askama::Template;
 use serde_json::json;
-use yew::prelude::*;
-use yew::ServerRenderer;
 
-use crate::db::{self, AppData, FullPaste, FullUser, Paste, PasteMetadata, UserMetadata};
+use crate::db::{self, AppData, FullPaste, PasteMetadata, UserMetadata};
 
-use crate::utility;
-use crate::utility::format_html;
-
-use crate::components::navigation::{Footer, GlobalMenu};
-
-#[derive(Default, Properties, PartialEq)]
-pub struct Props {
-    pub paste: Paste<PasteMetadata>,
-    pub user: Option<FullUser<String>>,
-    pub auth_state: Option<bool>,
+#[derive(Template)]
+#[template(path = "paste/password_ask.html")]
+struct PasswordAskTemplate {
+    custom_url: String,
+    // required fields (super::base)
+    info: String,
+    auth_state: bool,
+    guppy: String,
+    site_name: String,
+    body_embed: String,
 }
 
-#[derive(Default, Properties, PartialEq, serde::Deserialize)]
+#[derive(Template)]
+#[template(path = "paste/paste_view.html")]
+struct PasteViewTemplate {
+    title: String,
+    page_content: String,
+    head_string: String,
+    // required fields (super::base)
+    info: String,
+    auth_state: bool,
+    guppy: String,
+    site_name: String,
+    body_embed: String,
+}
+
+#[derive(Default, PartialEq, serde::Deserialize)]
 pub struct PasteViewProps {
     pub view: Option<String>,
 }
 
-#[derive(Default, Properties, PartialEq, serde::Deserialize)]
-struct DashboardProps {
-    pub pastes: Vec<db::PasteIdentifier>,
-    pub auth_state: Option<bool>,
-    pub offset: i32,
+#[derive(Template)]
+#[template(path = "paste/dashboard.html")]
+struct DashboardTemplate {
+    pastes: Vec<db::PasteIdentifier>,
+    offset: i32,
+    // required fields (super::base)
+    info: String,
+    auth_state: bool,
+    guppy: String,
+    puffer: String,
+    site_name: String,
+    body_embed: String,
 }
 
 pub fn paste_view_hb_template() -> String {
@@ -66,131 +87,6 @@ pub fn paste_view_hb_template() -> String {
 </div>")
 }
 
-#[function_component]
-fn PasteView(props: &Props) -> Html {
-    let metadata = &props.paste.metadata;
-    let user_metadata = if props.user.is_some() {
-        Option::Some(
-            serde_json::from_str::<UserMetadata>(&props.user.as_ref().unwrap().user.metadata)
-                .unwrap(),
-        )
-    } else {
-        Option::None
-    };
-
-    // template things
-    let edit_button = format!("<a class=\"button round\" href=\"/?editing={}\">
-        <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-pencil\"><path d=\"M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z\"/><path d=\"m15 5 4 4\"/></svg>
-        Edit
-    </a>", &props.paste.custom_url);
-
-    let config_button = format!("<a href=\"/d/settings/paste/{}\" class=\"button round\">
-        <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-settings\"><path d=\"M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>
-        <span class=\"device:desktop\">Config</span>
-    </a>", &props.paste.custom_url);
-
-    let owner_button = format!("<a href=\"::GUPPY_ROOT::/{}\">{}</a>", &metadata.owner, {
-        if user_metadata.is_some() && user_metadata.as_ref().unwrap().nickname.is_some() {
-            user_metadata.as_ref().unwrap().nickname.as_ref().unwrap()
-        } else {
-            &metadata.owner
-        }
-    });
-
-    // render template
-    let default_template = &paste_view_hb_template();
-    let reg = handlebars::Handlebars::new();
-    let page = reg.render_template(
-        if metadata.page_template.is_some() && !metadata.page_template.as_ref().unwrap().is_empty()
-        {
-            metadata.page_template.as_ref().unwrap() // use provided template
-        } else {
-            default_template // use default template
-        },
-        &json!({
-            // paste info
-            "content": props.paste.content_html,
-            "pub_date": props.paste.pub_date,
-            "edit_date": props.paste.edit_date,
-            "views": props.paste.views,
-            // buttons
-            "edit_button": edit_button,
-            "config_button": config_button,
-            "owner_button": owner_button,
-            // full data
-            "paste": props.paste,
-            "metadata": metadata
-        }),
-    );
-
-    if page.is_err() {
-        return html! { <div>{page.err().unwrap().to_string()}</div> };
-    }
-
-    // ...
-    // TODO: properly sanitize if needed
-    let page =
-        Html::from_html_unchecked(AttrValue::from(page.unwrap().replace("fetch(", "fetch(\\")));
-
-    // default return
-    return html! {
-        <main class="flex flex-column g-4">
-            <div id="secret" />
-
-            {page}
-
-            <Footer auth_state={props.auth_state} />
-
-            <script type="module">
-                {"import ClientFixMarkdown from \"/static/js/ClientFixMarkdown.js\"; ClientFixMarkdown();"}
-            </script>
-        </main>
-    };
-}
-
-fn build_renderer_with_props(props: Props) -> ServerRenderer<PasteView> {
-    ServerRenderer::<PasteView>::with_props(|| props)
-}
-
-#[function_component]
-pub fn PastePasswordAsk(props: &Props) -> Html {
-    // default return
-    return html! {
-        <div class="flex flex-column g-4" style="height: 100dvh;">
-            <main class="small flex flex-column g-4 align-center">
-                <div class="card secondary round border" style="width: 25rem;" id="forms">
-                    <h2 class="no-margin text-center full">{props.paste.custom_url.clone()}</h2>
-
-                    <hr />
-
-                    <form class="full flex flex-column g-4" id="login-to-paste">
-                        <label for="view"><b>{"View Password"}</b></label>
-
-                        <input
-                            type="text"
-                            name="view"
-                            id="view"
-                            placeholder="Paste View Password"
-                            class="full round"
-                            maxlength={256}
-                        />
-
-                        <hr />
-
-                        <button class="bundles-primary full round">
-                            {"Continue"}
-                        </button>
-                    </form>
-                </div>
-            </main>
-        </div>
-    };
-}
-
-pub fn build_password_ask_renderer_with_props(props: Props) -> ServerRenderer<PastePasswordAsk> {
-    ServerRenderer::<PastePasswordAsk>::with_props(|| props)
-}
-
 #[get("/{url:.*}")]
 /// Available at "/{custom_url}"
 pub async fn paste_view_request(
@@ -206,16 +102,13 @@ pub async fn paste_view_request(
         data.db.get_paste_by_url(url).await;
 
     if paste.success == false {
-        let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();
-        return HttpResponse::NotFound()
-            .append_header(("Content-Type", "text/html"))
-            .body(utility::format_html(
-                renderer.render().await,
-                "<title>404: Not Found</title>",
-            ));
+        return super::errors::error404(req, data).await;
     }
 
     let unwrap = paste.payload.as_ref().unwrap();
+
+    // verify auth status
+    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
 
     // ...
     let metadata = &unwrap.paste.metadata;
@@ -234,21 +127,23 @@ pub async fn paste_view_request(
             return HttpResponse::NotFound().body("Failed to view paste (LOCKED: OWNER BANNED)");
         }
 
-        let renderer = build_password_ask_renderer_with_props(Props {
-            paste: unwrap.clone().paste,
-            user: unwrap.clone().user,
-            auth_state: if req.cookie("__Secure-Token").is_some() {
-                Option::Some(req.cookie("__Secure-Token").is_some())
-            } else {
-                Option::Some(false)
-            },
-        });
-
-        let render = renderer.render();
+        let base = base::get_base_values(token_user.is_some());
         return HttpResponse::Ok()
             .append_header(("Set-Cookie", ""))
             .append_header(("Content-Type", "text/html"))
-            .body(format_html(render.await, ""));
+            .body(
+                PasswordAskTemplate {
+                    custom_url: unwrap.clone().paste.custom_url,
+                    // required fields
+                    info: base.info,
+                    auth_state: base.auth_state,
+                    guppy: base.guppy,
+                    site_name: base.site_name,
+                    body_embed: base.body_embed,
+                }
+                .render()
+                .unwrap(),
+            );
     }
 
     // (check password)
@@ -282,25 +177,7 @@ pub async fn paste_view_request(
             .body(index_html.unwrap().content.clone());
     }
 
-    // verify auth status
-    let token_cookie = req.cookie("__Secure-Token");
-    let mut set_cookie: &str = "";
-
-    let mut token_user = if token_cookie.is_some() {
-        Option::Some(
-            data.db
-                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
-                .await,
-        )
-    } else {
-        Option::None
-    };
-
-    if token_user.is_some() && token_user.as_ref().unwrap().success == false {
-        set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
-        token_user = Option::None;
-    }
-
+    // count view
     if token_user.is_some() {
         // count view (this will check for an existing view!)
         let payload = &token_user.as_ref().unwrap().payload;
@@ -326,62 +203,130 @@ pub async fn paste_view_request(
     let favicon_unwrap = metadata.favicon.as_ref();
 
     // ...
-    let renderer = build_renderer_with_props(Props {
-        paste: unwrap.clone().paste,
-        user: unwrap.clone().user,
-        auth_state: if req.cookie("__Secure-Token").is_some() {
-            Option::Some(req.cookie("__Secure-Token").is_some())
+    let paste = unwrap.clone().paste;
+    let user = unwrap.clone().user;
+
+    let metadata = &paste.metadata;
+    let user_metadata = if user.is_some() {
+        Option::Some(
+            serde_json::from_str::<UserMetadata>(&user.as_ref().unwrap().user.metadata).unwrap(),
+        )
+    } else {
+        Option::None
+    };
+
+    // template things
+    let edit_button = format!("<a class=\"button round\" href=\"/?editing={}\">
+        <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-pencil\"><path d=\"M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z\"/><path d=\"m15 5 4 4\"/></svg>
+        Edit
+    </a>", &paste.custom_url);
+
+    let config_button = format!("<a href=\"/d/settings/paste/{}\" class=\"button round\">
+        <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-settings\"><path d=\"M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>
+        <span class=\"device:desktop\">Config</span>
+    </a>", &paste.custom_url);
+
+    let owner_button = format!("<a href=\"::GUPPY_ROOT::/{}\">{}</a>", &metadata.owner, {
+        if user_metadata.is_some() && user_metadata.as_ref().unwrap().nickname.is_some() {
+            user_metadata.as_ref().unwrap().nickname.as_ref().unwrap()
         } else {
-            Option::Some(false)
-        },
+            &metadata.owner
+        }
     });
 
-    let render = renderer.render();
+    // render template
+    let default_template = &paste_view_hb_template();
+    let reg = handlebars::Handlebars::new();
+    let page = reg.render_template(
+        if metadata.page_template.is_some() && !metadata.page_template.as_ref().unwrap().is_empty()
+        {
+            metadata.page_template.as_ref().unwrap() // use provided template
+        } else {
+            default_template // use default template
+        },
+        &json!({
+            // paste info
+            "content": paste.content_html,
+            "pub_date": paste.pub_date,
+            "edit_date": paste.edit_date,
+            "views": paste.views,
+            // buttons
+            "edit_button": edit_button,
+            "config_button": config_button,
+            "owner_button": owner_button,
+            // full data
+            "paste": paste,
+            "metadata": metadata
+        }),
+    );
+
+    if page.is_err() {
+        return HttpResponse::NotAcceptable()
+            .append_header(("Set-Cookie", set_cookie))
+            .append_header(("Content-Type", "text/html"))
+            .body(page.err().unwrap().to_string());
+    }
+
+    // ...
+    // TODO: properly sanitize if needed
+    let page = page.unwrap().replace("fetch(", "fetch(\\");
+
+    // ...
+    let base = base::get_base_values(token_user.is_some());
     return HttpResponse::Ok()
         .append_header(("Set-Cookie", set_cookie))
         .append_header(("Content-Type", "text/html"))
-        .body(format_html(
-            render.await,
-            &format!(
-                "<title>{}</title>
-                <meta property=\"og:url\" content=\"{}\" />
-                <meta property=\"og:title\" content=\"{}\" />
-                <meta property=\"og:description\" content=\"{}\" />
-                <meta name=\"theme-color\" content=\"{}\" />
-                <link rel=\"icon\" href=\"{}\" />",
-                if metadata.title.is_none() | title_unwrap.unwrap().is_empty() {
-                    &url_c
+        .body(
+            PasteViewTemplate {
+                page_content: page,
+                title: if metadata.title.is_none() | title_unwrap.unwrap().is_empty() {
+                    url_c.clone()
                 } else {
-                    &title_unwrap.unwrap()
+                    title_unwrap.unwrap().clone()
                 },
-                &format!(
-                    "{}{}",
-                    req.headers().get("Host").unwrap().to_str().unwrap(),
-                    req.head().uri.to_string()
+                head_string: format!(
+                    "<meta property=\"og:url\" content=\"{}\" />
+                    <meta property=\"og:title\" content=\"{}\" />
+                    <meta property=\"og:description\" content=\"{}\" />
+                    <meta name=\"theme-color\" content=\"{}\" />
+                    <link rel=\"icon\" href=\"{}\" />",
+                    &format!(
+                        "{}{}",
+                        req.headers().get("Host").unwrap().to_str().unwrap(),
+                        req.head().uri.to_string()
+                    ),
+                    // optionals
+                    if metadata.title.is_none() | title_unwrap.unwrap().is_empty() {
+                        &url_c
+                    } else {
+                        &title_unwrap.unwrap()
+                    },
+                    if metadata.description.is_none() | description_unwrap.unwrap().is_empty() {
+                        &paste_preview_text
+                    } else {
+                        &description_unwrap.unwrap()
+                    },
+                    if metadata.embed_color.is_none() {
+                        "#ff9999"
+                    } else {
+                        &embed_color_unwrap.unwrap()
+                    },
+                    if metadata.favicon.is_none() {
+                        "/static/favicon.svg"
+                    } else {
+                        &favicon_unwrap.unwrap()
+                    }
                 ),
-                // optionals
-                if metadata.title.is_none() | title_unwrap.unwrap().is_empty() {
-                    &url_c
-                } else {
-                    &title_unwrap.unwrap()
-                },
-                if metadata.description.is_none() | description_unwrap.unwrap().is_empty() {
-                    &paste_preview_text
-                } else {
-                    &description_unwrap.unwrap()
-                },
-                if metadata.embed_color.is_none() {
-                    "#ff9999"
-                } else {
-                    &embed_color_unwrap.unwrap()
-                },
-                if metadata.favicon.is_none() {
-                    "/static/favicon.svg"
-                } else {
-                    &favicon_unwrap.unwrap()
-                }
-            ),
-        ));
+                // required fields
+                info: base.info,
+                auth_state: base.auth_state,
+                guppy: base.guppy,
+                site_name: base.site_name,
+                body_embed: base.body_embed,
+            }
+            .render()
+            .unwrap(),
+        );
 }
 
 // #[get("/h/{url:.*}/{path:.*}")]
@@ -399,13 +344,7 @@ pub async fn atomic_paste_view_request(
         data.db.get_paste_by_url(url).await;
 
     if paste.success == false {
-        let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();
-        return HttpResponse::NotFound()
-            .append_header(("Content-Type", "text/html"))
-            .body(utility::format_html(
-                renderer.render().await,
-                "<title>404: Not Found</title>",
-            ));
+        return super::errors::error404(req, data).await;
     }
 
     let unwrap = paste.payload.as_ref().unwrap();
@@ -444,83 +383,6 @@ pub async fn atomic_paste_view_request(
     }
 }
 
-#[function_component]
-fn Dashboard(props: &DashboardProps) -> Html {
-    return html! {
-        <div class="flex flex-column" style="height: 100dvh;">
-            <GlobalMenu auth_state={props.auth_state} />
-
-            <div class="toolbar flex justify-space-between">
-                // left
-                <div class="flex">
-                    <button title="Menu" b_onclick="window.toggle_child_menu(event.target, '#upper\\\\:globalmenu')" style="border-left: 0">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-menu"><line x1="4" x2="20" y1="12" y2="12"/><line x1="4" x2="20" y1="6" y2="6"/><line x1="4" x2="20" y1="18" y2="18"/></svg>
-                    </button>
-
-                    <a class="button" href="/d" style="border-left: 0">
-                        {"Dashboard"}
-                    </a>
-                </div>
-            </div>
-
-            <div class="toolbar-layout-wrapper">
-                <div id="link-header" style="display: flex;" class="flex-column bg-1">
-                    <div class="link-header-top"></div>
-
-                    <div class="link-header-middle">
-                        <h1 class="no-margin">{"Dashboard"}</h1>
-                    </div>
-
-                    <div class="link-header-bottom">
-                        <a href="/d" class="button">{"Home"}</a>
-                        <a href="/d/pastes" class="button active">{"Pastes"}</a>
-                        <a href="/d/atomic" class="button">{"Atomic"}</a>
-                        <a href="::PUFFER_ROOT::/d" class="button">{"Boards"}</a>
-                    </div>
-                </div>
-
-                <main class="small flex flex-column g-4">
-                    <div class="flex justify-space-between align-center">
-                        <b>{"Pastes"}</b>
-
-                        <a class="button bundles-primary round" href="/">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-square"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
-                            {"New"}
-                        </a>
-                    </div>
-
-                    <div class="card round secondary flex g-4 flex-column justify-center" id="pastes_list">
-                        {for props.pastes.iter().map(|p| html! {
-                            <a class="button secondary round full justify-start" href={format!("/?editing={}", &p.custom_url)}>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-pen"><path d="M12 22h6a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v10"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10.4 12.6a2 2 0 1 1 3 3L8 21l-4 1 1-4Z"/></svg>
-                                {&p.custom_url}
-                            </a>
-                        })}
-                    </div>
-
-                    <div class="full flex justify-space-between" id="pages">
-                        <a class="button round" href={format!("?offset={}", props.offset - 50)} disabled={props.offset <= 0}>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-left"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
-                            {"Back"}
-                        </a>
-
-                        <a class="button round" href={format!("?offset={}", props.offset + 50)} disabled={props.pastes.len() == 0}>
-                            {"Next"}
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-                        </a>
-                    </div>
-
-                    <Footer auth_state={props.auth_state} />
-                </main>
-            </div>
-        </div>
-    };
-}
-
-fn build_dashboard_renderer_with_props(props: DashboardProps) -> ServerRenderer<Dashboard> {
-    ServerRenderer::<Dashboard>::with_props(|| props)
-}
-
 #[get("/d/pastes")]
 /// Available at "/d/pastes"
 pub async fn dashboard_request(
@@ -529,26 +391,7 @@ pub async fn dashboard_request(
     info: web::Query<crate::api::pastes::OffsetQueryProps>,
 ) -> impl Responder {
     // verify auth status
-    let token_cookie = req.cookie("__Secure-Token");
-    let mut set_cookie: &str = "";
-
-    let mut token_user = if token_cookie.is_some() {
-        Option::Some(
-            data.db
-                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
-                .await,
-        )
-    } else {
-        Option::None
-    };
-
-    if token_user.is_some() {
-        // make sure user exists, refresh token if not
-        if token_user.as_ref().unwrap().success == false {
-            set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
-            token_user = Option::None;
-        }
-    }
+    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
 
     if token_user.is_none() {
         // you must have an account to use atomic pastes
@@ -570,25 +413,27 @@ You can create an account at: /d/auth/register",
         .await;
 
     // ...
-    let renderer = build_dashboard_renderer_with_props(DashboardProps {
-        pastes: pastes.payload.unwrap(),
-        auth_state: if req.cookie("__Secure-Token").is_some() {
-            Option::Some(true)
-        } else {
-            Option::Some(false)
-        },
-        offset: if info.offset.is_some() {
-            info.offset.unwrap()
-        } else {
-            0
-        },
-    });
-
+    let base = base::get_base_values(token_user.is_some());
     return HttpResponse::Ok()
         .append_header(("Set-Cookie", set_cookie))
         .append_header(("Content-Type", "text/html"))
-        .body(format_html(
-            renderer.render().await,
-            "<title>Paste Dashboard - ::SITE_NAME::</title>",
-        ));
+        .body(
+            DashboardTemplate {
+                pastes: pastes.payload.unwrap(),
+                offset: if info.offset.is_some() {
+                    info.offset.unwrap()
+                } else {
+                    0
+                },
+                // required fields
+                info: base.info,
+                auth_state: base.auth_state,
+                guppy: base.guppy,
+                puffer: base.puffer,
+                site_name: base.site_name,
+                body_embed: base.body_embed,
+            }
+            .render()
+            .unwrap(),
+        );
 }

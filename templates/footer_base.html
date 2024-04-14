@@ -7,7 +7,7 @@
         {% block content %}{% endblock %}
 
         <!-- footer -->
-        <div class="flex justify-center align-center flex-column full">
+        <footer class="flex justify-center align-center flex-column full" {% block footer_stuff %}{% endblock %}>
             <hr class="small" style="width: 425px; max-width: 100%; margin-top: 1rem;" />
 
             <div class="__footernav" style="padding: 0; margin: 0;">
@@ -128,7 +128,7 @@
                     </a>
                 </div>
             </div>
-        </div>
+        </footer>
     </main>
 </div>
 {% endblock %}

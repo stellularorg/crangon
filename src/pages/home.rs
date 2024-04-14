@@ -6,7 +6,7 @@ use crate::db::{self, AppData};
 use askama::Template;
 
 #[derive(Template)]
-#[template(path = "general/homepage.html")]
+#[template(path = "user/homepage.html")]
 struct HomeTemplate {
     edit_mode: bool,
     starting_content: String,
@@ -26,7 +26,7 @@ pub struct HomeQueryProps {
 }
 
 #[derive(Template)]
-#[template(path = "general/dashboard.html")]
+#[template(path = "user/dashboard.html")]
 struct DashboardTemplate {
     user: db::UserState<String>,
     // required fields (super::base)
@@ -39,7 +39,7 @@ struct DashboardTemplate {
 }
 
 #[derive(Template)]
-#[template(path = "general/inbox.html")]
+#[template(path = "user/inbox.html")]
 struct InboxTemplate {
     boards: Vec<db::BoardIdentifier>,
     offset: i32,
@@ -162,6 +162,12 @@ Disallow: /paste
 Disallow: /d/atomic
 Disallow: /*?",
     );
+}
+
+#[get("/ads.txt")]
+/// Available at "/ads.txt"
+pub async fn adstxt() -> impl Responder {
+    return HttpResponse::Ok().body(std::env::var("ADS_TXT").unwrap_or(String::new()));
 }
 
 #[get("/d")]

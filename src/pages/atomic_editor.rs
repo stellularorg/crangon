@@ -6,7 +6,7 @@ use yew::ServerRenderer;
 
 use crate::components::navigation::{Footer, GlobalMenu};
 use crate::db::{self, AtomicPasteFSFile, FullPaste, PasteMetadata};
-use crate::utility::{self, format_html};
+use crate::utility::format_html;
 
 #[derive(Default, Properties, PartialEq, serde::Deserialize)]
 struct EditQueryProps {
@@ -169,7 +169,7 @@ fn CreateNew(props: &NewProps) -> Html {
         <div class="flex flex-column g-4" style="height: 100dvh;">
             <main class="small flex flex-column g-4 align-center">
                 <div class="card secondary round border" style="width: 25rem;" id="forms">
-                    <div id="error" class="mdnote note-error full" style="display: none;" />
+                    <div id="error" class="mdnote note-error full" style="display: none;"></div>
                     <form class="full flex flex-column g-4" action="/api/auth/register" id="create-site">
                         <label for="custom_url"><b>{"Custom URL"}</b></label>
 
@@ -300,7 +300,7 @@ fn EditPaste(props: &EditProps) -> Html {
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-folder-tree"><path d="M20 10a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 15 3h-2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z"/><path d="M20 21a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-2.9a1 1 0 0 1-.88-.55l-.42-.85a1 1 0 0 0-.92-.6H13a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z"/><path d="M3 5a2 2 0 0 0 2 2h3"/><path d="M3 3v13a2 2 0 0 0 2 2h3"/></svg>
                     </a>
 
-                    <div class="hr-left" />
+                    <div class="hr-left"></div>
 
                     <button class="round secondary red" id="split_view" title="Split View">
                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-columns-2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/></svg>
@@ -361,8 +361,8 @@ fn PasteFiles(props: &FSProps) -> Html {
                 </div>
 
                 <main class="flex flex-column g-4 small">
-                    <div id="error" class="mdnote note-error full" style="display: none;" />
-                    <div id="success" class="mdnote note-note full" style="display: none;" />
+                    <div id="error" class="mdnote note-error full" style="display: none;"></div>
+                    <div id="success" class="mdnote note-note full" style="display: none;"></div>
 
                     <div id="custom_url" style="display: none;">{&props.custom_url}</div>
 
@@ -511,13 +511,7 @@ You can create an account at: /d/auth/register",
         data.db.get_paste_by_id(id).await;
 
     if paste.success == false {
-        let renderer = ServerRenderer::<crate::pages::errors::_404Page>::new();
-        return HttpResponse::NotFound()
-            .append_header(("Content-Type", "text/html"))
-            .body(utility::format_html(
-                renderer.render().await,
-                "<title>404: Not Found</title>",
-            ));
+        return super::errors::error404(req, data).await;
     }
 
     // make sure paste is an atomic paste

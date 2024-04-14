@@ -1,0 +1,75 @@
+{% extends "../toolbar_base.html" %}
+
+{% block title %}Dashboard - {{ site_name }}{% endblock %}
+{% block main_stuff %}style="overflow: hidden; max-height: 100%;"{% endblock %}
+
+{% block content %}
+<div id="link-header" style="display: flex;" class="flex-column bg-1">
+    <div class="link-header-top"></div>
+
+    <div class="link-header-middle">
+        <h1 class="no-margin">Dashboard</h1>
+    </div>
+
+    <div class="link-header-bottom">
+        <a href="/d" class="button">Home</a>
+        <a href="/d/pastes" class="button active">Pastes</a>
+        <a href="/d/atomic" class="button">Atomic</a>
+        <a href="{{ puffer }}/d" class="button">Boards</a>
+    </div>
+</div>
+
+<main class="small flex flex-column g-4">
+    <div class="flex justify-space-between align-center">
+        <b>Pastes</b>
+
+        <a class="button bundles-primary round" href="/">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-plus-square">
+                <rect width="18" height="18" x="3" y="3" rx="2" />
+                <path d="M8 12h8" />
+                <path d="M12 8v8" />
+            </svg>
+            New
+        </a>
+    </div>
+
+    <div class="card round secondary flex g-4 flex-column justify-center" id="pastes_list">
+        {% for p in pastes.iter() %}
+        <a class="button secondary round full justify-start" href="/?editing={{ p.custom_url }}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-file-pen">
+                <path d="M12 22h6a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v10" />
+                <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+                <path d="M10.4 12.6a2 2 0 1 1 3 3L8 21l-4 1 1-4Z" />
+            </svg>
+            {{ p.custom_url }}
+        </a>
+        {% endfor %}
+    </div>
+
+    <div class="full flex justify-space-between" id="pages">
+        <a class="button round" href="?offset={{ offset - 50 }}" disabled="{{ offset <= 0 }}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-arrow-left">
+                <path d="m12 19-7-7 7-7" />
+                <path d="M19 12H5" />
+            </svg>
+            Back
+        </a>
+
+        <a class="button round" href="?offset={{ offset + 50 }}" disabled="{{ pastes.len() == 0 }}">
+            Next
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-arrow-right">
+                <path d="M5 12h14" />
+                <path d="m12 5 7 7-7 7" />
+            </svg>
+        </a>
+    </div>
+</main>
+{% endblock %}

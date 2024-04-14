@@ -1,0 +1,24 @@
+{% extends "../toolbar_base.html" %}
+
+{% block title %}404: Not Found{% endblock %}
+{% block main_stuff %}style="overflow: hidden; max-height: 100%;"{% endblock %}
+
+{% block content %}
+<div id="link-header" style="display: flex;" class="flex-column bg-1">
+    <div class="link-header-top"></div>
+    <div class="link-header-middle flex align-center flex-column g-4">
+        <h1 class="no-margin">404: Not Found</h1>
+
+        <div class="flex g-4 flex-wrap">
+            {% if auth_state == false %}
+            <a href="{{ guppy }}/d/auth/login" class="button green-cta round" data-wants-redirect="true">Login</a>
+            <a href="{{ guppy }}/d/auth/register" class="button green secondary round"
+                data-wants-redirect="true">Register</a>
+            {% else %}
+            <a href="/d" class="button border round">My Dashboard</a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="link-header-bottom"></div>
+</div>
+{% endblock %}

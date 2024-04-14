@@ -1,7 +1,7 @@
 {% extends "../footer_base.html" %}
 
 {% block title %}{{ site_name }}{% endblock %}
-{% block main_stuff %}style="overflow: hidden; max-height: 100%;"{% endblock %}
+{% block main_stuff %}style="overflow: hidden; max-height: 100%; margin-bottom: 0;"{% endblock %}
 
 {% block content %}
 <div class="tabbar justify-space-between full">
@@ -112,7 +112,7 @@
                 Save
             </button>
 
-            <a href="/{{ editing }}" class="border button round">Cancel</a>
+            <a href="/{{ editing }}" class="button round">Cancel</a>
         </div>
 
         <a href="javascript:" id="delete-btn" class="button round red">Delete</a>

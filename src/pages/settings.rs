@@ -45,7 +45,7 @@ fn PasteSettings(props: &Props) -> Html {
                     <a href={format!("/{}", props.paste.custom_url)} class="button round secondary">{"Cancel"}</a>
                 </div>
 
-                <div id="options-field" class="flex flex-wrap mobile:flex-column g-4 full justify-space-between" />
+                <div id="options-field" class="flex flex-wrap mobile:flex-column g-4 full justify-space-between"></div>
             </div>
 
             <script type="module">
@@ -74,7 +74,7 @@ fn UserSettings(props: &UserSettingsProps) -> Html {
             </div>
 
             <div class="card round secondary flex flex-column g-4">
-                <div id="options-field" class="flex flex-wrap flex-column g-4 full justify-center" />
+                <div id="options-field" class="flex flex-wrap flex-column g-4 full justify-center"></div>
             </div>
 
             <script type="module">
@@ -189,21 +189,7 @@ pub async fn paste_settings_request(
         && info.view.is_none()
         && metadata.view_password.as_ref().unwrap() != "off"
     {
-        let renderer = paste_view::build_password_ask_renderer_with_props(paste_view::Props {
-            paste: unwrap.paste.clone(),
-            user: unwrap.user.clone(),
-            auth_state: if req.cookie("__Secure-Token").is_some() {
-                Option::Some(req.cookie("__Secure-Token").is_some())
-            } else {
-                Option::Some(false)
-            },
-        });
-
-        let render = renderer.render();
-        return HttpResponse::Ok()
-            .append_header(("Set-Cookie", ""))
-            .append_header(("Content-Type", "text/html"))
-            .body(format_html(render.await, ""));
+        return super::errors::error404(req, data).await;
     }
 
     // (check password)
