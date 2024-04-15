@@ -226,7 +226,8 @@ You can create an account at: /d/auth/register",
         .content
         .replace("\\", "\\\\")
         .replace("`", "\\`")
-        .replace("$", "\\$");
+        .replace("$", "\\$")
+        .replace("/", "\\/");
 
     let base = base::get_base_values(token_user.is_some());
     return HttpResponse::Ok()
