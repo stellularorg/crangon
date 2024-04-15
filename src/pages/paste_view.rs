@@ -202,6 +202,8 @@ pub async fn paste_view_request(
     let embed_color_unwrap = metadata.embed_color.as_ref();
     let favicon_unwrap = metadata.favicon.as_ref();
 
+    let base = base::get_base_values(token_user.is_some());
+
     // ...
     let paste = unwrap.clone().paste;
     let user = unwrap.clone().user;
@@ -226,7 +228,7 @@ pub async fn paste_view_request(
         <span class=\"device:desktop\">Config</span>
     </a>", &paste.custom_url);
 
-    let owner_button = format!("<a href=\"::GUPPY_ROOT::/{}\">{}</a>", &metadata.owner, {
+    let owner_button = format!("<a href=\"{}/{}\">{}</a>", &base.guppy, &metadata.owner, {
         if user_metadata.is_some() && user_metadata.as_ref().unwrap().nickname.is_some() {
             user_metadata.as_ref().unwrap().nickname.as_ref().unwrap()
         } else {
@@ -272,7 +274,6 @@ pub async fn paste_view_request(
     let page = page.unwrap().replace("fetch(", "fetch(\\");
 
     // ...
-    let base = base::get_base_values(token_user.is_some());
     return HttpResponse::Ok()
         .append_header(("Set-Cookie", set_cookie))
         .append_header(("Content-Type", "text/html"))

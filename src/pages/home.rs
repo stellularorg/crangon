@@ -153,21 +153,25 @@ pub async fn home_request(
 #[get("/robots.txt")]
 /// Available at "/robots.txt"
 pub async fn robotstxt() -> impl Responder {
-    return HttpResponse::Ok().body(
-        "User-agent: *
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "text/plain"))
+        .body(
+            "User-agent: *
 Allow: /
 Disallow: /api
 Disallow: /admin
 Disallow: /paste
 Disallow: /d/atomic
 Disallow: /*?",
-    );
+        );
 }
 
 #[get("/ads.txt")]
 /// Available at "/ads.txt"
 pub async fn adstxt() -> impl Responder {
-    return HttpResponse::Ok().body(std::env::var("ADS_TXT").unwrap_or(String::new()));
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "text/plain"))
+        .body(std::env::var("ADS_TXT").unwrap_or(String::new()));
 }
 
 #[get("/d")]
