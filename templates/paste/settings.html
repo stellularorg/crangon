@@ -31,9 +31,13 @@
         <div id="options-field" class="flex flex-wrap mobile:flex-column g-4 full justify-space-between"></div>
     </div>
 
+    <script id="metadata" type="application/json">
+        {{ metadata|safe }}
+    </script>
+
     <script type="module">
         import { paste_settings } from "/static/js/SettingsEditor.js";
-        paste_settings({{ metadata| safe }}, "{{ paste.custom_url }}", document.getElementById("options-field"));
+        paste_settings(JSON.parse(document.getElementById("metadata").innerHTML), "{{ paste.custom_url }}", document.getElementById("options-field"));
     </script>
 </main>
 {% endblock %}
