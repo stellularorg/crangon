@@ -3,7 +3,7 @@ name = "bundlrs"
 authors = ["hkau"]
 license = "MIT"
 
-version = "0.12.2"
+version = "0.13.0"
 edition = "2021"
 
 rust-version = "1.75"
@@ -35,7 +35,6 @@ serde = "1.0.195"
 serde_json = "1.0.111"
 sha2 = "0.10.8"
 uuid = { version = "1.6.1", features = ["v4"] }
-yew = { version = "0.21.0", features = ["ssr"] }
 handlebars = "5.1.2"
 actix-cors = "0.7.0"
 askama = "0.12.1"

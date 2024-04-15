@@ -1,0 +1,27 @@
+{% extends "../toolbar_base.html" %}
+
+{% block title %}User Settings - {{ site_name }}{% endblock %}
+
+{% block content %}
+<main class="flex flex-column g-4 small">
+    <h2 class="full text-center">Session Settings</h2>
+
+    <div class="mdnote note-info dismissable" id="dismissable:user_settings">
+        <div class="flex justify-space-between align-center flex-wrap g-4">
+            <b class="mdnote-title">These settings do not sync with your account!</b>
+            <button class="dismiss round secondary">Ok</button>
+        </div>
+
+        <p>You can customize these per browser session.</p>
+    </div>
+
+    <div class="card round secondary flex flex-column g-4">
+        <div id="options-field" class="flex flex-wrap flex-column g-4 full justify-center"></div>
+    </div>
+
+    <script type="module">
+        import { user_settings } from "/static/js/SettingsEditor.js";
+        user_settings(document.getElementById("options-field"));
+    </script>
+</main>
+{% endblock %}

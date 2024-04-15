@@ -135,6 +135,10 @@ pub struct BoardIdentifier {
     pub tags: String,
 }
 
+pub fn derserialize_post(post: &String) -> BoardPostLog {
+    serde_json::from_str::<BoardPostLog>(post).unwrap()
+}
+
 // ...
 #[derive(Clone)]
 pub struct Database {
@@ -223,8 +227,8 @@ impl Database {
     // users
 
     // GET
-    /// Get a user by their unhashed ID 
-    /// 
+    /// Get a user by their unhashed ID
+    ///
     /// # Arguments:
     /// * `unhashed` - `String` of the user's unhashed ID
     pub async fn get_user_by_unhashed(

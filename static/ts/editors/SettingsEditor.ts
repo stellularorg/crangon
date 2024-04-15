@@ -250,12 +250,16 @@ function build_user_settings(
             <select class="round mobile:max" onchange="window.update_user_setting('${
                 setting[0]
             }', event);" style="width: 38%;">
-                <option value="on" selected="${
+                <option value="on" ${
                     window.localStorage.getItem(setting[0]) === "true"
-                }">on</option>
-                <option value="off" selected="${
+                        ? "selected"
+                        : ""
+                }>on</option>
+                <option value="off" ${
                     window.localStorage.getItem(setting[0]) === "false"
-                }">off</option>
+                        ? "selected"
+                        : ""
+                }>off</option>
             </select>
         </div>`;
     }

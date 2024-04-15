@@ -1,0 +1,20 @@
+{% extends "../toolbar_base.html" %}
+
+{% block title %}Staff Dashboard - {{ site_name }}{% endblock %}
+{% block main_stuff %}style="overflow: hidden; max-height: 100%;"{% endblock %}
+
+{% block content %}
+<div id="link-header" style="display: flex;" class="flex-column bg-1">
+    <div class="link-header-top"></div>
+
+    <div class="link-header-middle">
+        <h1 class="no-margin">Dashboard</h1>
+    </div>
+
+    <div class="link-header-bottom">
+        <a href="/d/staff" class="button active">Home</a>
+        <a href="/d/staff/users" class="button">Users</a>
+        <a href="/d/staff/boards" class="button">Boards</a>
+    </div>
+</div>
+{% endblock %}

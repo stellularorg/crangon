@@ -7,7 +7,6 @@ mod db;
 mod utility;
 
 mod api;
-mod components;
 mod pages;
 
 mod markdown;

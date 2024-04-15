@@ -1,0 +1,56 @@
+{% extends "../toolbar_base.html" %}
+
+{% block title %}Staff Dashboard - {{ site_name }}{% endblock %}
+{% block main_stuff %}style="overflow: hidden; max-height: 100%;"{% endblock %}
+
+{% block content %}
+<div id="link-header" style="display: flex;" class="flex-column bg-1">
+    <div class="link-header-top"></div>
+
+    <div class="link-header-middle">
+        <h1 class="no-margin">Dashboard</h1>
+    </div>
+
+    <div class="link-header-bottom">
+        <a href="/d/staff" class="button">Home</a>
+        <a href="/d/staff/users" class="button active">Users</a>
+        <a href="/d/staff/boards" class="button">Boards</a>
+    </div>
+</div>
+
+<main class="small flex flex-column g-4">
+    <div id="error" class="mdnote note-error full" style="display: none;"></div>
+    <div id="success" class="mdnote note-note full" style="display: none;"></div>
+
+    <div class="flex justify-space-between align-center mobile:flex-column g-4">
+        <b>Manage Users</b>
+
+        <form style="width: 50%;" class="flex g-4 mobile:max">
+            <input type="text" name="username" id="username" placeholder="Username" class="round" value="{{ username }}"
+                maxlength="250" style="width: calc(100% - 50px);" />
+
+            <button class="round bundles-primary" style="width: 50px;">Go</button>
+        </form>
+    </div>
+
+    {% if user.is_some() %}
+    {% let user = user.as_ref().unwrap() %}
+
+    <div class="card full round secondary flex flex-column g-4">
+        <h4 class="no-margin">{{ user.user.username }}</h4>
+
+        <hr />
+
+        <div class="flex full g-4 flex-wrap justify-space-between align-center">
+            <h6 class="no-margin">Banhammer</h6>
+            <button class="round bundles-primary" id="hammer-time"
+                data-endpoint="/api/auth/users/{{ user.user.username }}/ban">Ban User</button>
+        </div>
+    </div>
+    {% endif %}
+
+    <script type="module">
+        import "/static/js/SDManageUser.js";
+    </script>
+</main>
+{% endblock %}

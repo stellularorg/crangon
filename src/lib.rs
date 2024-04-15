@@ -7,7 +7,6 @@
 #![doc(issue_tracker_base_url = "https://code.stellular.org/stellular/bundlrs/issues/")]
 
 pub mod api;
-mod components;
 mod config;
 pub mod db;
 pub mod markdown;

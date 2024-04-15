@@ -1,0 +1,55 @@
+{% extends "../../toolbar_base.html" %}
+
+{% block title %}Dashboard - {{ site_name }}{% endblock %}
+{% block main_stuff %}style="overflow: hidden; max-height: 100%;"{% endblock %}
+
+{% block content %}
+<div id="link-header" style="display: flex;" class="flex-column bg-1">
+    <div class="link-header-top"></div>
+
+    <div class="link-header-middle">
+        <h1 class="no-margin">Dashboard</h1>
+    </div>
+
+    <div class="link-header-bottom">
+        <a href="/d" class="button">Home</a>
+        <a href="/d/pastes" class="button">Pastes</a>
+        <a href="/d/atomic" class="button active">Atomic</a>
+        <a href="{{ puffer }}/d" class="button">Boards</a>
+    </div>
+</div>
+
+<main class="small flex flex-column g-4">
+    <div class="flex justify-space-between align-center">
+        <b>Atomic Pastes</b>
+
+        <a class="button bundles-primary round" href="/d/atomic/new">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-plus-square">
+                <rect width="18" height="18" x="3" y="3" rx="2" />
+                <path d="M8 12h8" />
+                <path d="M12 8v8" />
+            </svg>
+            New
+        </a>
+    </div>
+
+    <div class="card round secondary flex g-4 flex-column justify-center" id="pastes_list">
+        {% for p in pastes.iter() %}
+        <a class="button secondary round full justify-start" href="/d/atomic/{{ p.id }}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-folder-archive">
+                <circle cx="15" cy="19" r="2" />
+                <path
+                    d="M20.9 19.8A2 2 0 0 0 22 18V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h5.1" />
+                <path d="M15 11v-1" />
+                <path d="M15 17v-2" />
+            </svg>
+            {{ p.custom_url }}
+        </a>
+        {% endfor %}
+    </div>
+</main>
+{% endblock %}
