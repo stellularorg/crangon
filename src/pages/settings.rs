@@ -106,7 +106,9 @@ pub async fn paste_settings_request(
         .body(
             PasteSettingsTemplate {
                 paste: paste.payload.clone().unwrap().paste,
-                metadata: serde_json::to_string::<PasteMetadata>(metadata).unwrap(),
+                metadata: serde_json::to_string::<PasteMetadata>(metadata)
+                    .unwrap()
+                    .replace("/", "\\/"),
                 // required fields
                 info: base.info,
                 auth_state: base.auth_state,
