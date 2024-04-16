@@ -12,5 +12,10 @@
 <article style="display: contents;">
     {{ page_content|safe }}
 </article>
+
+<script type="module">
+    import ClientFixMarkdown from "/static/js/ClientFixMarkdown.js";
+    ClientFixMarkdown();
+</script>
 {% call super() %}
 {% endblock %}
