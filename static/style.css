@@ -513,7 +513,10 @@ pre {
 
 pre,
 pre code {
-    overflow-x: auto;
+    overflow: hidden auto;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+    max-width: 100%;
 }
 
 /* heading anchors */

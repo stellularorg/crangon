@@ -32,8 +32,8 @@ pub fn get_base_values(token_cookie: bool) -> BaseTemplate {
     BaseTemplate {
         info,
         auth_state: token_cookie,
-        guppy: std::env::var("GUPPY_ROOT").unwrap(),
-        puffer: std::env::var("PUFFER_ROOT").unwrap(),
+        guppy: std::env::var("GUPPY_ROOT").unwrap_or(String::new()),
+        puffer: std::env::var("PUFFER_ROOT").unwrap_or(String::new()),
         site_name: std::env::var("SITE_NAME").unwrap_or("Bundlrs".to_string()),
         body_embed,
     }
