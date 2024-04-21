@@ -61,7 +61,7 @@ export function paste_settings(
                 );
 
                 // fill actions
-                (globalThis as any).render_permissions_fields = () => {
+                (globalThis as any).render_permissions_fields = (): void => {
                     document.getElementById(
                         "permissions-modal-actions"
                     )!.innerHTML = "";
@@ -82,7 +82,7 @@ export function paste_settings(
                 (globalThis as any).update_permissions_key = (
                     key: string,
                     e: any
-                ) => {
+                ): void => {
                     const selected = e.target.options[
                         e.target.selectedIndex
                     ] as HTMLOptionElement;
@@ -90,7 +90,7 @@ export function paste_settings(
                     metadata.permissions_list[key] = selected.value;
                 };
 
-                (globalThis as any).add_user_permissions = () => {
+                (globalThis as any).add_user_permissions = (): void => {
                     const name = prompt("Enter user name:");
                     if (!name) return;
 
@@ -99,6 +99,11 @@ export function paste_settings(
                 };
 
                 (globalThis as any).render_permissions_fields(); // initial render
+
+                (globalThis as any).remove_permission = (key: string): void => {
+                    delete metadata.permissions_list[key];
+                    (globalThis as any).render_permissions_fields(); // rerender
+                };
 
                 // add button
                 option_render = `<button class="bundles-primary round" onclick="document.getElementById('permissions-modal').showModal();">Edit Permissions</button>`;
@@ -216,14 +221,20 @@ function render_permission_field(
     current_value: string
 ) {
     field.innerHTML += `<div class="full flex justify-space-between align-center mobile:flex-column mobile:align-start g-4">
-        <b>${key}</b>
+        <b style="min-width: max-content; max-width: 100%;">${key}</b>
 
-        <select class="round mobile:max" onchange="window.update_permissions_key('${key}', event);" style="width: 38%;">
-            <option value="Normal" ${current_value === "Normal" ? "selected" : ""}>Normal</option>
-            <option value="EditTextPasswordless" ${current_value === "EditTextPasswordless" ? "selected" : ""}>EditTextPasswordless</option>
-            <option value="Passwordless" ${current_value === "Passwordless" ? "selected" : ""}>Passwordless</option>
-            <option value="Blocked" ${current_value === "Blocked" ? "selected" : ""}>Blocked</option>
-        </select>
+        <div class="flex g-4" style="justify-content: flex-end;">
+            <select class="round mobile:max" onchange="window.update_permissions_key('${key}', event);" style="width: 50%;">
+                <option value="Normal" ${current_value === "Normal" ? "selected" : ""}>Normal</option>
+                <option value="EditTextPasswordless" ${current_value === "EditTextPasswordless" ? "selected" : ""}>EditTextPasswordless</option>
+                <option value="Passwordless" ${current_value === "Passwordless" ? "selected" : ""}>Passwordless</option>
+                <option value="Blocked" ${current_value === "Blocked" ? "selected" : ""}>Blocked</option>
+            </select>
+
+            <button class="round red" title="Remove" onclick="window.remove_permission('${key}');" style="height: 40px !important;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+        </div>
     </div>`;
 }
 
