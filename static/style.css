@@ -23,6 +23,10 @@
         max-height: 65vh;
         padding: 1rem;
     }
+
+    .mobile\:align-start {
+        align-items: flex-start !important;
+    }
 }
 
 .-editor:not(.active) {

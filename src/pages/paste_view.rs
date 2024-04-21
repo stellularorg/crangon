@@ -169,6 +169,7 @@ pub async fn paste_view_request(
 
         if index_html.is_none() {
             return HttpResponse::NotAcceptable()
+                .append_header(("Content-Type", "text/plain"))
                 .body("Paste is missing a file at the path '/index.html'");
         }
 
@@ -179,12 +180,26 @@ pub async fn paste_view_request(
 
     // count view
     if token_user.is_some() {
-        // count view (this will check for an existing view!)
         let payload = &token_user.as_ref().unwrap().payload;
+        let username = &payload.as_ref().unwrap().user.username;
+
+        // count view (this will check for an existing view!)
         if payload.as_ref().is_some() {
-            data.db
-                .add_view_to_url(&url_c, &payload.as_ref().unwrap().user.username)
-                .await;
+            data.db.add_view_to_url(&url_c, &username).await;
+        }
+
+        // check permission
+        let in_permissions_list = unwrap.paste.metadata.permissions_list.get(username);
+
+        if in_permissions_list.is_some() {
+            // "Blocked" is NOT as secure as setting view_password!
+            let permission = in_permissions_list.unwrap();
+
+            if permission == &db::PastePermissionLevel::Blocked {
+                return HttpResponse::NotAcceptable()
+                    .append_header(("Content-Type", "text/plain"))
+                    .body("You're blocked from this paste.");
+            }
         }
     }
 

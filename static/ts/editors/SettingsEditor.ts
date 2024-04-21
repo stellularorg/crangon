@@ -2,7 +2,7 @@ export function paste_settings(
     metadata: { [key: string]: any },
     paste: string,
     field: HTMLElement,
-    _type: "paste" | "user" | "board" | undefined
+    _type: "paste" | undefined
 ): void {
     if (_type === undefined) _type = "paste";
 
@@ -24,25 +24,84 @@ export function paste_settings(
         if (selected) {
             current_property = selected.value;
 
-            // USER ONLY - secondary token
-            if (_type === "user" && current_property === "secondary_token") {
-                option_render = `<button class="button round bundles-primary" onclick="window.send_token_refresh_request();">Refresh Token</button>`;
+            if (current_property === "permissions_list") {
+                // add modal
+                if ((globalThis as any).permissions_modal) {
+                    (globalThis as any).permissions_modal.remove();
+                }
 
-                (window as any).send_token_refresh_request = async () => {
-                    const res = await fetch(
-                        `/api/auth/users/${paste}/secondary-token`,
-                        {
-                            method: "POST",
-                        }
-                    );
+                (globalThis as any).permissions_modal =
+                    document.createElement("dialog");
+                (globalThis as any).permissions_modal.id = "permissions-modal";
+                (globalThis as any).permissions_modal.innerHTML =
+                    `<div style="width: 25rem; max-width: 100%;">
+                    <h2 class="no-margin full text-center">Permissions</h2>
+        
+                    <hr />
+                    <div class="flex flex-column g-4">
+                        <button onclick="window.add_user_permissions()" class="round full border justify-start">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user-plus"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></svg>
+                            Add User
+                        </button>
 
-                    const res_ = await res.json();
-                    alert(res_.payload);
+                        <div id="permissions-modal-actions" class="flex flex-column g-4"></div>
+                    </div>
+                    <hr />
+        
+                    <div class="full flex justify-right">
+                        <a class="button round red" href="javascript:document.getElementById('permissions-modal').close();">
+                            Close
+                        </a>
+                    </div>
+                </div>`;
+
+                // add modal
+                document.body.appendChild(
+                    (globalThis as any).permissions_modal
+                );
+
+                // fill actions
+                (globalThis as any).render_permissions_fields = () => {
+                    document.getElementById(
+                        "permissions-modal-actions"
+                    )!.innerHTML = "";
+
+                    for (const permission of Object.entries(
+                        metadata.permissions_list
+                    )) {
+                        render_permission_field(
+                            document.getElementById(
+                                "permissions-modal-actions"
+                            )!,
+                            permission[0],
+                            permission[1] as string
+                        );
+                    }
                 };
 
-                options = build_options(metadata, current_property);
-                render_paste_settings_fields(field, options, option_render); // rerender
-                return;
+                (globalThis as any).update_permissions_key = (
+                    key: string,
+                    e: any
+                ) => {
+                    const selected = e.target.options[
+                        e.target.selectedIndex
+                    ] as HTMLOptionElement;
+
+                    metadata.permissions_list[key] = selected.value;
+                };
+
+                (globalThis as any).add_user_permissions = () => {
+                    const name = prompt("Enter user name:");
+                    if (!name) return;
+
+                    metadata.permissions_list[name] = "Normal";
+                    (globalThis as any).render_permissions_fields(); // rerender
+                };
+
+                (globalThis as any).render_permissions_fields(); // initial render
+
+                // add button
+                option_render = `<button class="bundles-primary round" onclick="document.getElementById('permissions-modal').showModal();">Edit Permissions</button>`;
             }
 
             // ...
@@ -82,64 +141,28 @@ export function paste_settings(
     update_form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
-        if (_type === "paste") {
-            // paste
-            const password = prompt("Please enter this paste's edit password:");
-            if (!password) return;
+        // paste
+        const password = prompt("Please enter this paste's edit password:");
+        if (!password) return;
 
-            const res = await fetch("/api/metadata", {
-                method: "POST",
-                body: JSON.stringify({
-                    custom_url: paste,
-                    edit_password: password,
-                    metadata,
-                }),
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
+        const res = await fetch("/api/metadata", {
+            method: "POST",
+            body: JSON.stringify({
+                custom_url: paste,
+                edit_password: password,
+                metadata,
+            }),
+            headers: {
+                "Content-Type": "application/json",
+            },
+        });
 
-            const json = await res.json();
+        const json = await res.json();
 
-            if (json.success === false) {
-                return alert(json.message);
-            } else {
-                window.location.reload();
-            }
-        } else if (_type === "user") {
-            // user
-            const res = await fetch(`/api/auth/users/${paste}/update`, {
-                method: "POST",
-                body: JSON.stringify(metadata),
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-
-            const json = await res.json();
-
-            if (json.success === false) {
-                return alert(json.message);
-            } else {
-                window.location.reload();
-            }
+        if (json.success === false) {
+            return alert(json.message);
         } else {
-            // board
-            const res = await fetch(`/api/board/${paste}/update`, {
-                method: "POST",
-                body: JSON.stringify(metadata),
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-
-            const json = await res.json();
-
-            if (json.success === false) {
-                return alert(json.message);
-            } else {
-                window.location.reload();
-            }
+            window.location.reload();
         }
     });
 
@@ -152,36 +175,6 @@ export function paste_settings(
         options = build_options(metadata, current_property);
         render_paste_settings_fields(field, options, option_render);
     });
-
-    // handle delete
-    if (_type == "board") {
-        const delete_button = document.getElementById("delete-board");
-
-        delete_button!.addEventListener("click", async () => {
-            const _confirm = confirm(
-                "Are you sure you would like to delete this board? This cannot be undone."
-            );
-
-            if (_confirm === false) return;
-
-            // board
-            const res = await fetch(`/api/board/${paste}`, {
-                method: "DELETE",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-            });
-
-            const json = await res.json();
-
-            if (json.success === false) {
-                return alert(json.message);
-            } else {
-                alert("Board deleted");
-                window.location.href = "/";
-            }
-        });
-    }
 }
 
 function build_options(
@@ -214,6 +207,24 @@ function render_paste_settings_fields(
 
     // ...
     return "";
+}
+
+// permissions
+function render_permission_field(
+    field: HTMLElement,
+    key: string,
+    current_value: string
+) {
+    field.innerHTML += `<div class="full flex justify-space-between align-center mobile:flex-column mobile:align-start g-4">
+        <b>${key}</b>
+
+        <select class="round mobile:max" onchange="window.update_permissions_key('${key}', event);" style="width: 38%;">
+            <option value="Normal" ${current_value === "Normal" ? "selected" : ""}>Normal</option>
+            <option value="EditTextPasswordless" ${current_value === "EditTextPasswordless" ? "selected" : ""}>EditTextPasswordless</option>
+            <option value="Passwordless" ${current_value === "Passwordless" ? "selected" : ""}>Passwordless</option>
+            <option value="Blocked" ${current_value === "Blocked" ? "selected" : ""}>Blocked</option>
+        </select>
+    </div>`;
 }
 
 // user settings

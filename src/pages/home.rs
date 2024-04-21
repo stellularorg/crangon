@@ -134,7 +134,23 @@ pub async fn home_request(
                     String::new()
                 },
                 password_not_needed: if metadata.is_some() && token_user.is_some() {
-                    metadata.unwrap().owner == token_user.unwrap().payload.unwrap().user.username
+                    let metadata = metadata.unwrap();
+                    let username = token_user.unwrap().payload.unwrap().user.username;
+
+                    let in_permissions_list = metadata.permissions_list.get(&username);
+
+                    // MUST be paste owner
+                    (metadata.owner == username) |
+                    // OR have a passwordless permission
+                    if in_permissions_list.is_some() {
+                        let permission = in_permissions_list.unwrap();
+    
+                        // OR must have EditTextPasswordless or Passwordless
+                        (permission == &db::PastePermissionLevel::EditTextPasswordless)
+                            | (permission == &db::PastePermissionLevel::Passwordless)
+                    } else {
+                        false
+                    }
                 } else {
                     false
                 },

@@ -1,5 +1,7 @@
 //! # Database
 //! Database handler for all database types
+use std::collections::HashMap;
+
 use crate::utility;
 use serde::{Deserialize, Serialize};
 
@@ -43,18 +45,41 @@ pub struct PasteIdentifier {
     pub id: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum PastePermissionLevel {
+    Normal,
+    EditTextPasswordless,
+    Passwordless,
+    Blocked, // not even allowed to view paste
+}
+
+impl Default for PastePermissionLevel {
+    fn default() -> Self {
+        PastePermissionLevel::Normal
+    }
+}
+
+pub type PastePermissions = HashMap<String, PastePermissionLevel>;
+
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PasteMetadata {
     pub owner: String,
     pub private_source: String,
+    #[serde(default = "default_paste_permissions")]
+    pub permissions_list: PastePermissions,
     // optionals
     pub title: Option<String>,
     pub description: Option<String>,
     pub favicon: Option<String>,
     pub embed_color: Option<String>,
     pub view_password: Option<String>,
-    // pub user_access_list: Option<String>,
     pub page_template: Option<String>, // handlebars formatted page template
+}
+
+fn default_paste_permissions() -> PastePermissions {
+    let permissions: PastePermissions = HashMap::new();
+    // permissions.insert(String::from("GLOBAL"), PastePermissionLevel::Normal);
+    permissions
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
@@ -309,6 +334,7 @@ impl Database {
                     // lock editors out
                     owner: String::new(),
                     private_source: String::from("on"),
+                    permissions_list: HashMap::new(),
                     // optionals
                     title: Option::Some(String::new()),
                     description: Option::Some(String::new()),
@@ -708,6 +734,7 @@ impl Database {
                 String::new()
             },
             private_source: String::from("off"),
+            permissions_list: default_paste_permissions(),
             // optionals
             title: Option::Some(String::new()),
             description: Option::Some(String::new()),
@@ -916,7 +943,24 @@ impl Database {
         // if password hash doesn't match AND edit_as is none OR edit_as != existing_metadata's owner value
         let paste = &existing.payload.clone().unwrap().paste;
 
-        let skip_password_check = edit_as.is_some() && edit_as.unwrap() == existing_metadata.owner;
+        let skip_password_check = if edit_as.is_some() {
+            let edit_as = edit_as.as_ref().unwrap();
+            let in_permissions_list = existing_metadata.permissions_list.get(edit_as);
+
+            // must be paste owner
+            (edit_as == &existing_metadata.owner)
+                | if in_permissions_list.is_some() {
+                    let permission = in_permissions_list.unwrap();
+
+                    // OR must have EditTextPasswordless or Passwordless
+                    (permission == &PastePermissionLevel::EditTextPasswordless)
+                        | (permission == &PastePermissionLevel::Passwordless)
+                } else {
+                    false
+                }
+        } else {
+            false
+        };
 
         if !skip_password_check && utility::hash(edit_password) != paste.edit_password {
             return DefaultReturn {
@@ -924,6 +968,33 @@ impl Database {
                 message: String::from("Password invalid"),
                 payload: Option::None,
             };
+        }
+
+        // check new_url and new_edit_password
+        let user_permission = if edit_as.is_none() {
+            Option::None
+        } else {
+            let edit_as = edit_as.as_ref().unwrap();
+            let in_permissions_list = existing_metadata.permissions_list.get(edit_as);
+            in_permissions_list
+        };
+
+        if user_permission.is_some() {
+            let user_permission = user_permission.unwrap();
+
+            if user_permission == &PastePermissionLevel::EditTextPasswordless
+                && (new_url.is_some() | new_edit_password.is_some())
+            {
+                // we've already skipped the password check at this point, so we're
+                // just going to have to fully deny the edit
+                return DefaultReturn {
+                    success: false,
+                    message: String::from(
+                        "You must have a higher paste permission level to do this.",
+                    ),
+                    payload: Option::None,
+                };
+            }
         }
 
         // ...
@@ -1061,12 +1132,26 @@ impl Database {
         let paste = &existing.payload.clone().unwrap().paste;
 
         // ...skip password check IF the user is the paste owner!
-        let skip_password_check = (edit_as.is_some()
-            && edit_as.unwrap() == existing_metadata.owner)
-            // OR if the user has the "ManagePastes" permission
-            | (ua.as_ref().is_some()
-                && ua.as_ref().unwrap().is_some()
-                && ua.unwrap().unwrap().level.permissions.contains(&String::from("ManagePastes")));
+        let skip_password_check = if edit_as.is_some() {
+            let edit_as = edit_as.as_ref().unwrap();
+            let in_permissions_list = existing_metadata.permissions_list.get(edit_as);
+        
+            // must be paste owner
+            (edit_as == &existing_metadata.owner)
+            // OR must have the "ManagePastes" permission
+            // rustfmt blocking
+            | (ua.as_ref().is_some() && ua.as_ref().unwrap().is_some() && ua.unwrap().unwrap().level.permissions.contains(&String::from("ManagePastes")))
+                | if in_permissions_list.is_some() {
+                    let permission = in_permissions_list.unwrap();
+        
+                    // OR must have Passwordless
+                    permission == &PastePermissionLevel::Passwordless
+                } else {
+                    false
+                }
+        } else {
+            false
+        };
 
         if !skip_password_check && utility::hash(edit_password) != paste.edit_password {
             return DefaultReturn {
@@ -1255,12 +1340,26 @@ impl Database {
         let paste = &existing.payload.clone().unwrap().paste;
 
         // ...skip password check IF the user is the paste owner!
-        let skip_password_check = (delete_as.is_some()
-                && delete_as.unwrap() == existing_metadata.owner)
-                // OR if the user has the "ManagePastes" permission
-                | (ua.as_ref().is_some()
-                    && ua.as_ref().unwrap().is_some()
-                    && ua.unwrap().unwrap().level.permissions.contains(&String::from("ManagePastes")));
+        let skip_password_check = if delete_as.is_some() {
+            let delete_as = delete_as.as_ref().unwrap();
+            let in_permissions_list = existing_metadata.permissions_list.get(delete_as);
+
+            // must be paste owner
+            (delete_as == &existing_metadata.owner)
+            // OR must have the "ManagePastes" permission
+            // rustfmt blocking
+            | (ua.as_ref().is_some() && ua.as_ref().unwrap().is_some() && ua.unwrap().unwrap().level.permissions.contains(&String::from("ManagePastes")))
+                | if in_permissions_list.is_some() {
+                    let permission = in_permissions_list.unwrap();
+
+                    // OR must have EditTextPasswordless or Passwordless
+                    permission == &PastePermissionLevel::Passwordless
+                } else {
+                    false
+                }
+        } else {
+            false
+        };
 
         if !skip_password_check && utility::hash(edit_password) != paste.edit_password {
             return DefaultReturn {
