@@ -1218,7 +1218,11 @@ impl Database {
         url: &String,
         view_as: &String, // username of account that is viewing this paste
     ) -> DefaultReturn<Option<String>> {
-        let url = &idna::punycode::encode_str(&url).unwrap();
+        let mut url = idna::punycode::encode_str(&url).unwrap();
+
+        if url.ends_with("-") {
+            url.pop();
+        }
 
         // make sure paste exists
         let existing = &self.get_paste_by_url(url.clone()).await;

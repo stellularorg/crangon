@@ -179,14 +179,12 @@ pub async fn paste_view_request(
     }
 
     // count view
-    if token_user.is_some() {
+    if token_user.is_some() && token_user.as_ref().unwrap().payload.is_some() {
         let payload = &token_user.as_ref().unwrap().payload;
         let username = &payload.as_ref().unwrap().user.username;
 
         // count view (this will check for an existing view!)
-        if payload.as_ref().is_some() {
-            data.db.add_view_to_url(&url_c, &username).await;
-        }
+        data.db.add_view_to_url(&url_c, &username).await;
 
         // check permission
         let in_permissions_list = unwrap.paste.metadata.permissions_list.get(username);
