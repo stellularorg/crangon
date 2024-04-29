@@ -126,7 +126,10 @@ pub async fn home_request(
                             .unwrap()
                             .paste
                             .content
-                            .replace(r"`", "\\`")
+                            .replace("\\", "\\\\")
+                            .replace("`", "\\`")
+                            .replace("$", "\\$")
+                            .replace("/", "\\/")
                     } else {
                         String::new()
                     }
@@ -190,19 +193,15 @@ pub async fn adstxt() -> impl Responder {
         .body(std::env::var("ADS_TXT").unwrap_or(String::new()));
 }
 
-#[get("/d")]
-/// Available at "/d"
+#[get("/dashboard")]
+/// Available at "/dashboard"
 pub async fn dashboard_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
     // verify auth status
     let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
 
     if token_user.is_none() {
         // you must have an account to use the user dashboard
-        return HttpResponse::NotFound().body(
-            "You must have an account to use the user dashboard.
-You can login at: /d/auth/login
-You can create an account at: /d/auth/register",
-        );
+        return super::errors::error401(req, data).await;
     }
 
     // ...
@@ -228,8 +227,8 @@ You can create an account at: /d/auth/register",
         );
 }
 
-#[get("/d/inbox")]
-/// Available at "/d/inbox"
+#[get("/dashboard/inbox")]
+/// Available at "/dashboard/inbox"
 pub async fn inbox_request(
     req: HttpRequest,
     data: web::Data<AppData>,
@@ -240,11 +239,7 @@ pub async fn inbox_request(
 
     if token_user.is_none() {
         // you must have an account to use the user dashboard
-        return HttpResponse::NotFound().body(
-            "You must have an account to use the user dashboard.
-You can login at: /d/auth/login
-You can create an account at: /d/auth/register",
-        );
+        return super::errors::error401(req, data).await;
     }
 
     // get inboxes

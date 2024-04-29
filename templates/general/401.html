@@ -1,0 +1,28 @@
+{% extends "../toolbar_base.html" %}
+{% block title %}Auth Options{% endblock %}
+
+{% block content %}
+<div class="flex flex-column g-4">
+    <main class="small flex flex-column g-4 align-center">
+        <h3 class="no-margin">Account Required</h3>
+
+        <div class="card secondary round border flex flex-column g-4" style="width: 25rem; max-width: 100dvw;"
+            id="options">
+            <a href="{{ guppy }}/d/auth/login" class="button full round theme:primary"
+                data-wants-redirect="true">Login</a>
+            <a href="{{ guppy }}/d/auth/register" class="button full round theme:secondary"
+                data-wants-redirect="true">Register</a>
+        </div>
+
+        <div style="width: 25rem; max-width: 100dvw;">
+            <hr />
+
+            <div class="flex justify-center footernav">
+                <span class="item"><a href="/">Homepage</a></span>
+                <span class="item"><a href="https://code.stellular.org/stellular/bundlrs">Source Code</a></span>
+            </div>
+        </div>
+    </main>
+</div>
+{% call super() %}
+{% endblock %}

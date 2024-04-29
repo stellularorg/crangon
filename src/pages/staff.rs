@@ -51,19 +51,15 @@ pub struct UsersQueryProps {
     pub username: Option<String>,
 }
 
-#[get("/d/staff")]
-/// Available at "/d/staff"
+#[get("/dashboard/staff")]
+/// Available at "/dashboard/staff"
 pub async fn dashboard_request(req: HttpRequest, data: web::Data<db::AppData>) -> impl Responder {
     // verify auth status
     let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
 
     if token_user.is_none() {
         // you must have an account to use the staff dashboard
-        return HttpResponse::NotFound().body(
-            "You must have an account to use the staff dashboard.
-You can login at: /d/auth/login
-You can create an account at: /d/auth/register",
-        );
+        return super::errors::error401(req, data).await;
     }
 
     // validate role
@@ -96,8 +92,8 @@ You can create an account at: /d/auth/register",
         );
 }
 
-#[get("/d/staff/boards")]
-/// Available at "/d/staff/boards"
+#[get("/dashboard/staff/boards")]
+/// Available at "/dashboard/staff/boards"
 pub async fn staff_boards_dashboard_request(
     req: HttpRequest,
     data: web::Data<db::AppData>,
@@ -108,11 +104,7 @@ pub async fn staff_boards_dashboard_request(
 
     if token_user.is_none() {
         // you must have an account to use the staff dashboard
-        return HttpResponse::NotFound().body(
-            "You must have an account to use the staff dashboard.
-You can login at: /d/auth/login
-You can create an account at: /d/auth/register",
-        );
+        return super::errors::error401(req, data).await;
     }
 
     // validate role
@@ -156,8 +148,8 @@ You can create an account at: /d/auth/register",
         );
 }
 
-#[get("/d/staff/users")]
-/// Available at "/d/staff/users"
+#[get("/dashboard/staff/users")]
+/// Available at "/dashboard/staff/users"
 pub async fn staff_users_dashboard_request(
     req: HttpRequest,
     data: web::Data<db::AppData>,
@@ -168,11 +160,7 @@ pub async fn staff_users_dashboard_request(
 
     if token_user.is_none() {
         // you must have an account to use the staff dashboard
-        return HttpResponse::NotFound().body(
-            "You must have an account to use the staff dashboard.
-You can login at: /d/auth/login
-You can create an account at: /d/auth/register",
-        );
+        return super::errors::error401(req, data).await;
     }
 
     // validate role

@@ -61,19 +61,15 @@ struct DashboardTemplate {
     body_embed: String,
 }
 
-#[get("/d/atomic")]
-/// Available at "/d/atomic"
+#[get("/dashboard/atomic")]
+/// Available at "/dashboard/atomic"
 pub async fn dashboard_request(req: HttpRequest, data: web::Data<db::AppData>) -> impl Responder {
     // verify auth status
     let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
 
     if token_user.is_none() {
         // you must have an account to use atomic pastes
-        return HttpResponse::NotFound().body(
-            "You must have an account to use atomic pastes.
-You can login at: /d/auth/login
-You can create an account at: /d/auth/register",
-        );
+        return super::errors::error401(req, data).await;
     }
 
     // fetch pastes
@@ -103,19 +99,15 @@ You can create an account at: /d/auth/register",
         );
 }
 
-#[get("/d/atomic/new")]
-/// Available at "/d/atomic/new"
+#[get("/dashboard/atomic/new")]
+/// Available at "/dashboard/atomic/new"
 pub async fn new_request(req: HttpRequest, data: web::Data<db::AppData>) -> impl Responder {
     // verify auth status
     let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
 
     if token_user.is_none() {
         // you must have an account to use atomic pastes
-        return HttpResponse::NotFound().body(
-            "You must have an account to use atomic pastes.
-You can login at: /d/auth/login
-You can create an account at: /d/auth/register",
-        );
+        return super::errors::error401(req, data).await;
     }
 
     // ...
@@ -138,8 +130,8 @@ You can create an account at: /d/auth/register",
         );
 }
 
-#[get("/d/atomic/{id:.*}")]
-/// Available at "/d/atomic/{id}"
+#[get("/dashboard/atomic/{id:.*}")]
+/// Available at "/dashboard/atomic/{id}"
 pub async fn edit_request(
     req: HttpRequest,
     data: web::Data<db::AppData>,
@@ -150,12 +142,9 @@ pub async fn edit_request(
 
     if token_user.is_none() {
         // you must have an account to use atomic pastes
-        // we'll likely track bandwidth used by atomic pastes and limit it in the future
-        return HttpResponse::NotFound().body(
-            "You must have an account to use atomic pastes.
-You can login at: /d/auth/login
-You can create an account at: /d/auth/register",
-        );
+        // we'll likely track requests used by atomic pastes and limit it in the future, similar to Vibrant
+        // ...or just migrate to Vibrant
+        return super::errors::error401(req, data).await;
     }
 
     // get paste

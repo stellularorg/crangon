@@ -31,8 +31,8 @@ struct UserSettingsTemplate {
     body_embed: String,
 }
 
-#[get("/d/settings")]
-/// Available at "/d/settings"
+#[get("/dashboard/settings")]
+/// Available at "/dashboard/settings"
 pub async fn user_settings_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
     // verify auth status
     let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
@@ -56,8 +56,8 @@ pub async fn user_settings_request(req: HttpRequest, data: web::Data<AppData>) -
         );
 }
 
-#[get("/d/settings/paste/{url:.*}")]
-/// Available at "/d/settings/paste/{custom_url}"
+#[get("/dashboard/settings/paste/{url:.*}")]
+/// Available at "/dashboard/settings/paste/{custom_url}"
 pub async fn paste_settings_request(
     req: HttpRequest,
     data: web::Data<AppData>,

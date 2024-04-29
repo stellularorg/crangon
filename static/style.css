@@ -1,6 +1,10 @@
 /* https://codeberg.org/hkau/fusion */
 @import url("./css/fusion.css");
 
+:root {
+    --roundness: var(--u-02);
+}
+
 .tab-container {
     background: var(--background-surface1);
     transition: background 0.15s;
@@ -15,7 +19,7 @@
 
 .tabbar button:not(.full-normal),
 .tabbar .button:not(.full-normal) {
-    border-radius: var(--u-02) var(--u-02) 0 0;
+    border-radius: var(--roundness) var(--roundness) 0 0;
 }
 
 @media screen and (max-width: 900px) {
@@ -60,10 +64,11 @@
     --primary: hsl(0, 100%, 80%);
     --primary-low: hsl(0, 100%, 76%);
 
-    --secondary: hsl(41, 100%, 62%);
-    --secondary-low: hsl(41, 100%, 58%);
+    --secondary: hsl(180, 80%, 70%);
+    --secondary-low: hsl(180, 70%, 66%);
 
     --blue3: hsl(208, 98%, 40%);
+    --blue3a: hsla(208, 98%, 40%, 50%);
 }
 
 .dark-theme {
@@ -76,10 +81,11 @@
     --diff: 0%;
 
     --blue3: hsl(205, 59%, 64%);
+    --blue3a: hsla(205, 59%, 64%, 50%);
 }
 
 *.round {
-    border-radius: var(--u-02) !important;
+    border-radius: var(--roundness) !important;
 }
 
 .card.less-padding {
@@ -111,26 +117,58 @@ button.border,
     box-shadow: 0 0 0 1px var(--background-surface2a);
 }
 
-button.bundles-primary,
-.button.bundles-primary {
+button:not(.no-shadow):hover,
+.button:not(.no-shadow):hover {
+    box-shadow: inset 0 0 2px 2px var(--background-surface2a);
+}
+
+button.theme\:primary,
+.button.theme\:primary {
     background: var(--primary);
     color: black;
 }
 
-button.bundles-primary:hover,
-.button.bundles-primary:hover {
+button.theme\:primary:hover,
+.button.theme\:primary:hover {
     background: var(--primary-low);
 }
 
-button.bundles-secondary,
-.button.bundles-secondary {
+button.theme\:secondary,
+.button.theme\:secondary {
     background: var(--secondary);
-    color: white;
+    color: black;
 }
 
-button.bundles-secondary:hover,
-.button.bundles-secondary:hover {
+button.theme\:secondary:hover,
+.button.theme\:secondary:hover {
     background: var(--secondary-low);
+}
+
+/* focus */
+a[href]:not(.button):focus,
+a[href]:not(.button):active {
+    background: black !important;
+    color: white !important;
+}
+
+.button.active:not(:active):not(:focus) {
+    box-shadow: none !important;
+}
+
+button:focus,
+.button:focus,
+input:focus,
+textarea:focus,
+select:focus,
+button:active,
+.button:active,
+input:active,
+textarea:active,
+select:active {
+    transition: background 0.1s !important;
+    outline: 2px solid var(--blue3) !important;
+    box-shadow: 0 0 0 5px var(--blue3a) !important;
+    z-index: 2 !important;
 }
 
 /* input modifications */
@@ -148,17 +186,17 @@ input + .button {
 
 /* details */
 details {
-    border-radius: var(--u-02);
+    border-radius: var(--roundness);
 }
 
 details[open] {
-    border-radius: var(--u-02) var(--u-02) 0 0 !important;
+    border-radius: var(--roundness) var(--roundness) 0 0 !important;
 }
 
 details summary {
     background: transparent;
     border: none;
-    border-radius: var(--u-02) !important;
+    border-radius: var(--roundness) !important;
     transition: none !important;
 }
 
@@ -182,7 +220,7 @@ details[open] summary {
     background: var(--background-surface1);
     box-shadow: none;
     margin-bottom: 0 !important;
-    border-radius: var(--u-02) var(--u-02) 0 0 !important;
+    border-radius: var(--roundness) var(--roundness) 0 0 !important;
 }
 
 details summary + .content {
@@ -213,7 +251,7 @@ select {
 input.round,
 textarea.round,
 select.round {
-    border-radius: var(--u-02) !important;
+    border-radius: var(--roundness) !important;
 }
 
 input:focus,
@@ -224,7 +262,7 @@ select:focus {
 
 /* notes */
 .mdnote {
-    border-radius: var(--u-02) !important;
+    border-radius: var(--roundness) !important;
 }
 
 .mdnote-title {
@@ -238,7 +276,7 @@ select:focus {
 
 /* chips */
 .chip.mention {
-    border-radius: var(--u-02);
+    border-radius: var(--roundness);
     background: var(--background-surface2a);
     border: solid 1px var(--background-surface2);
     color: var(--text-color);
@@ -282,7 +320,7 @@ select:focus {
     --active-color: var(--background-surface2a);
     padding: 0 var(--u-02);
     background: var(--hidden-color);
-    border-radius: var(--u-02);
+    border-radius: var(--roundness);
     color: transparent;
     transition: all 0.15s;
     box-shadow: none;
@@ -413,18 +451,6 @@ select:focus {
     margin: 0 0 2rem 0;
 }
 
-@media screen and (max-width: 900px) {
-    #link-header {
-        padding: 0 var(--u-10);
-    }
-
-    .link-list {
-        width: 100%;
-        border-left: none;
-        border-right: none;
-    }
-}
-
 #link-header .link-header-middle {
     padding: calc(var(--u-10) * 2) 0;
 }
@@ -440,7 +466,27 @@ select:focus {
 
 #link-header .link-header-bottom .button.active {
     background: var(--background-surface);
-    box-shadow: none !important;
+    /* box-shadow: none !important; */
+}
+
+#link-header.tall .link-header-middle {
+    padding: calc(var(--u-10) * 4) 0;
+}
+
+@media screen and (max-width: 900px) {
+    #link-header {
+        padding: 0 var(--u-10);
+    }
+
+    #link-header.tall .link-header-middle {
+        padding: calc(var(--u-10) * 2) 0;
+    }
+
+    .link-list {
+        width: 100%;
+        border-left: none;
+        border-right: none;
+    }
 }
 
 /* messages */
@@ -474,27 +520,6 @@ select:focus {
     user-select: none;
 }
 
-/* footer */
-.__footernav {
-    display: flex;
-    gap: 0.75rem;
-}
-
-.__footernav .item {
-    position: relative;
-    margin-left: 0.5rem;
-}
-
-.__footernav .item::before {
-    content: "·";
-    position: absolute;
-    left: -0.75rem;
-}
-
-.__footernav .item:first-child:before {
-    display: none;
-}
-
 /* more highlight.js styles */
 .hljs-tag,
 .hljs-number {
@@ -512,7 +537,7 @@ select:focus {
 /* code */
 pre {
     padding: var(--u-08);
-    border-radius: var(--u-04);
+    border-radius: var(--roundness);
 }
 
 pre,
@@ -542,7 +567,7 @@ pre code {
 }
 
 .cm-search * {
-    border-radius: var(--u-02) !important;
+    border-radius: var(--roundness) !important;
     color: var(--text-color) !important;
     display: inline-block !important;
 }
@@ -572,7 +597,7 @@ pre code {
 /* avatar */
 .avatar {
     --size: 50px;
-    border-radius: var(--u-02);
+    border-radius: var(--roundness);
     width: var(--size);
     height: var(--size);
 }
@@ -591,4 +616,29 @@ table.stripped thead tr th {
 
 table.stripped tbody tr td {
     padding: 6px 8px;
+}
+
+table td:focus-within {
+    box-shadow: none;
+}
+
+/* footer */
+.footernav {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.footernav .item {
+    position: relative;
+    margin-left: 0.5rem;
+}
+
+.footernav .item::before {
+    content: "·";
+    position: absolute;
+    left: -0.75rem;
+}
+
+.footernav .item:first-child:before {
+    display: none;
 }

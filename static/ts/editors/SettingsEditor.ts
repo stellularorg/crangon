@@ -106,7 +106,7 @@ export function paste_settings(
                 };
 
                 // add button
-                option_render = `<button class="bundles-primary round" onclick="document.getElementById('permissions-modal').showModal();">Edit Permissions</button>`;
+                option_render = `<button class="theme:primary round" onclick="document.getElementById('permissions-modal').showModal();">Edit Permissions</button>`;
             }
 
             // ...

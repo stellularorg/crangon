@@ -12,9 +12,9 @@
     </div>
 
     <div class="link-header-bottom">
-        <a href="/d" class="button active">Home</a>
-        <a href="/d/pastes" class="button">Pastes</a>
-        <a href="/d/atomic" class="button">Atomic</a>
+        <a href="/dashboard" class="button active">Home</a>
+        <a href="/dashboard/pastes" class="button">Pastes</a>
+        <a href="/dashboard/atomic" class="button">Atomic</a>
         <a href="{{ puffer }}/d" class="button">Boards</a>
     </div>
 </div>
@@ -32,7 +32,7 @@
     <div class="card secondary round flex justify-space-between align-center g-4">
         <b>Pastes</b>
 
-        <a class="button bundles-primary round" href="/d/pastes">
+        <a class="button theme:primary round" href="/dashboard/pastes">
             Go
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -46,7 +46,7 @@
     <div class="card secondary round flex justify-space-between align-center g-4">
         <b>Atomic Pastes</b>
 
-        <a class="button bundles-primary round" href="/d/atomic">
+        <a class="button theme:primary round" href="/dashboard/atomic">
             Go
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -62,7 +62,7 @@
     <div class="card secondary round flex justify-space-between align-center g-4">
         <b>Site Settings</b>
 
-        <a class="button bundles-primary round" href="/d/settings">
+        <a class="button theme:primary round" href="/dashboard/settings">
             Go
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -76,7 +76,7 @@
     <div class="card secondary round flex justify-space-between align-center g-4">
         <b>My Boards</b>
 
-        <a class="button bundles-primary round" href="{{ puffer }}/d">
+        <a class="button theme:primary round" href="{{ puffer }}/d">
             Go
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -90,7 +90,7 @@
     <div class="card secondary round flex justify-space-between align-center g-4">
         <b>My Inboxes</b>
 
-        <a class="button bundles-primary round" href="/d/inbox">
+        <a class="button theme:primary round" href="/dashboard/inbox">
             Go
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -104,7 +104,7 @@
     <div class="card secondary round flex justify-space-between align-center g-4">
         <b>My Profile</b>
 
-        <a class="button bundles-primary round" href="{{ guppy }}/{{ user.username }}">
+        <a class="button theme:primary round" href="{{ guppy }}/{{ user.username }}">
             Go
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -118,7 +118,7 @@
     <div class="card secondary round flex justify-space-between align-center g-4">
         <b>Account Settings</b>
 
-        <a class="button bundles-primary round" href="{{ guppy }}/{{ user.username }}/settings">
+        <a class="button theme:primary round" href="{{ guppy }}/{{ user.username }}/settings">
             Go
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"

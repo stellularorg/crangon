@@ -270,5 +270,18 @@ for (const element of Array.from(
     )}`;
 }
 
+// modal
+for (const element of Array.from(
+    document.querySelectorAll("[data-dialog]")
+) as HTMLAnchorElement[]) {
+    const dialog_element: HTMLDialogElement = document.getElementById(
+        element.getAttribute("data-dialog")!
+    ) as HTMLDialogElement;
+
+    element.addEventListener("click", () => {
+        dialog_element.showModal();
+    });
+}
+
 // default export
 export default {};

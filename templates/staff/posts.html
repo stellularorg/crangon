@@ -12,9 +12,9 @@
     </div>
 
     <div class="link-header-bottom">
-        <a href="/d/staff" class="button">Home</a>
-        <a href="/d/staff/users" class="button">Users</a>
-        <a href="/d/staff/boards" class="button active">Boards</a>
+        <a href="/dashboard/staff" class="button">Home</a>
+        <a href="/dashboard/staff/users" class="button">Users</a>
+        <a href="/dashboard/staff/boards" class="button active">Boards</a>
     </div>
 </div>
 
@@ -24,7 +24,7 @@
     <div class="card round secondary flex g-4 flex-column justify-center" id="boards_list">
         {% for p in posts.iter() %}
         {% let post = crate::db::derserialize_post(p.content) %}
-        <a class="button secondary round full justify-start" href="{{ puffer }}/{{ post.board }}/posts/{{ p.id }}">
+        <a class="button secondary round full justify-start no-shadow" href="{{ puffer }}/{{ post.board }}/posts/{{ p.id }}">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                 class="lucide lucide-message-square-text">

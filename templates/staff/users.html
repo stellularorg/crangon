@@ -12,9 +12,9 @@
     </div>
 
     <div class="link-header-bottom">
-        <a href="/d/staff" class="button">Home</a>
-        <a href="/d/staff/users" class="button active">Users</a>
-        <a href="/d/staff/boards" class="button">Boards</a>
+        <a href="/dashboard/staff" class="button">Home</a>
+        <a href="/dashboard/staff/users" class="button active">Users</a>
+        <a href="/dashboard/staff/boards" class="button">Boards</a>
     </div>
 </div>
 
@@ -29,7 +29,7 @@
             <input type="text" name="username" id="username" placeholder="Username" class="round" value="{{ username }}"
                 maxlength="250" style="width: calc(100% - 50px);" />
 
-            <button class="round bundles-primary" style="width: 50px;">Go</button>
+            <button class="round theme:primary" style="width: 50px;">Go</button>
         </form>
     </div>
 
@@ -43,7 +43,7 @@
 
         <div class="flex full g-4 flex-wrap justify-space-between align-center">
             <h6 class="no-margin">Banhammer</h6>
-            <button class="round bundles-primary" id="hammer-time"
+            <button class="round theme:primary" id="hammer-time"
                 data-endpoint="/api/auth/users/{{ user.user.username }}/ban">Ban User</button>
         </div>
     </div>
