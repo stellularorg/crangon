@@ -44,7 +44,7 @@ padding-top: var(--u-04);" class="flex flex-column align-center"{% endblock %}
 
     <form class="flex flex-wrap mobile:justify-center justify-space-between g-4 align-center" id="save-changes">
         {% if edit_mode == false %}
-        <div class="mobile:justify-center flex g-4 justify-start">
+        <div class="device:desktop mobile:justify-center flex g-4 justify-start">
             <button class="round">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -60,12 +60,41 @@ padding-top: var(--u-04);" class="flex flex-column align-center"{% endblock %}
             </a>
         </div>
 
-        <div class="mobile:justify-center flex-wrap flex g-4 justify-start">
+        <div class="flex g-4 justify-start">
             <input class="secondary round" type="text" placeholder="Custom URL" minlength="2" maxlength="500"
                 name="custom_url" id="custom_url" autocomplete="off" />
 
-            <input class="secondary round" type="text" placeholder="Edit Password" minlength="5" name="edit_password" />
+            <input class="secondary round" type="text" placeholder="Edit Password" minlength="5" name="edit_password"
+                id="edit_password" />
         </div>
+
+        <div class="full device:mobile mobile:flex mobile:justify-center flex g-4 justify-start">
+            <button class="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="lucide lucide-plus">
+                    <path d="M5 12h14" />
+                    <path d="M12 5v14" />
+                </svg>
+                Publish
+            </button>
+
+            <a class="button round border" href="javascript:document.getElementById('more-modal').showModal();">
+                More
+            </a>
+        </div>
+
+        <style>
+            @media screen and (max-width: 900px) {
+                #custom_url {
+                    width: 50%;
+                }
+
+                #edit_password {
+                    width: 50%;
+                }
+            }
+        </style>
 
         <dialog id="more-modal">
             <div style="width: 25rem; max-width: 100%;">

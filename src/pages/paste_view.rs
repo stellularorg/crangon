@@ -48,6 +48,7 @@ struct DashboardTemplate {
     auth_state: bool,
     guppy: String,
     puffer: String,
+    vibrant: String,
     site_name: String,
     body_embed: String,
 }
@@ -440,6 +441,7 @@ pub async fn dashboard_request(
                 auth_state: base.auth_state,
                 guppy: base.guppy,
                 puffer: base.puffer,
+                vibrant: base.vibrant,
                 site_name: base.site_name,
                 body_embed: base.body_embed,
             }

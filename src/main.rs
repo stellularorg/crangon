@@ -116,8 +116,6 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::pastes::render_paste_ssm_request)
             // atomic api
             .service(crate::api::pastes::read_atomic_request)
-            .service(crate::api::pastes::update_atomic_request)
-            .service(crate::api::pastes::delete_atomic_request)
             // GET api
             .service(crate::api::pastes::get_from_url_request)
             .service(crate::api::pastes::get_from_id_request)
@@ -130,10 +128,6 @@ async fn main() -> std::io::Result<()> {
             .service(crate::pages::settings::user_settings_request)
             .service(crate::pages::settings::paste_settings_request)
             .service(crate::pages::paste_view::dashboard_request)
-            // GET dashboard (atomic pastes)
-            .service(crate::pages::atomic_editor::dashboard_request)
-            .service(crate::pages::atomic_editor::new_request)
-            .service(crate::pages::atomic_editor::edit_request)
             // GET staff
             .service(crate::pages::staff::dashboard_request)
             .service(crate::pages::staff::staff_boards_dashboard_request)

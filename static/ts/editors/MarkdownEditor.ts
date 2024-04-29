@@ -420,6 +420,13 @@ export default function CreateEditor(ElementID: string, content: string) {
 
     window.localStorage.setItem("LastEditURL", window.location.href);
 
+    // vibrant warning
+    if (content && content.includes('"_is_atomic":true')) {
+        alert(
+            'This paste needs to be moved to a Vibrant project. Please check the "Vibrant" tab on your user dashboard for more information.'
+        );
+    }
+
     // create editor
     const view = new EditorView({
         // @ts-ignore

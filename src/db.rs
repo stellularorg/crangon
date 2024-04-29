@@ -635,84 +635,6 @@ impl Database {
         };
     }
 
-    /// Get all atomic [pastes](Paste) owned by a specific user
-    ///
-    /// # Arguments:
-    /// * `owner` - `String` of the owner's `username`
-    pub async fn get_atomic_pastes_by_owner(
-        &self,
-        owner: String,
-    ) -> DefaultReturn<Option<Vec<PasteIdentifier>>> {
-        // check in cache
-        let cached = self
-            .base
-            .cachedb
-            .get(format!("pastes-by-owner-atomic:{}:atomic", owner))
-            .await;
-
-        if cached.is_some() {
-            // ...
-            let pastes =
-                serde_json::from_str::<Vec<PasteIdentifier>>(cached.unwrap().as_str()).unwrap();
-
-            // return
-            return DefaultReturn {
-                success: true,
-                message: owner,
-                payload: Option::Some(pastes),
-            };
-        }
-
-        // ...
-        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE ? AND \"content\" LIKE ?"
-        } else {
-            "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE $1 AND \"content\" LIKE $2"
-        };
-
-        let c = &self.base.db.client;
-        let res = sqlquery(query)
-            .bind::<&String>(&format!("%\"owner\":\"{}\"%", &owner))
-            .bind("%\"_is_atomic\":true%")
-            .fetch_all(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from(res.err().unwrap().to_string()),
-                payload: Option::None,
-            };
-        }
-
-        // build res
-        let mut full_res: Vec<PasteIdentifier> = Vec::new();
-
-        for row in res.unwrap() {
-            let row = self.base.textify_row(row).data;
-            full_res.push(PasteIdentifier {
-                custom_url: row.get("custom_url").unwrap().to_string(),
-                id: row.get("id").unwrap().to_string(),
-            });
-        }
-
-        // store in cache
-        self.base
-            .cachedb
-            .set(
-                format!("pastes-by-owner:{}:atomic", owner),
-                serde_json::to_string::<Vec<PasteIdentifier>>(&full_res).unwrap(),
-            )
-            .await;
-
-        // return
-        return DefaultReturn {
-            success: true,
-            message: owner,
-            payload: Option::Some(full_res),
-        };
-    }
-
     // SET
     /// Create a new [`Paste`] given various properties
     ///
@@ -777,6 +699,15 @@ impl Database {
             return DefaultReturn {
                 success: false,
                 message: String::from("Content is invalid"),
+                payload: Option::None,
+            };
+        }
+
+        // project cannot have names we may need
+        if ["dashboard", "api"].contains(&p.custom_url.as_str()) {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Custom URL is invalid"),
                 payload: Option::None,
             };
         }
