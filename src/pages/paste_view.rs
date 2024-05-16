@@ -70,18 +70,18 @@ pub fn paste_view_hb_template() -> String {
 
     <div class=\"flex flex-column g-2\" style=\"color: var(--text-color-faded); min-width: max-content; align-items: flex-end;\">
         <span class=\"flex g-4\" id=\"paste-info-pub\">
-            <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-cake-slice\"><circle cx=\"9\" cy=\"7\" r=\"2\"/><path d=\"M7.2 7.9 3 11v9c0 .6.4 1 1 1h16c.6 0 1-.4 1-1v-9c0-2-3-6-7-8l-3.6 2.6\"/><path d=\"M16 13H3\"/><path d=\"M16 17H3\"/></svg>
             Pub: <span class=\"date-time-to-localize\">{{ pub_date }}</span>
         </span>
 
         <span class=\"flex g-4\" id=\"paste-info-edit\">
-            <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-pencil\"><path d=\"M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z\"/><path d=\"m15 5 4 4\"/></svg>
             Edit: <span class=\"date-time-to-localize\">{{ edit_date }}</span>
         </span>
 
+        {{#if owner_button}}
         <span id=\"paste-info-owner\">
             Owner: {{{ owner_button }}}
         </span>
+        {{/if}}
 
         <span id=\"paste-info-views\">Views: {{ views }}</span>
     </div>
@@ -242,13 +242,17 @@ pub async fn paste_view_request(
         <span class=\"device:desktop\">Config</span>
     </a>", &paste.custom_url);
 
-    let owner_button = format!("<a href=\"{}/{}\">{}</a>", &base.guppy, &metadata.owner, {
-        if user_metadata.is_some() && user_metadata.as_ref().unwrap().nickname.is_some() {
-            user_metadata.as_ref().unwrap().nickname.as_ref().unwrap()
-        } else {
-            &metadata.owner
-        }
-    });
+    let owner_button = if metadata.owner != "" {
+        format!("<a href=\"{}/{}\">{}</a>", &base.guppy, &metadata.owner, {
+            if user_metadata.is_some() && user_metadata.as_ref().unwrap().nickname.is_some() {
+                user_metadata.as_ref().unwrap().nickname.as_ref().unwrap()
+            } else {
+                &metadata.owner
+            }
+        })
+    } else {
+        String::new()
+    };
 
     // render template
     let default_template = &paste_view_hb_template();
@@ -288,60 +292,65 @@ pub async fn paste_view_request(
     let page = page.unwrap().replace("fetch(", "fetch(\\");
 
     // ...
-    return HttpResponse::Ok()
-        .append_header(("Set-Cookie", set_cookie))
-        .append_header(("Content-Type", "text/html"))
-        .body(
-            PasteViewTemplate {
-                page_content: page,
-                title: if metadata.title.is_none() | title_unwrap.unwrap().is_empty() {
-                    url_c.clone()
-                } else {
-                    title_unwrap.unwrap().clone()
-                },
-                head_string: format!(
-                    "<meta property=\"og:url\" content=\"{}\" />
+    let body_content = PasteViewTemplate {
+        page_content: page,
+        title: if metadata.title.is_none() | title_unwrap.unwrap().is_empty() {
+            url_c.clone()
+        } else {
+            title_unwrap.unwrap().clone()
+        },
+        head_string: format!(
+            "<meta property=\"og:url\" content=\"{}\" />
                     <meta property=\"og:title\" content=\"{}\" />
                     <meta property=\"og:description\" content=\"{}\" />
                     <meta name=\"theme-color\" content=\"{}\" />
                     <link rel=\"icon\" href=\"{}\" />",
-                    &format!(
-                        "{}{}",
-                        req.headers().get("Host").unwrap().to_str().unwrap(),
-                        req.head().uri.to_string()
-                    ),
-                    // optionals
-                    if metadata.title.is_none() | title_unwrap.unwrap().is_empty() {
-                        &url_c
-                    } else {
-                        &title_unwrap.unwrap()
-                    },
-                    if metadata.description.is_none() | description_unwrap.unwrap().is_empty() {
-                        &paste_preview_text
-                    } else {
-                        &description_unwrap.unwrap()
-                    },
-                    if metadata.embed_color.is_none() {
-                        "#ff9999"
-                    } else {
-                        &embed_color_unwrap.unwrap()
-                    },
-                    if metadata.favicon.is_none() {
-                        "/static/favicon.svg"
-                    } else {
-                        &favicon_unwrap.unwrap()
-                    }
-                ),
-                // required fields
-                info: base.info,
-                auth_state: base.auth_state,
-                guppy: base.guppy,
-                site_name: base.site_name,
-                body_embed: base.body_embed,
+            &format!(
+                "{}{}",
+                req.headers().get("Host").unwrap().to_str().unwrap(),
+                req.head().uri.to_string()
+            ),
+            // optionals
+            if metadata.title.is_none() | title_unwrap.unwrap().is_empty() {
+                &url_c
+            } else {
+                &title_unwrap.unwrap()
+            },
+            if metadata.description.is_none() | description_unwrap.unwrap().is_empty() {
+                &paste_preview_text
+            } else {
+                &description_unwrap.unwrap()
+            },
+            if metadata.embed_color.is_none() {
+                "#ff9999"
+            } else {
+                &embed_color_unwrap.unwrap()
+            },
+            if metadata.favicon.is_none() {
+                "/static/favicon.svg"
+            } else {
+                &favicon_unwrap.unwrap()
             }
-            .render()
-            .unwrap(),
-        );
+        ),
+        // required fields
+        info: base.info,
+        auth_state: base.auth_state,
+        guppy: base.guppy,
+        site_name: base.site_name,
+        body_embed: base.body_embed,
+    }
+    .render()
+    .unwrap();
+
+    return HttpResponse::Ok()
+        .append_header(("Set-Cookie", set_cookie))
+        .append_header(("Content-Type", "text/html"))
+        .body(if paste.metadata.favicon.is_some() {
+            // make the original favicon useless
+            body_content.replacen("rel=\"icon\"", "rel=\"old_icon\"", 1)
+        } else {
+            body_content
+        });
 }
 
 // #[get("/h/{url:.*}/{path:.*}")]

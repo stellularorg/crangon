@@ -14,8 +14,8 @@
     <div class="link-header-bottom">
         <a href="/dashboard" class="button">Home</a>
         <a href="/dashboard/pastes" class="button">Pastes</a>
-        <a href="{{ vibrant }}/dashboard" class="button">Vibrant</a>
-        <a href="{{ puffer }}/dashboard" class="button">Boards</a>
+        {% if vibrant != "" %} <a href="{{ vibrant }}/dashboard" class="button">Vibrant</a> {% endif %}
+        {% if puffer != "" %} <a href="{{ puffer }}/dashboard" class="button">Boards</a> {% endif %}
     </div>
 </div>
 

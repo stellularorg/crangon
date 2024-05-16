@@ -24,7 +24,7 @@ pub async fn callback_request(info: web::Query<CallbackQueryProps>) -> impl Resp
         .append_header(("Content-Type", "text/html"))
         .body(
             "<head>
-                <meta http-equiv=\"Refresh\" content=\"0; URL=/d\" />
+                <meta http-equiv=\"Refresh\" content=\"0; URL=/dashboard\" />
             </head>",
         );
 }
