@@ -6,8 +6,6 @@ use askama::Template;
 
 use crate::db::{self, DefaultReturn, FullUser};
 
-use crate::api::pastes::OffsetQueryProps;
-
 #[derive(Template)]
 #[template(path = "staff/homepage.html")]
 struct HomeTemplate {
@@ -15,20 +13,6 @@ struct HomeTemplate {
     info: String,
     auth_state: bool,
     guppy: String,
-    site_name: String,
-    body_embed: String,
-}
-
-#[derive(Template)]
-#[template(path = "staff/posts.html")]
-struct PostsTemplate {
-    offset: i32,
-    posts: Vec<db::Log>,
-    // required fields (super::base)
-    info: String,
-    auth_state: bool,
-    guppy: String,
-    puffer: String,
     site_name: String,
     body_embed: String,
 }
@@ -84,62 +68,6 @@ pub async fn dashboard_request(req: HttpRequest, data: web::Data<db::AppData>) -
                 info: base.info,
                 auth_state: base.auth_state,
                 guppy: base.guppy,
-                site_name: base.site_name,
-                body_embed: base.body_embed,
-            }
-            .render()
-            .unwrap(),
-        );
-}
-
-#[get("/dashboard/staff/boards")]
-/// Available at "/dashboard/staff/boards"
-pub async fn staff_boards_dashboard_request(
-    req: HttpRequest,
-    data: web::Data<db::AppData>,
-    info: web::Query<OffsetQueryProps>,
-) -> impl Responder {
-    // verify auth status
-    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
-
-    if token_user.is_none() {
-        // you must have an account to use the staff dashboard
-        return super::errors::error401(req, data).await;
-    }
-
-    // validate role
-    let user = token_user.as_ref().unwrap().payload.as_ref().unwrap();
-
-    if !user
-        .level
-        .permissions
-        .contains(&String::from("StaffDashboard"))
-    {
-        return HttpResponse::NotFound().body("You do not have permission to do this");
-    }
-
-    // get posts
-    let posts: db::DefaultReturn<Option<Vec<db::Log>>> =
-        data.db.fetch_most_recent_posts(info.offset).await;
-
-    // ...
-    let base = base::get_base_values(token_user.is_some());
-    return HttpResponse::Ok()
-        .append_header(("Set-Cookie", set_cookie))
-        .append_header(("Content-Type", "text/html"))
-        .body(
-            PostsTemplate {
-                offset: if info.offset.is_some() {
-                    info.offset.unwrap()
-                } else {
-                    0
-                },
-                posts: posts.payload.unwrap(),
-                // required fields
-                info: base.info,
-                auth_state: base.auth_state,
-                guppy: base.guppy,
-                puffer: base.puffer,
                 site_name: base.site_name,
                 body_embed: base.body_embed,
             }

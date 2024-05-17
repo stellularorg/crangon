@@ -1,5 +1,5 @@
 {
-  "name": "bundlrs",
+  "name": "crangon",
   "module": "index.ts",
   "type": "module",
   "devDependencies": {

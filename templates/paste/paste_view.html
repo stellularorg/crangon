@@ -9,9 +9,45 @@
 {% block content %}
 <div id="secret"></div>
 
-<article style="display: contents;">
-    {{ page_content|safe }}
-</article>
+<div style="display: contents;">
+    <div id="editor-tab-preview" class="card round secondary tab-container secondary round" style="height:
+        max-content; max-height: initial; margin-bottom: 0px;">
+        <article>{{ paste.content_html|safe }}</article>
+    </div>
+
+    <div class="flex justify-space-between g-4 full" id="paste-info-box">
+        <div class="flex g-4 flex-wrap">
+            <a class="button round" href="/?editing={{ paste.custom_url }}">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                Edit
+            </a>
+
+            <a href="/dashboard/settings/paste/{{ paste.custom_url }}" class="button round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                <span class="device:desktop">Config</span>
+            </a>
+        </div>
+
+        <div class="flex flex-column g-2" style="color: var(--text-color-faded); min-width: max-content; align-items:
+            flex-end;">
+            <span class="flex g-4" id="paste-info-pub">
+                Pub: <span class="date-time-to-localize">{{ paste.pub_date }}</span>
+            </span>
+
+            <span class="flex g-4" id="paste-info-edit">
+                Edit: <span class="date-time-to-localize">{{ paste.edit_date }}</span>
+            </span>
+
+            {% if paste.metadata.owner != "" %}
+            <span id="paste-info-owner">
+                Owner: <a href="{{ guppy }}/{{ paste.metadata.owner }}">{{ paste.metadata.owner }}</a>
+            </span>
+            {% endif %}
+
+            <span id="paste-info-views">Views: {{ paste.views }}</span>
+        </div>
+    </div>
+</div>
 
 <script type="module">
     import ClientFixMarkdown from "/static/js/ClientFixMarkdown.js";

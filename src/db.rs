@@ -2,7 +2,7 @@
 //! Database handler for all database types
 use std::collections::HashMap;
 
-use crate::utility;
+use dorsal::utility;
 use serde::{Deserialize, Serialize};
 
 use dorsal::query as sqlquery;
@@ -13,9 +13,7 @@ pub struct AppData {
     pub http_client: awc::Client,
 }
 
-pub use dorsal::db::special::auth_db::{FullUser, UserMetadata, UserState};
-
-pub use dorsal::db::special::log_db::Log;
+pub use dorsal::db::special::auth_db::{FullUser, UserState};
 pub use dorsal::DefaultReturn;
 
 // Paste and Group require the type of their metadata to be specified so it can be converted if needed
@@ -73,7 +71,6 @@ pub struct PasteMetadata {
     pub favicon: Option<String>,
     pub embed_color: Option<String>,
     pub view_password: Option<String>,
-    pub page_template: Option<String>, // handlebars formatted page template
 }
 
 fn default_paste_permissions() -> PastePermissions {
@@ -86,23 +83,6 @@ fn default_paste_permissions() -> PastePermissions {
 pub struct FullPaste<M, U> {
     pub paste: Paste<M>,
     pub user: Option<FullUser<U>>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-/// A paste content structure containing an array of [files](AtomicPasteFSFile)
-pub struct AtomicPaste {
-    // atomic pastes are a plain JSON file system storing HTML, CSS, and JS files only
-    // they have the least amount of boilerplate for rendering!
-    pub _is_atomic: bool, // this must exist so we know a paste's content is for an atomic paste
-    pub files: Vec<AtomicPasteFSFile>,
-}
-
-#[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
-/// A structure representing a single text file
-pub struct AtomicPasteFSFile {
-    // store only the bare minimum for the required file types
-    pub path: String,
-    pub content: String,
 }
 
 #[derive(Default, PartialEq, Clone, Serialize, Deserialize)]
@@ -160,10 +140,6 @@ pub struct BoardIdentifier {
     pub tags: String,
 }
 
-pub fn derserialize_post(post: &String) -> BoardPostLog {
-    serde_json::from_str::<BoardPostLog>(post).unwrap()
-}
-
 // ...
 #[derive(Clone)]
 pub struct Database {
@@ -190,7 +166,7 @@ impl Database {
         // we're just using the same max length for everything because lengths are checked before being sent to db
 
         let _ = sqlquery(
-            "CREATE TABLE IF NOT EXISTS \"Pastes\" (
+            "CREATE TABLE IF NOT EXISTS \"cr_pastes\" (
                 custom_url VARCHAR(1000000),
                 id VARCHAR(1000000),
                 group_name VARCHAR(1000000),
@@ -206,7 +182,7 @@ impl Database {
         .await;
 
         let _ = sqlquery(
-            "CREATE TABLE IF NOT EXISTS \"Groups\" (
+            "CREATE TABLE IF NOT EXISTS \"cr_groups\" (
                 name VARCHAR(1000000),
                 submit_password VARCHAR(1000000),
                 metadata VARCHAR(1000000)
@@ -215,6 +191,7 @@ impl Database {
         .execute(c)
         .await;
 
+        // ...
         let _ = sqlquery(
             "CREATE TABLE IF NOT EXISTS \"Users\" (
                 username VARCHAR(1000000),
@@ -233,16 +210,6 @@ impl Database {
                 logtype VARCHAR(1000000),
                 timestamp  VARCHAR(1000000),
                 content VARCHAR(1000000)
-            )",
-        )
-        .execute(c)
-        .await;
-
-        let _ = sqlquery(
-            "CREATE TABLE IF NOT EXISTS \"Boards\" (
-                name VARCHAR(1000000),
-                timestamp VARCHAR(1000000),
-                metadata VARCHAR(1000000)
             )",
         )
         .execute(c)
@@ -321,9 +288,9 @@ impl Database {
 
         // lock user assets
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "UPDATE \"Pastes\" SET \"metadata\" = ? WHERE \"metadata\" LIKE ?"
+            "UPDATE \"cr_pastes\" SET \"metadata\" = ? WHERE \"metadata\" LIKE ?"
         } else {
-            "UPDATE \"Pastes\" SET (\"metadata\") = ($1) WHERE \"metadata\" LIKE $2"
+            "UPDATE \"cr_pastes\" SET (\"metadata\") = ($1) WHERE \"metadata\" LIKE $2"
         };
 
         let c = &self.base.db.client;
@@ -342,9 +309,8 @@ impl Database {
                     embed_color: Option::None,
                     view_password: Option::Some(format!(
                         "LOCKED(USER_BANNED)-{}",
-                        crate::utility::random_id()
+                        dorsal::utility::random_id()
                     )),
-                    page_template: Option::None,
                 })
                 .unwrap(),
             )
@@ -528,9 +494,9 @@ impl Database {
         }
 
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "SELECT * FROM \"Pastes\" WHERE \"custom_url\" = ?"
+            "SELECT * FROM \"cr_pastes\" WHERE \"custom_url\" = ?"
         } else {
-            "SELECT * FROM \"Pastes\" WHERE \"custom_url\" = $1"
+            "SELECT * FROM \"cr_pastes\" WHERE \"custom_url\" = $1"
         };
 
         return self.build_result_from_query(query, &url).await;
@@ -545,9 +511,9 @@ impl Database {
         id: String,
     ) -> DefaultReturn<Option<FullPaste<PasteMetadata, String>>> {
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "SELECT * FROM \"Pastes\" WHERE \"id\" = ?"
+            "SELECT * FROM \"cr_pastes\" WHERE \"id\" = ?"
         } else {
-            "SELECT * FROM \"Pastes\" WHERE \"id\" = $1"
+            "SELECT * FROM \"cr_pastes\" WHERE \"id\" = $1"
         };
 
         return self.build_result_from_query(query, &id).await;
@@ -587,9 +553,9 @@ impl Database {
 
         // ...
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE ? ORDER BY \"pub_date\" DESC LIMIT 50 OFFSET ?"
+            "SELECT * FROM \"cr_pastes\" WHERE \"metadata\" LIKE ? ORDER BY \"pub_date\" DESC LIMIT 50 OFFSET ?"
         } else {
-            "SELECT * FROM \"Pastes\" WHERE \"metadata\" LIKE $1 ORDER BY \"pub_date\" DESC LIMIT 50 OFFSET $2"
+            "SELECT * FROM \"cr_pastes\" WHERE \"metadata\" LIKE $1 ORDER BY \"pub_date\" DESC LIMIT 50 OFFSET $2"
         };
 
         let c = &self.base.db.client;
@@ -663,7 +629,6 @@ impl Database {
             favicon: Option::None,
             embed_color: Option::Some(String::from("#ff9999")),
             view_password: Option::None,
-            page_template: Option::None,
         };
 
         // check values
@@ -788,9 +753,9 @@ impl Database {
 
         // create paste
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "INSERT INTO \"Pastes\" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO \"cr_pastes\" VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
         } else {
-            "INSERT INTO \"Pastes\" VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
+            "INSERT INTO \"cr_pastes\" VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)"
         };
 
         let c = &self.base.db.client;
@@ -962,12 +927,12 @@ impl Database {
 
         // update paste
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "UPDATE \"Pastes\" SET \"content\" = ?, \"content_html\" = ?, \"edit_password\" = ?, \"custom_url\" = ?, \"edit_date\" = ? WHERE \"custom_url\" = ?"
+            "UPDATE \"cr_pastes\" SET \"content\" = ?, \"content_html\" = ?, \"edit_password\" = ?, \"custom_url\" = ?, \"edit_date\" = ? WHERE \"custom_url\" = ?"
         } else {
-            "UPDATE \"Pastes\" SET (\"content\", \"content_html\", \"edit_password\", \"custom_url\", \"edit_date\") = ($1, $2, $3, $4, $5) WHERE \"custom_url\" = $6"
+            "UPDATE \"cr_pastes\" SET (\"content\", \"content_html\", \"edit_password\", \"custom_url\", \"edit_date\") = ($1, $2, $3, $4, $5) WHERE \"custom_url\" = $6"
         };
 
-        let content_html = &crate::markdown::render::parse_markdown(&content);
+        let content_html = &crate::markdown::parse_markdown(content.clone());
         let edit_date = &utility::unix_epoch_timestamp().to_string();
 
         let c = &self.base.db.client;
@@ -1094,9 +1059,9 @@ impl Database {
 
         // update paste
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "UPDATE \"Pastes\" SET \"metadata\" = ? WHERE \"custom_url\" = ?"
+            "UPDATE \"cr_pastes\" SET \"metadata\" = ? WHERE \"custom_url\" = ?"
         } else {
-            "UPDATE \"Pastes\" SET (\"metadata\") = ($1) WHERE \"custom_url\" = $2"
+            "UPDATE \"cr_pastes\" SET (\"metadata\") = ($1) WHERE \"custom_url\" = $2"
         };
 
         let c = &self.base.db.client;
@@ -1306,9 +1271,9 @@ impl Database {
 
         // delete paste
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "DELETE FROM \"Pastes\" WHERE \"custom_url\" = ?"
+            "DELETE FROM \"cr_pastes\" WHERE \"custom_url\" = ?"
         } else {
-            "DELETE FROM \"Pastes\" WHERE \"custom_url\" = $1"
+            "DELETE FROM \"cr_pastes\" WHERE \"custom_url\" = $1"
         };
 
         let c = &self.base.db.client;
@@ -1363,9 +1328,9 @@ impl Database {
     /// * `url` - group name
     pub async fn get_group_by_name(&self, url: String) -> DefaultReturn<Option<Group<String>>> {
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "SELECT * FROM \"Groups\" WHERE \"name\" = ?"
+            "SELECT * FROM \"cr_groups\" WHERE \"name\" = ?"
         } else {
-            "SELECT * FROM \"Groups\" WHERE \"name\" = $1"
+            "SELECT * FROM \"cr_groups\" WHERE \"name\" = $1"
         };
 
         let c = &self.base.db.client;
@@ -1417,9 +1382,9 @@ impl Database {
 
         // create group
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "INSERT INTO \"Groups\" VALUES (?, ?, ?)"
+            "INSERT INTO \"cr_groups\" VALUES (?, ?, ?)"
         } else {
-            "INSERT INTO \"Groups\" VALUES ($1, $2, $3)"
+            "INSERT INTO \"cr_groups\" VALUES ($1, $2, $3)"
         };
 
         let c = &self.base.db.client;
@@ -1446,132 +1411,6 @@ impl Database {
             success: true,
             message: String::from("Paste created"),
             payload: Option::Some(p.name.to_string()),
-        };
-    }
-
-    // boards
-
-    // GET
-    /// Get all [`UserMailStreamIdentifier`] boards by a single participating user
-    ///
-    /// # Arguments:
-    /// * `user` - username of the user
-    /// * `offset` - optional value representing the SQL fetch offset
-    pub async fn get_user_mail_streams(
-        &self,
-        user: String,
-        offset: Option<i32>,
-    ) -> DefaultReturn<Vec<BoardIdentifier>> {
-        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "SELECT * FROM \"Boards\" WHERE \"metadata\" LIKE ? OR \"metadata\" LIKE ? ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
-        } else {
-            "SELECT * FROM \"Boards\" WHERE \"metadata\" LIKE $1 OR \"metadata\" LIKE $2 ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $3"
-        };
-
-        let c = &self.base.db.client;
-        let res = sqlquery(query)
-            .bind::<String>(if &self.base.db._type == "mysql" {
-                format!("%\\\\\"user1\\\\\":\\\\\"{}\\\\\"%", user)
-            } else {
-                format!("%\\\"user1\\\":\\\"{}\\\"%", user)
-            })
-            .bind::<String>(if &self.base.db._type == "mysql" {
-                format!("%\\\\\"user2\\\\\":\\\\\"{}\\\\\"%", user)
-            } else {
-                format!("%\\\"user2\\\":\\\"{}\\\"%", user)
-            })
-            .bind(if offset.is_some() { offset.unwrap() } else { 0 })
-            .fetch_all(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Boards do not exist"),
-                payload: Vec::new(),
-            };
-        }
-
-        // ...
-        let rows = res.unwrap();
-        let mut output: Vec<BoardIdentifier> = Vec::new();
-
-        for row in rows {
-            let row = self.base.textify_row(row).data;
-
-            let metadata =
-                serde_json::from_str::<BoardMetadata>(row.get("metadata").unwrap()).unwrap();
-
-            let mailstream =
-                serde_json::from_str::<UserMailStreamIdentifier>(&metadata.about.unwrap()).unwrap();
-
-            output.push(BoardIdentifier {
-                name: row.get("name").unwrap().to_string(),
-                // we're going to use tags to store the name of the other user
-                tags: if user == mailstream.user1 {
-                    mailstream.user2
-                } else {
-                    mailstream.user1
-                },
-            });
-        }
-
-        // return
-        return DefaultReturn {
-            success: true,
-            message: String::from("Boards exists"),
-            payload: output,
-        };
-    }
-
-    /// Get most recent posts from all boards
-    ///
-    /// # Arguments:
-    /// * `offset` - optional value representing the SQL fetch offset
-    pub async fn fetch_most_recent_posts(
-        &self,
-        offset: Option<i32>,
-    ) -> DefaultReturn<Option<Vec<Log>>> {
-        // ...
-        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'board_post' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
-        } else {
-            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'board_post' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $1"
-        };
-
-        let c = &self.base.db.client;
-        let res = sqlquery(query)
-            .bind(if offset.is_some() { offset.unwrap() } else { 0 })
-            .fetch_all(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Failed to fetch posts"),
-                payload: Option::None,
-            };
-        }
-
-        // ...
-        let rows = res.unwrap();
-        let mut output: Vec<Log> = Vec::new();
-
-        for row in rows {
-            let row = self.base.textify_row(row).data;
-            output.push(Log {
-                id: row.get("id").unwrap().to_string(),
-                logtype: row.get("logtype").unwrap().to_string(),
-                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
-                content: row.get("content").unwrap().to_string(),
-            });
-        }
-
-        // return
-        return DefaultReturn {
-            success: true,
-            message: String::from("Successfully fetched posts"),
-            payload: Option::Some(output),
         };
     }
 }

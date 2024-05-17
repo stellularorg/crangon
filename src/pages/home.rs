@@ -33,23 +33,6 @@ struct DashboardTemplate {
     info: String,
     auth_state: bool,
     guppy: String,
-    puffer: String,
-    vibrant: String,
-    site_name: String,
-    body_embed: String,
-}
-
-#[derive(Template)]
-#[template(path = "user/inbox.html")]
-struct InboxTemplate {
-    boards: Vec<db::BoardIdentifier>,
-    offset: i32,
-    // required fields (super::base)
-    info: String,
-    auth_state: bool,
-    guppy: String,
-    puffer: String,
-    vibrant: String,
     site_name: String,
     body_embed: String,
 }
@@ -220,57 +203,6 @@ pub async fn dashboard_request(req: HttpRequest, data: web::Data<AppData>) -> im
                 info: base.info,
                 auth_state: base.auth_state,
                 guppy: base.guppy,
-                puffer: base.puffer,
-                vibrant: base.vibrant,
-                site_name: base.site_name,
-                body_embed: base.body_embed,
-            }
-            .render()
-            .unwrap(),
-        );
-}
-
-#[get("/dashboard/inbox")]
-/// Available at "/dashboard/inbox"
-pub async fn inbox_request(
-    req: HttpRequest,
-    data: web::Data<AppData>,
-    info: web::Query<crate::api::pastes::OffsetQueryProps>,
-) -> impl Responder {
-    // verify auth status
-    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
-
-    if token_user.is_none() {
-        // you must have an account to use the user dashboard
-        return super::errors::error401(req, data).await;
-    }
-
-    // get inboxes
-    let user = token_user.as_ref().unwrap().payload.as_ref().unwrap();
-    let boards_res = data
-        .db
-        .get_user_mail_streams(user.user.username.clone(), info.offset)
-        .await;
-
-    // ...
-    let base = base::get_base_values(token_user.is_some());
-    return HttpResponse::Ok()
-        .append_header(("Set-Cookie", set_cookie))
-        .append_header(("Content-Type", "text/html"))
-        .body(
-            InboxTemplate {
-                boards: boards_res.payload,
-                offset: if info.offset.is_some() {
-                    info.offset.unwrap()
-                } else {
-                    0
-                },
-                // required fields
-                info: base.info,
-                auth_state: base.auth_state,
-                guppy: base.guppy,
-                puffer: base.puffer,
-                vibrant: base.vibrant,
                 site_name: base.site_name,
                 body_embed: base.body_embed,
             }

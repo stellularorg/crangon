@@ -266,7 +266,7 @@ for (const element of Array.from(
     document.querySelectorAll('[data-wants-redirect="true"]')
 ) as HTMLAnchorElement[]) {
     element.href = `${element.href}?callback=${encodeURIComponent(
-        `${window.location.origin}/api/auth/callback`
+        `${window.location.origin}/api/v1/auth/callback`
     )}`;
 }
 

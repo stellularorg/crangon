@@ -3,9 +3,8 @@ use actix_web::{get, web, HttpRequest, Responder};
 
 use super::base;
 use askama::Template;
-use serde_json::json;
 
-use crate::db::{self, AppData, FullPaste, PasteMetadata, UserMetadata};
+use crate::db::{self, AppData, FullPaste, Paste, PasteMetadata};
 
 #[derive(Template)]
 #[template(path = "paste/password_ask.html")]
@@ -23,8 +22,8 @@ struct PasswordAskTemplate {
 #[template(path = "paste/paste_view.html")]
 struct PasteViewTemplate {
     title: String,
-    page_content: String,
     head_string: String,
+    paste: Paste<PasteMetadata>,
     // required fields (super::base)
     info: String,
     auth_state: bool,
@@ -47,45 +46,8 @@ struct DashboardTemplate {
     info: String,
     auth_state: bool,
     guppy: String,
-    puffer: String,
-    vibrant: String,
     site_name: String,
     body_embed: String,
-}
-
-pub fn paste_view_hb_template() -> String {
-    String::from("<div
-    id=\"editor-tab-preview\"
-    class=\"card round secondary tab-container secondary round\"
-    style=\"height: max-content; max-height: initial; margin-bottom: 0px;\"
->
-    {{{ content }}}
-</div>
-
-<div class=\"flex justify-space-between g-4 full\" id=\"paste-info-box\">
-    <div class=\"flex g-4 flex-wrap\">
-        {{{ edit_button }}}
-        {{{ config_button }}}
-    </div>
-
-    <div class=\"flex flex-column g-2\" style=\"color: var(--text-color-faded); min-width: max-content; align-items: flex-end;\">
-        <span class=\"flex g-4\" id=\"paste-info-pub\">
-            Pub: <span class=\"date-time-to-localize\">{{ pub_date }}</span>
-        </span>
-
-        <span class=\"flex g-4\" id=\"paste-info-edit\">
-            Edit: <span class=\"date-time-to-localize\">{{ edit_date }}</span>
-        </span>
-
-        {{#if owner_button}}
-        <span id=\"paste-info-owner\">
-            Owner: {{{ owner_button }}}
-        </span>
-        {{/if}}
-
-        <span id=\"paste-info-views\">Views: {{ views }}</span>
-    </div>
-</div>")
 }
 
 #[get("/{url:.*}")]
@@ -157,28 +119,6 @@ pub async fn paste_view_request(
             .body("You do not have permission to view this paste's contents.");
     }
 
-    // handle atomic pastes (just return index.html)
-    if unwrap.paste.content.contains("\"_is_atomic\":true") {
-        let real_content = serde_json::from_str::<db::AtomicPaste>(&unwrap.paste.content);
-
-        if real_content.is_err() {
-            return HttpResponse::NotAcceptable().body("Paste failed to deserialize");
-        }
-
-        let decoded = real_content.unwrap();
-        let index_html = decoded.files.iter().find(|f| f.path == "/index.html");
-
-        if index_html.is_none() {
-            return HttpResponse::NotAcceptable()
-                .append_header(("Content-Type", "text/plain"))
-                .body("Paste is missing a file at the path '/index.html'");
-        }
-
-        return HttpResponse::Ok()
-            .append_header(("Content-Type", "text/html"))
-            .body(index_html.unwrap().content.clone());
-    }
-
     // count view
     if token_user.is_some() && token_user.as_ref().unwrap().payload.is_some() {
         let payload = &token_user.as_ref().unwrap().payload;
@@ -220,85 +160,16 @@ pub async fn paste_view_request(
 
     // ...
     let paste = unwrap.clone().paste;
-    let user = unwrap.clone().user;
-
     let metadata = &paste.metadata;
-    let user_metadata = if user.is_some() {
-        Option::Some(
-            serde_json::from_str::<UserMetadata>(&user.as_ref().unwrap().user.metadata).unwrap(),
-        )
-    } else {
-        Option::None
-    };
-
-    // template things
-    let edit_button = format!("<a class=\"button round\" href=\"/?editing={}\">
-        <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-pencil\"><path d=\"M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z\"/><path d=\"m15 5 4 4\"/></svg>
-        Edit
-    </a>", &paste.custom_url);
-
-    let config_button = format!("<a href=\"/dashboard/settings/paste/{}\" class=\"button round\">
-        <svg xmlns=\"http://www.w3.org/2000/svg\" width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" class=\"lucide lucide-settings\"><path d=\"M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/></svg>
-        <span class=\"device:desktop\">Config</span>
-    </a>", &paste.custom_url);
-
-    let owner_button = if metadata.owner != "" {
-        format!("<a href=\"{}/{}\">{}</a>", &base.guppy, &metadata.owner, {
-            if user_metadata.is_some() && user_metadata.as_ref().unwrap().nickname.is_some() {
-                user_metadata.as_ref().unwrap().nickname.as_ref().unwrap()
-            } else {
-                &metadata.owner
-            }
-        })
-    } else {
-        String::new()
-    };
-
-    // render template
-    let default_template = &paste_view_hb_template();
-    let reg = handlebars::Handlebars::new();
-    let page = reg.render_template(
-        if metadata.page_template.is_some() && !metadata.page_template.as_ref().unwrap().is_empty()
-        {
-            metadata.page_template.as_ref().unwrap() // use provided template
-        } else {
-            default_template // use default template
-        },
-        &json!({
-            // paste info
-            "content": paste.content_html,
-            "pub_date": paste.pub_date,
-            "edit_date": paste.edit_date,
-            "views": paste.views,
-            // buttons
-            "edit_button": edit_button,
-            "config_button": config_button,
-            "owner_button": owner_button,
-            // full data
-            "paste": paste,
-            "metadata": metadata
-        }),
-    );
-
-    if page.is_err() {
-        return HttpResponse::NotAcceptable()
-            .append_header(("Set-Cookie", set_cookie))
-            .append_header(("Content-Type", "text/html"))
-            .body(page.err().unwrap().to_string());
-    }
-
-    // ...
-    // TODO: properly sanitize if needed
-    let page = page.unwrap().replace("fetch(", "fetch(\\");
 
     // ...
     let body_content = PasteViewTemplate {
-        page_content: page,
         title: if metadata.title.is_none() | title_unwrap.unwrap().is_empty() {
             url_c.clone()
         } else {
             title_unwrap.unwrap().clone()
         },
+        paste: paste.clone(),
         head_string: format!(
             "<meta property=\"og:url\" content=\"{}\" />
                     <meta property=\"og:title\" content=\"{}\" />
@@ -353,60 +224,6 @@ pub async fn paste_view_request(
         });
 }
 
-// #[get("/h/{url:.*}/{path:.*}")]
-#[get("/+{url:.*}/{path:.*}")]
-/// Available at "/+{custom_url}/{file_path}"
-pub async fn atomic_paste_view_request(
-    req: HttpRequest,
-    data: web::Data<AppData>,
-) -> impl Responder {
-    // get paste
-    let url: String = req.match_info().get("url").unwrap().to_string();
-    let path: String = req.match_info().get("path").unwrap().to_string();
-
-    let paste: db::DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
-        data.db.get_paste_by_url(url).await;
-
-    if paste.success == false {
-        return super::errors::error404(req, data).await;
-    }
-
-    let unwrap = paste.payload.as_ref().unwrap();
-
-    // handle atomic pastes (just return index.html)
-    if unwrap.paste.content.contains("\"_is_atomic\":true") {
-        let real_content = serde_json::from_str::<db::AtomicPaste>(&unwrap.paste.content);
-
-        if real_content.is_err() {
-            return HttpResponse::NotAcceptable().body("Paste failed to deserialize");
-        }
-
-        let decoded = real_content.unwrap();
-        let html_file = decoded
-            .files
-            .iter()
-            .find(|f| f.path == format!("/{}", path));
-
-        if html_file.is_none() {
-            return HttpResponse::NotAcceptable()
-                .body("Paste is missing a file at the requested path");
-        }
-
-        let content_type = match path.split(".").collect::<Vec<&str>>().pop().unwrap() {
-            "html" => "text/html",
-            "css" => "text/css",
-            "js" => "application/javascript",
-            _ => "text/plain",
-        };
-
-        return HttpResponse::Ok()
-            .append_header(("Content-Type", content_type))
-            .body(html_file.unwrap().content.clone());
-    } else {
-        return HttpResponse::NotAcceptable().body("Paste is not atomic (cannot select HTML file)");
-    }
-}
-
 #[get("/dashboard/pastes")]
 /// Available at "/dashboard/pastes"
 pub async fn dashboard_request(
@@ -449,8 +266,6 @@ pub async fn dashboard_request(
                 info: base.info,
                 auth_state: base.auth_state,
                 guppy: base.guppy,
-                puffer: base.puffer,
-                vibrant: base.vibrant,
                 site_name: base.site_name,
                 body_embed: base.body_embed,
             }

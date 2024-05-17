@@ -4,13 +4,11 @@ use dotenv;
 
 mod config;
 mod db;
-mod utility;
 
 mod api;
 mod pages;
 
 mod markdown;
-mod ssm;
 
 use crate::db::{AppData, Database};
 
@@ -111,11 +109,6 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::pastes::edit_request)
             .service(crate::api::pastes::delete_request)
             .service(crate::api::pastes::metadata_request)
-            // POST api::pastes SSM
-            .service(crate::api::pastes::render_ssm_request)
-            .service(crate::api::pastes::render_paste_ssm_request)
-            // atomic api
-            .service(crate::api::pastes::read_atomic_request)
             // GET api
             .service(crate::api::pastes::get_from_url_request)
             .service(crate::api::pastes::get_from_id_request)
@@ -124,13 +117,11 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::auth::logout)
             // GET dashboard
             .service(crate::pages::home::dashboard_request)
-            .service(crate::pages::home::inbox_request)
             .service(crate::pages::settings::user_settings_request)
             .service(crate::pages::settings::paste_settings_request)
             .service(crate::pages::paste_view::dashboard_request)
             // GET staff
             .service(crate::pages::staff::dashboard_request)
-            .service(crate::pages::staff::staff_boards_dashboard_request)
             .service(crate::pages::staff::staff_users_dashboard_request)
             // GET users
             .service(crate::api::auth::get_from_owner_request)
@@ -138,7 +129,6 @@ async fn main() -> std::io::Result<()> {
             .service(crate::pages::home::home_request)
             .service(crate::pages::home::robotstxt)
             .service(crate::pages::home::adstxt)
-            .service(crate::pages::paste_view::atomic_paste_view_request)
             .service(crate::pages::paste_view::paste_view_request) // must be run last as it matches all other paths!
             // ERRORS
             .default_service(web::to(|req, data| async {

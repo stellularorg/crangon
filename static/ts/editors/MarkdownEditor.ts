@@ -552,7 +552,7 @@ if (CustomURLInput)
         URLInputTimeout = setTimeout(async () => {
             // fetch url
             const exists =
-                (await (await fetch(`/api/exists/${value}`)).text()) === "true";
+                (await (await fetch(`/api/v1/exists/${value}`)).text()) === "true";
 
             if (!exists) {
                 // paste does not exist
@@ -606,7 +606,7 @@ if (
 // ...
 export async function ParseMarkdown(content: string): Promise<string> {
     return await (
-        await fetch("/api/markdown", {
+        await fetch("/api/v1/markdown", {
             method: "POST",
             body: JSON.stringify({
                 text: content,
@@ -629,7 +629,7 @@ if (!custom_url) {
     // create paste
     submit_form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const res = await fetch("/api/new", {
+        const res = await fetch("/api/v1/new", {
             method: "POST",
             body: JSON.stringify({
                 custom_url: submit_form.custom_url.value,
@@ -654,7 +654,7 @@ if (!custom_url) {
     // edit paste
     submit_form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const res = await fetch("/api/edit", {
+        const res = await fetch("/api/v1/edit", {
             method: "POST",
             body: JSON.stringify({
                 custom_url,
@@ -696,7 +696,7 @@ if (!custom_url) {
 
         if (!edit_password) return;
 
-        const res = await fetch("/api/delete", {
+        const res = await fetch("/api/v1/delete", {
             method: "POST",
             body: JSON.stringify({
                 custom_url,

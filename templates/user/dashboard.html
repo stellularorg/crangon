@@ -14,8 +14,6 @@
     <div class="link-header-bottom">
         <a href="/dashboard" class="button active">Home</a>
         <a href="/dashboard/pastes" class="button">Pastes</a>
-        {% if vibrant != "" %} <a href="{{ vibrant }}/dashboard" class="button">Vibrant</a> {% endif %}
-        {% if puffer != "" %} <a href="{{ puffer }}/dashboard" class="button">Boards</a> {% endif %}
     </div>
 </div>
 
@@ -43,68 +41,6 @@
         </a>
     </div>
 
-    {% if vibrant != "" %}
-    <div class="card secondary round flex justify-space-between align-center g-4">
-        <b>Vibrant Projects</b>
-
-        <a class="button theme:primary round" href="{{ vibrant }}/dashboard/projects">
-            Go
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="lucide lucide-arrow-right">
-                <path d="M5 12h14" />
-                <path d="m12 5 7 7-7 7" />
-            </svg>
-        </a>
-    </div>
-    {% endif %}
-
-    <hr />
-
-    <div class="card secondary round flex justify-space-between align-center g-4">
-        <b>Site Settings</b>
-
-        <a class="button theme:primary round" href="/dashboard/settings">
-            Go
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="lucide lucide-arrow-right">
-                <path d="M5 12h14" />
-                <path d="m12 5 7 7-7 7" />
-            </svg>
-        </a>
-    </div>
-
-    {% if puffer != "" %}
-    <div class="card secondary round flex justify-space-between align-center g-4">
-        <b>My Boards</b>
-
-        <a class="button theme:primary round" href="{{ puffer }}/dashboard">
-            Go
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="lucide lucide-arrow-right">
-                <path d="M5 12h14" />
-                <path d="m12 5 7 7-7 7" />
-            </svg>
-        </a>
-    </div>
-
-    <div class="card secondary round flex justify-space-between align-center g-4">
-        <b>My Inboxes</b>
-
-        <a class="button theme:primary round" href="/dashboard/inbox">
-            Go
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                class="lucide lucide-arrow-right">
-                <path d="M5 12h14" />
-                <path d="m12 5 7 7-7 7" />
-            </svg>
-        </a>
-    </div>
-    {% endif %}
-
     <div class="card secondary round flex justify-space-between align-center g-4">
         <b>My Profile</b>
 
@@ -123,6 +59,20 @@
         <b>Account Settings</b>
 
         <a class="button theme:primary round" href="{{ guppy }}/{{ user.username }}/settings">
+            Go
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-arrow-right">
+                <path d="M5 12h14" />
+                <path d="m12 5 7 7-7 7" />
+            </svg>
+        </a>
+    </div>
+
+    <div class="card secondary round flex justify-space-between align-center g-4">
+        <b>Site Settings</b>
+
+        <a class="button theme:primary round" href="/dashboard/settings">
             Go
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"

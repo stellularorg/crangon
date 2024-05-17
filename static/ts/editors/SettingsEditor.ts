@@ -150,7 +150,7 @@ export function paste_settings(
         const password = prompt("Please enter this paste's edit password:");
         if (!password) return;
 
-        const res = await fetch("/api/metadata", {
+        const res = await fetch("/api/v1/metadata", {
             method: "POST",
             body: JSON.stringify({
                 custom_url: paste,

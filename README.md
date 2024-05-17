@@ -1,16 +1,12 @@
-# ☄️ bundlrs
+# 🦐 Crangon
 
-*Bundlrs* is a rewrite of [Bundles](https://codeberg.org/SentryTwo/bundles) in Rust without some of the extra features.
+*Crangon* (named after the "Crangon crangon") is a fork of [Bundlrs](https://code.stellular.org/stellular/bundlrs) focused on a better user and admin experience.
 
-Bundlrs is a *super* lightweight and [anonymous](#user-accounts) social markdown platform featuring pastes with custom URLs, quick and full deletion, easy editing, live preview, advanced styling, and [much more](#features)!
-
-For migration from Bundles, please see [#3](https://code.stellular.org/stellular/bundlrs/issues/3).
-
-> Also see [Puffer](https://code.stellular.org/stellular/puffer) and [Guppy](https://code.stellular.org/stellular/guppy)! (required)
+> Crangon optionally enables [Guppy](https://code.stellular.org/stellular/guppy) support for paste ownership!
 
 ## Install
 
-Bundlrs provides build scripts using [just](https://github.com/casey/just). It is required that `bun`, `just`, `redis`, and (obviously) Rust are installed before running.
+Crangon provides build scripts using [just](https://github.com/casey/just). It is required that `bun`, `just`, `redis`, and (obviously) Rust are installed before running.
 
 Build:
 
@@ -36,11 +32,11 @@ just test
 just run
 ```
 
-Bundlrs supports the features `sqlite`, `postgres`, and `mysql`. These features dictate which database types will be used.
+Crangon supports the features `sqlite`, `postgres`, and `mysql`. These features dictate which database types will be used.
 
 ## Configuration
 
-Bundlrs is configured through flags given when running the server. The following flags are available:
+Crangon is configured through flags given when running the server. The following flags are available:
 
 - `--port 0000` optional (defaults to `8080`)
 - `--static-dir "/path/to/dir` optional (defaults to `./static`)
@@ -54,7 +50,7 @@ Environment variables:
 - `DB_USER "user"` **required** (only if `--db-type` is `postgres` or `mysql`)
 - `DB_PASS "pass"` **required** (only if `--db-type` is `postgres` or `mysql`)
 - `DB_NAME "name"` **required** (only if `--db-type` is `postgres` or `mysql`)
-- `SITE_NAME "name"` optional (defaults to `Bundlrs`)
+- `SITE_NAME "name"` optional (defaults to `Crangon`)
 - `AUTH_REQUIRED` optional (defaults to `(None)`), disables creating pastes without an account
 - `REGISTRATION_DISABLED` optional (defaults to `(None)`)
 
@@ -102,3 +98,11 @@ Here's an example `content` value for a basic staff role with all permissions:
     ]
 }
 ```
+
+## Versus Bundlrs
+
+- Crangon has **no** support for Puffer or Vibrant
+- Crangon has *partial* support for Guppy
+- Crangon does **not** support some Markdown features of Bundlrs
+- Crangon makes difference API design choices
+- Crangon has slight front-end UI differences

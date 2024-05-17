@@ -125,7 +125,7 @@ if (create_form) {
     // create board
     create_form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const res = await fetch(`/api/board/${board_name}/posts`, {
+        const res = await fetch(`/api/v1/board/${board_name}/posts`, {
             method: "POST",
             body: JSON.stringify({
                 content: create_form.content.value,

@@ -61,11 +61,11 @@
     --diff: 9%;
 
     /* main colors */
-    --primary: hsl(0, 100%, 80%);
-    --primary-low: hsl(0, 100%, 76%);
+    --primary: hsl(21, 100%, 81%);
+    --primary-low: hsl(21, 100%, 77%);
 
-    --secondary: hsl(180, 80%, 70%);
-    --secondary-low: hsl(180, 70%, 66%);
+    --secondary: hsl(351, 100%, 81%);
+    --secondary-low: hsl(351, 100%, 77%);
 
     --blue3: hsl(208, 98%, 40%);
     --blue3a: hsla(208, 98%, 40%, 50%);
@@ -75,7 +75,7 @@
     /* default colors (dark) */
     --base-hue: 0;
     --base-sat: 0%;
-    --base-lit: 15%;
+    --base-lit: 12%;
 
     --mod: +;
     --diff: 0%;

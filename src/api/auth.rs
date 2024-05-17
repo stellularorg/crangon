@@ -7,7 +7,7 @@ pub struct CallbackQueryProps {
                              // the uid will also be sent to the client as a token on GUPPY_ROOT, meaning we'll have signed in here and there!
 }
 
-#[get("/api/auth/callback")]
+#[get("/api/v1/auth/callback")]
 pub async fn callback_request(info: web::Query<CallbackQueryProps>) -> impl Responder {
     let set_cookie = if info.uid.is_some() {
         format!("__Secure-Token={}; SameSite=Lax; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age={}", info.uid.as_ref().unwrap(), 60 * 60 * 24 * 365)
@@ -29,7 +29,7 @@ pub async fn callback_request(info: web::Query<CallbackQueryProps>) -> impl Resp
         );
 }
 
-#[get("/api/auth/logout")]
+#[get("/api/v1/auth/logout")]
 pub async fn logout(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
     let cookie = req.cookie("__Secure-Token");
 
@@ -53,7 +53,7 @@ pub async fn logout(req: HttpRequest, data: web::Data<AppData>) -> impl Responde
         .body("You have been signed out. You can now close this tab.");
 }
 
-#[get("/api/auth/users/{name:.*?}/pastes")]
+#[get("/api/v1/auth/users/{name:.*?}/pastes")]
 /// Get all pastes by owner
 pub async fn get_from_owner_request(
     req: HttpRequest,
@@ -75,7 +75,7 @@ pub async fn get_from_owner_request(
         );
 }
 
-#[post("/api/auth/users/{name:.*?}/ban")]
+#[post("/api/v1/auth/users/{name:.*?}/ban")]
 /// Ban user
 pub async fn ban_request(req: HttpRequest, data: web::Data<db::AppData>) -> impl Responder {
     let name: String = req.match_info().get("name").unwrap().to_string();
