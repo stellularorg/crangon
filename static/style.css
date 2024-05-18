@@ -650,7 +650,7 @@ table td:focus-within {
     padding: 5px;
     background: var(--background-surface1);
     /* border-bottom: solid 1px var(--background-surface2a); */
-    /* height: 35px !important; */
+    height: 42px !important;
     overflow: auto hidden;
 }
 
@@ -702,4 +702,9 @@ table td:focus-within {
 
 .editor_tab:not(.active) {
     display: none;
+}
+
+/* ... */
+.help_activator {
+    text-decoration: underline dotted;
 }

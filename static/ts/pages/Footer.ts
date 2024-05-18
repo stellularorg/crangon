@@ -310,5 +310,19 @@ for (const element of Array.from(
     });
 }
 
+window.addEventListener("click", (e: any) => {
+    if (e.target.tagName !== "DIALOG") return;
+
+    const rect = e.target.getBoundingClientRect();
+
+    const clicked_in_dialog =
+        rect.top <= e.clientY &&
+        e.clientY <= rect.top + rect.height &&
+        rect.left <= e.clientX &&
+        e.clientX <= rect.left + rect.width;
+
+    if (clicked_in_dialog === false) e.target.close();
+});
+
 // default export
 export default {};

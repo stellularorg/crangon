@@ -16,14 +16,13 @@ export function HandleCustomElements() {
 
     if (p.get("SECRET")) {
         const s = document.getElementById("secret");
-        if (!s) return;
-        s.innerHTML = `<div class="mdnote note-warn">
-            <b class="mdnote-title">Application Secret</b>
-            <p>Don't lose your edit password! <code>${p
-                .get("SECRET")!
-                .replaceAll("<", "&lt;")
-                .replaceAll(">", "&gt;")}</code></p>
-        </div>`;
+        const s1 = document.getElementById("secret_body");
+        if (!s || !s1) return;
+        s.style.display = "block";
+        s1.innerHTML = `Don't lose your edit password! <code>${p
+            .get("SECRET")!
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")}</code>`;
     }
 
     // handle style elements

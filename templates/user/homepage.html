@@ -94,14 +94,22 @@ flex-column align-center"{% endblock %}
         <form class="flex flex-column g-8" id="save-changes">
             {% if edit_mode == false %}
             <div class="flex flex-column g-4">
-                <label for="custom_url" class="full">Custom URL</label>
+                <label for="custom_url" class="full">
+                    Custom URL
+                    <span class="help_activator"
+                        title="Where the paste is accessible from. Don't worry, you can leave this blank and get a random one.">(?)</span>
+                </label>
 
                 <input class="secondary round" type="text" placeholder="Custom URL" minlength="2" maxlength="500"
                     name="custom_url" id="custom_url" autocomplete="off" />
             </div>
 
             <div class="flex flex-column g-4">
-                <label for="edit_password" class="full">Edit Password</label>
+                <label for="edit_password" class="full">
+                    Edit Password
+                    <span class="help_activator"
+                        title="Used to edit the paste. Don't worry, you can leave this blank and get a random one.">(?)</span>
+                </label>
 
                 <input class="secondary round" type="text" placeholder="Edit Password" minlength="5"
                     name="edit_password" id="edit_password" />

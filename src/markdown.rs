@@ -244,6 +244,9 @@ pub fn parse_markdown(mut original_in: String) -> String {
     out = regex_replace(&out, "(<link.*>)", "");
     out = regex_replace(&out, "(<meta.*>)", "");
 
+    out = regex_replace(&out, "(%3C)script(%3E)", ""); // iframe <script> in "data:" src
+    out = regex_replace(&out, "(%3C)link", "");
+
     // return
     out
 }
