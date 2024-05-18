@@ -4,6 +4,7 @@ use dotenv;
 
 mod config;
 mod db;
+mod log_db;
 
 mod api;
 mod pages;

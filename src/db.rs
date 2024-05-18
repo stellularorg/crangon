@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 
 use dorsal::query as sqlquery;
 
+use crate::log_db;
+
 #[derive(Clone)]
 pub struct AppData {
     pub db: Database,
@@ -145,7 +147,7 @@ pub struct BoardIdentifier {
 pub struct Database {
     pub base: dorsal::StarterDatabase,
     pub auth: dorsal::AuthDatabase,
-    pub logs: dorsal::LogDatabase,
+    pub logs: log_db::LogDatabase,
 }
 
 impl Database {
@@ -155,7 +157,7 @@ impl Database {
         Database {
             base: db.clone(),
             auth: dorsal::AuthDatabase { base: db.clone() },
-            logs: dorsal::LogDatabase { base: db },
+            logs: log_db::LogDatabase { base: db },
         }
     }
 
@@ -205,7 +207,7 @@ impl Database {
         .await;
 
         let _ = sqlquery(
-            "CREATE TABLE IF NOT EXISTS \"Logs\" (
+            "CREATE TABLE IF NOT EXISTS \"cr_logs\" (
                 id VARCHAR(1000000),
                 logtype VARCHAR(1000000),
                 timestamp  VARCHAR(1000000),
@@ -360,9 +362,9 @@ impl Database {
 
         // count views
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "SELECT \"ID\" FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE ?"
+            "SELECT \"ID\" FROM \"cr_logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE ?"
         } else {
-            "SELECT \"ID\" FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE $1"
+            "SELECT \"ID\" FROM \"cr_logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE $1"
         };
 
         let views_res = sqlquery(query)
@@ -1132,9 +1134,9 @@ impl Database {
 
         // check for existing view log
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE ?"
+            "SELECT * FROM \"cr_logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE ?"
         } else {
-            "SELECT * FROM \"Logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE $1"
+            "SELECT * FROM \"cr_logs\" WHERE \"logtype\" = 'view_paste' AND \"content\" LIKE $1"
         };
 
         let c = &self.base.db.client;
@@ -1289,9 +1291,9 @@ impl Database {
 
         // delete paste views
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "DELETE FROM \"Logs\" WHERE \"content\" LIKE ?"
+            "DELETE FROM \"cr_logs\" WHERE \"content\" LIKE ?"
         } else {
-            "DELETE FROM \"Logs\" WHERE \"content\" LIKE $1"
+            "DELETE FROM \"cr_logs\" WHERE \"content\" LIKE $1"
         };
 
         let c = &self.base.db.client;

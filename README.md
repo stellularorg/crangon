@@ -76,13 +76,10 @@ Users can register for an account with just a username. They are given a unique 
 ### User Permissions
 
 - `ManagePastes` - Ability to manage (edit metadata, delete) any paste
-- `ManageBoards` - Ability to manage (edit metadata, delete, view even with `is_private`) any board
-- `ManageBoardPosts` - Ability to manage (edit tags, delete) any board post
-- `EditBoardPosts` - Ability to manage (edit) any board post
 - `ManageUsers` - Ability to manage (edit metadata, delete) any user
 - `StaffDashboard` - Ability to view the staff dashboard (`/d/staff`), as well as be unable to be viewed in the user manager
 
-Levels should be directly managed by managing entries in the `Logs` table. Levels **must** have a `logtype` value of `level`. Their `content` should be in a JSON-serialized format following the structure defined [here](https://stellular.net/api/docs/bundlrs/db/bundlesdb/struct.RoleLevel.html). Their `elevation` should be an int between `-999` and `1000`. An elevation of `-1000` is used for anonymous users.
+Levels should be directly managed by managing entries in the `cr_logs` table. Levels **must** have a `logtype` value of `level`. Their `content` should be in a JSON-serialized format following the structure defined [here](https://stellular.net/api/docs/bundlrs/db/bundlesdb/struct.RoleLevel.html). Their `elevation` should be an int between `-999` and `1000`. An elevation of `-1000` is used for anonymous users.
 
 Here's an example `content` value for a basic staff role with all permissions:
 

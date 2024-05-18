@@ -9,5 +9,6 @@
 pub mod api;
 mod config;
 pub mod db;
+pub mod log_db;
 pub mod markdown;
 pub mod pages;
