@@ -2,7 +2,8 @@
 
 {% block title %}{{ site_name }}{% endblock %}
 
-{% block container_stuff %}style="height: calc(100% - 1rem);"{% endblock %}
+{% block container_stuff %}style="height: calc(100% - 1rem); padding: var(--u-04)
+!important; margin: 0 auto !important;"{% endblock %}
 {% block main_stuff %}style="max-height: 100%; height: 100%; margin-bottom: 0; margin-top: 0;" class="flex
 flex-column align-center"{% endblock %}
 
@@ -132,7 +133,7 @@ flex-column align-center"{% endblock %}
             </dialog>
 
             <div class="flex g-4">
-                <button class="round green" style="width: 75%;">
+                <button class="round green" style="width: 70%;">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                         class="lucide lucide-save" aria-label="Floppy symbol">
@@ -144,7 +145,8 @@ flex-column align-center"{% endblock %}
                     Save
                 </button>
 
-                <a class="button round secondary" href="javascript:document.getElementById('upper:more').showModal();">
+                <a class="button round secondary" href="javascript:document.getElementById('upper:more').showModal();"
+                    style="width: 30%;">
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                         class="lucide lucide-rectangle-ellipsis" aria-label="Ellipsis symbol">
