@@ -552,7 +552,8 @@ if (CustomURLInput)
         URLInputTimeout = setTimeout(async () => {
             // fetch url
             const exists =
-                (await (await fetch(`/api/v1/exists/${value}`)).text()) === "true";
+                (await (await fetch(`/api/v1/exists/${value}`)).text()) ===
+                "true";
 
             if (!exists) {
                 // paste does not exist
@@ -685,7 +686,7 @@ if (!custom_url) {
 
     delete_btn.addEventListener("click", async () => {
         const _confirm = confirm(
-            "Are you sure you would like to do this? This URL will be available for anybody to claim."
+            "Are you sure you would like to do this? This URL will be available for anybody to claim. (just double checking!)"
         );
 
         if (!_confirm) return;

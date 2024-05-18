@@ -2,8 +2,9 @@
 
 {% block title %}{{ site_name }}{% endblock %}
 
-{% block main_stuff %}style="max-height: 100%; height: 100%; margin-bottom: 0; margin-top: 0;" class="flex flex-column
-align-center"{% endblock %}
+{% block container_stuff %}style="height: calc(100% - 1rem);"{% endblock %}
+{% block main_stuff %}style="max-height: 100%; height: 100%; margin-bottom: 0; margin-top: 0;" class="flex
+flex-column align-center"{% endblock %}
 
 {% block content %}
 <div class="flex flex-column full">
@@ -158,8 +159,48 @@ align-center"{% endblock %}
                 <a href="/{{ editing }}" class="button round">Cancel</a>
             </div>
 
-            <a href="javascript:" id="delete-btn" class="button round red">Delete</a>
+            <a href="#" data-dialog="delete-modal" class="button round red">Delete</a>
         </div>
+
+        <style>
+            footer hr.small {
+                display: none;
+            }
+
+            @media screen and (max-width: 900px) {
+                main {
+                    height: 100%;
+                }
+            }
+        </style>
+
+        <dialog id="delete-modal">
+            <div style="width: 25rem; max-width: 100%;">
+                <h2 class="no-margin full text-center">Delete this paste?</h2>
+
+                <hr />
+
+                <p>If you delete this paste, the following <b>cannot be undone</b>:</p>
+
+                <ul>
+                    <li>This paste's custom url will be available to anybody</li>
+                    <li>This paste's content will be deleted from the server and its cache</li>
+                    <li>You will not be able to get this custom url back if it is claimed by somebody else</li>
+                </ul>
+
+                <p>Are you sure you would like to continue?</p>
+
+                <hr />
+
+                <div class="full flex justify-right g-4">
+                    <a class="button round green" href="javascript:document.getElementById('delete-modal').close();">
+                        Cancel
+                    </a>
+
+                    <a href="javascript:" id="delete-btn" class="button round red">Delete</a>
+                </div>
+            </div>
+        </dialog>
         {% endif %}
     </form>
 

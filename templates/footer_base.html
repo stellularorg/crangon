@@ -3,7 +3,7 @@
 {% block base_content %}
 <!-- page content -->
 <div id="_page" style="display: contents;">
-    <main class="flex flex-column justify-space-between">
+    <main class="flex flex-column justify-space-between" {% block container_stuff %}{% endblock %}>
         <div id="_footer_base_page" {% block main_stuff %}{% endblock %}>
             {% block content %}{% endblock %}
         </div>
