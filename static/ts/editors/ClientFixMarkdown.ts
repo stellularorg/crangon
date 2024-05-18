@@ -35,15 +35,9 @@ export function HandleCustomElements() {
 
     // ...theme customization
     if (CanSetCustomTheme) {
-        const hue = document.querySelector(
-            "#editor-tab-preview hue"
-        ) as HTMLElement;
-        const sat = document.querySelector(
-            "#editor-tab-preview sat"
-        ) as HTMLElement;
-        const lit = document.querySelector(
-            "#editor-tab-preview lit"
-        ) as HTMLElement;
+        const hue = document.querySelector("#tab\\:preview hue") as HTMLElement;
+        const sat = document.querySelector("#tab\\:preview sat") as HTMLElement;
+        const lit = document.querySelector("#tab\\:preview lit") as HTMLElement;
 
         // ...
         if (hue) style += `--base-hue: ${hue.innerText};`;
@@ -57,7 +51,7 @@ export function HandleCustomElements() {
 
         // handle class elements
         const themes = document.querySelectorAll(
-            "#editor-tab-preview theme"
+            "#tab\\:preview theme"
         ) as any as HTMLElement[];
 
         if (themes.length > 0) {
@@ -105,7 +99,7 @@ export function HandleCustomElements() {
 
     // if bundles:user.DisableCustomPasteCSS is true, delete all style elements
     const styleElements = Array.from(
-        document.querySelectorAll("#editor-tab-preview style")
+        document.querySelectorAll("#tab\\:preview style")
     );
 
     if (
@@ -116,9 +110,7 @@ export function HandleCustomElements() {
 
         // disable custom-color
         for (const element of Array.from(
-            document.querySelectorAll(
-                '#editor-tab-preview [role="custom-color"]'
-            )
+            document.querySelectorAll('#tab\\:preview [role="custom-color"]')
         ))
             (element as HTMLElement).style.color = "";
     }
@@ -151,7 +143,7 @@ export default async function ClientFixMarkdown() {
 
     // escape all code blocks
     for (const block of Array.from(
-        document.querySelectorAll("#editor-tab-preview pre code")
+        document.querySelectorAll("#tab\\:preview pre code")
     )) {
         (block as HTMLElement).innerHTML = (block as HTMLElement).innerHTML
             .replaceAll("<", "&lt;")
