@@ -629,7 +629,7 @@ impl Database {
             title: Option::Some(String::new()),
             description: Option::Some(String::new()),
             favicon: Option::None,
-            embed_color: Option::Some(String::from("#ff9999")),
+            embed_color: Option::Some(String::from("#ffc09e")),
             view_password: Option::None,
         };
 
@@ -907,6 +907,7 @@ impl Database {
         // if we're changing url, make sure this paste doesn't already exist
         if new_url.is_some() {
             let existing = &self.get_paste_by_url(new_url.clone().unwrap()).await;
+
             if existing.success {
                 return DefaultReturn {
                     success: false,
@@ -914,6 +915,9 @@ impl Database {
                     payload: Option::None,
                 };
             }
+
+            // remove this paste's old cache entry
+            self.base.cachedb.remove(format!("paste:{}", url)).await;
         }
 
         let mut custom_url = if new_url.is_some() {

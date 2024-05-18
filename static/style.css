@@ -17,14 +17,9 @@
     min-height: 15rem;
 }
 
-.tabbar button:not(.full-normal),
-.tabbar .button:not(.full-normal) {
-    border-radius: var(--roundness) var(--roundness) 0 0;
-}
-
 @media screen and (max-width: 900px) {
     .tab-container {
-        max-height: 65vh;
+        /* max-height: 65vh; */
         padding: 1rem;
     }
 
@@ -33,20 +28,16 @@
     }
 }
 
-.-editor:not(.active) {
-    display: none;
-}
-
-#editor-tab-preview h1 {
+#tab\:preview h1 {
     margin: 3.5rem auto 2.5rem auto;
 }
 
-#editor-tab-preview h1,
-#editor-tab-preview h2,
-#editor-tab-preview h3,
-#editor-tab-preview h4,
-#editor-tab-preview h5,
-#editor-tab-preview h6 {
+#tab\:preview h1,
+#tab\:preview h2,
+#tab\:preview h3,
+#tab\:preview h4,
+#tab\:preview h5,
+#tab\:preview h6 {
     max-width: 100%;
 }
 
@@ -425,6 +416,10 @@ select:focus {
     z-index: 100;
 }
 
+.link-list.secondary {
+    background: var(--background-surface1);
+}
+
 .link-list .option.small {
     padding: var(--u-04) var(--u-10);
 }
@@ -432,7 +427,7 @@ select:focus {
 .link-list .option {
     height: max-content;
     display: flex;
-    justify-content: center;
+    justify-content: start;
     background: transparent;
     padding: var(--u-10);
 }
@@ -443,6 +438,13 @@ select:focus {
 
 .link-list .option:hover {
     background: var(--background-surface1a);
+    box-shadow: none;
+}
+
+@media screen and (max-width: 900px) {
+    .link-list {
+        left: 0 !important;
+    }
 }
 
 /* link header */
@@ -640,5 +642,64 @@ table td:focus-within {
 }
 
 .footernav .item:first-child:before {
+    display: none;
+}
+
+/* topbar */
+.editor_topbar {
+    padding: 5px;
+    background: var(--background-surface1);
+    /* border-bottom: solid 1px var(--background-surface2a); */
+    /* height: 35px !important; */
+    overflow: auto hidden;
+}
+
+.editor_topbar span {
+    --height: 30px;
+    height: var(--height) !important;
+    min-height: var(--height) !important;
+    padding: 0 var(--u-08);
+    font-size: 16px;
+}
+
+.editor_topbar button,
+.editor_topbar .button {
+    --height: 30px;
+    font-size: 16px;
+    padding: 0 var(--u-08);
+    background: transparent;
+    border-radius: var(--u-02);
+    height: var(--height) !important;
+    min-height: var(--height) !important;
+}
+
+.editor_topbar button:hover,
+.editor_topbar .button:hover {
+    background: var(--background-surface2a);
+    box-shadow: none;
+}
+
+.editor_topbar button.active,
+.editor_topbar .button.active {
+    background: var(--background-surface2a);
+}
+
+.editor_topbar button.active:not(:focus),
+.editor_tabbar .button.active:not(:focus) {
+    box-shadow: none !important;
+}
+
+.editor_topbar button.secondary,
+.editor_topbar .button.secondary {
+    background: var(--background-surface);
+}
+
+.link-list {
+    height: max-content;
+    max-height: 100vh;
+    overflow: hidden auto;
+}
+
+.editor_tab:not(.active) {
     display: none;
 }

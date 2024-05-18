@@ -3,7 +3,7 @@ name = "crangon"
 authors = ["hkau"]
 license = "MIT"
 
-version = "0.13.3-crangon"
+version = "0.14.0-crangon"
 edition = "2021"
 
 rust-version = "1.75"

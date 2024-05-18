@@ -7,13 +7,15 @@
 flex-column align-center"{% endblock %}
 
 {% block content %}
-<div class="flex flex-column full">
-    <div class="tabbar justify-space-between full">
-        <div class="flex">
-            <button id="editor-open-tab-text">
+<div class="flex flex-column full g-4" style="height: 100%;">
+    <div class="card round editor_topbar justify-space-between full flex">
+        <!-- global menu -->
+        <div class="flex g-4">
+            <button title="Text Editor Mode" onclick="window.switch_tab(event.target, 'tab:text')"
+                class="tab_button active">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    class="lucide lucide-pencil-line">
+                    class="lucide lucide-pencil-line" aria-label="Pencil writing symbol">
                     <path d="M12 20h9" />
                     <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
                     <path d="m15 5 3 3" />
@@ -21,196 +23,222 @@ flex-column align-center"{% endblock %}
                 Text
             </button>
 
-            <button id="editor-open-tab-preview" class="secondary">
+            <button title="Preview Mode" onclick="window.switch_tab(event.target, 'tab:preview')" class="tab_button">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    class="lucide lucide-eye">
+                    class="lucide lucide-eye" aria-label="Eye symbol">
                     <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
                     <circle cx="12" cy="12" r="3" />
                 </svg>
                 Preview
             </button>
         </div>
-    </div>
 
-    <div id="-editor" class="tab-container card secondary round"
-        style="border-top-left-radius: 0px !important; padding: var(--u-10) !important;">
-        <div id="editor-tab-text" class="editor-tab -editor active" style="height: 100%;"></div>
-        <div id="editor-tab-preview" class="editor-tab -editor"></div>
-    </div>
-
-    <form class="flex flex-wrap mobile:justify-center justify-space-between g-4 align-center" id="save-changes">
-        {% if edit_mode == false %}
-        <div class="device:desktop mobile:justify-center flex g-4 justify-start">
-            <button class="round">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+        <!-- window options -->
+        <div class="flex g-4">
+            <button title="Publish Content" class="secondary" aria-label="Publish Content" data-dialog="upper:publish">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    class="lucide lucide-plus">
-                    <path d="M5 12h14" />
-                    <path d="M12 5v14" />
+                    class="lucide lucide-smile" aria-label="Smile symbol">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M8 14s1.5 2 4 2 4-2 4-2" />
+                    <line x1="9" x2="9.01" y1="9" y2="9" />
+                    <line x1="15" x2="15.01" y1="9" y2="9" />
                 </svg>
                 Publish
             </button>
 
-            <a class="button round secondary" href="javascript:document.getElementById('more-modal').showModal();">
+            {% if edit_mode == true %}
+            <button data-dialog="upper:delete" class="round red" title="Delete Paste">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    class="lucide lucide-rectangle-ellipsis">
-                    <rect width="20" height="12" x="2" y="6" rx="2" />
-                    <path d="M12 12h.01" />
-                    <path d="M17 12h.01" />
-                    <path d="M7 12h.01" />
+                    class="lucide lucide-trash-2" aria-label="Trash bin symbol">
+                    <path d="M3 6h18" />
+                    <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                    <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                    <line x1="10" x2="10" y1="11" y2="17" />
+                    <line x1="14" x2="14" y1="11" y2="17" />
                 </svg>
-                More
-            </a>
-        </div>
-
-        <div class="flex g-4 justify-start">
-            <input class="secondary round" type="text" placeholder="Custom URL" minlength="2" maxlength="500"
-                name="custom_url" id="custom_url" autocomplete="off" />
-
-            <input class="secondary round" type="text" placeholder="Edit Password" minlength="5" name="edit_password"
-                id="edit_password" />
-        </div>
-
-        <div class="full device:mobile mobile:flex mobile:justify-center flex g-4 justify-start">
-            <button class="round">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    class="lucide lucide-plus">
-                    <path d="M5 12h14" />
-                    <path d="M12 5v14" />
-                </svg>
-                Publish
             </button>
 
-            <a class="button round secondary" href="javascript:document.getElementById('more-modal').showModal();">
+            <a href="/{{ editing }}" class="button round" title="Cancel Edit" aria-label="Cancel Edit">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    class="lucide lucide-rectangle-ellipsis">
-                    <rect width="20" height="12" x="2" y="6" rx="2" />
-                    <path d="M12 12h.01" />
-                    <path d="M17 12h.01" />
-                    <path d="M7 12h.01" />
+                    class="lucide lucide-x" aria-label="X symbol">
+                    <path d="M18 6 6 18" />
+                    <path d="m6 6 12 12" />
                 </svg>
-                More
             </a>
-        </div>
-
-        <style>
-            @media screen and (max-width: 900px) {
-                #custom_url {
-                    width: 50%;
-                }
-
-                #edit_password {
-                    width: 50%;
-                }
-            }
-        </style>
-
-        <dialog id="more-modal">
-            <div style="width: 25rem; max-width: 100%;">
-                <h2 class="no-margin full text-center">More Options</h2>
-
-                <hr />
-
-                <details class="full round">
-                    <summary>Group Settings</summary>
-
-                    <div class="card secondary">
-                        <input class="full secondary round" type="text" placeholder="Group Name" minlength="2"
-                            maxlength="500" name="group_name" id="group_name" autocomplete="off" />
-                    </div>
-                </details>
-
-                <hr />
-
-                <div class="full flex justify-right">
-                    <a class="button round red" href="javascript:document.getElementById('more-modal').close();">
-                        Close
-                    </a>
-                </div>
-            </div>
-        </dialog>
-        {% else %}
-        <div class="mobile:justify-center flex g-4 justify-start full mobile:flex-column">
-            {% if password_not_needed == false %}
-            <input class="secondary round full" type="text" placeholder="Edit Password" minlength="5"
-                name="edit_password" />
-            {% else %}
-            <input class="secondary round full" type="text" placeholder="Passwordless Enabled" minlength="5"
-                name="edit_password" disabled />
             {% endif %}
-
-            <input class="secondary round full" type="text" placeholder="New Edit Password (optional)" minlength="5"
-                name="new_edit_password" />
-
-            <input class="secondary round full" type="text" placeholder="New Custom URL (optional)" minlength="2"
-                maxlength="500" name="new_custom_url" id="new_custom_url" autocomplete="off" />
         </div>
+    </div>
 
-        <div class="flex g-4 justify-space-between full">
-            <div class="flex g-4 justify-start">
-                <button class="green round">
-                    Save
-                </button>
-
-                <a href="/{{ editing }}" class="button round">Cancel</a>
-            </div>
-
-            <a href="#" data-dialog="delete-modal" class="button round red">Delete</a>
-        </div>
-
-        <style>
-            footer hr.small {
-                display: none;
-            }
-
-            @media screen and (max-width: 900px) {
-                main {
-                    height: 100%;
-                }
-            }
-        </style>
-
-        <dialog id="delete-modal">
-            <div style="width: 25rem; max-width: 100%;">
-                <h2 class="no-margin full text-center">Delete this paste?</h2>
-
-                <hr />
-
-                <p>If you delete this paste, the following <b>cannot be undone</b>:</p>
-
-                <ul>
-                    <li>This paste's custom url will be available to anybody</li>
-                    <li>This paste's content will be deleted from the server and its cache</li>
-                    <li>You will not be able to get this custom url back if it is claimed by somebody else</li>
-                </ul>
-
-                <p>Are you sure you would like to continue?</p>
-
-                <hr />
-
-                <div class="full flex justify-right g-4">
-                    <a class="button round green" href="javascript:document.getElementById('delete-modal').close();">
-                        Cancel
-                    </a>
-
-                    <a href="javascript:" id="delete-btn" class="button round red">Delete</a>
-                </div>
-            </div>
-        </dialog>
-        {% endif %}
-    </form>
+    <div id="_doc" class="tab-container card secondary round" style="height: 100%;">
+        <div id="tab:text" class="editor_tab active" style="height: 100%;"></div>
+        <div id="tab:preview" class="editor_tab"></div>
+    </div>
 
     <script type="text/plain" style="display: none;" id="edit-mode">{{ edit_mode }}</script>
     <script type="text/plain" style="display: none;" id="editing">{{ editing }}</script>
 
     <script type="module">
         import CreateEditor from "/static/js/MarkdownEditor.js";
-        CreateEditor("editor-tab-text", `{{ starting_content|safe }}`);
+        CreateEditor("tab:text", `{{ starting_content|safe }}`);
     </script>
 </div>
+
+<!-- dialogs -->
+<dialog id="upper:publish">
+    <div style="width: 25rem; max-width: 100%;">
+        <form class="flex flex-column g-8" id="save-changes">
+            {% if edit_mode == false %}
+            <div class="flex flex-column g-4">
+                <label for="custom_url" class="full">Custom URL</label>
+
+                <input class="secondary round" type="text" placeholder="Custom URL" minlength="2" maxlength="500"
+                    name="custom_url" id="custom_url" autocomplete="off" />
+            </div>
+
+            <div class="flex flex-column g-4">
+                <label for="edit_password" class="full">Edit Password</label>
+
+                <input class="secondary round" type="text" placeholder="Edit Password" minlength="5"
+                    name="edit_password" id="edit_password" />
+            </div>
+
+            <dialog id="upper:more">
+                <div style="width: 25rem; max-width: 100%;">
+                    <h2 class="no-margin full text-center">More Options</h2>
+
+                    <hr />
+
+                    <details class="full round">
+                        <summary>Group Settings</summary>
+
+                        <div class="card secondary">
+                            <input class="full secondary round" type="text" placeholder="Group Name" minlength="2"
+                                maxlength="500" name="group_name" id="group_name" autocomplete="off" />
+                        </div>
+                    </details>
+
+                    <hr />
+
+                    <div class="full flex justify-right">
+                        <a class="button round red" href="javascript:document.getElementById('upper:more').close();">
+                            Close
+                        </a>
+                    </div>
+                </div>
+            </dialog>
+
+            <div class="flex g-4">
+                <button class="round green" style="width: 75%;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="lucide lucide-save" aria-label="Floppy symbol">
+                        <path
+                            d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+                        <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
+                        <path d="M7 3v4a1 1 0 0 0 1 1h7" />
+                    </svg>
+                    Save
+                </button>
+
+                <a class="button round secondary" href="javascript:document.getElementById('upper:more').showModal();">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="lucide lucide-rectangle-ellipsis" aria-label="Ellipsis symbol">
+                        <rect width="20" height="12" x="2" y="6" rx="2" />
+                        <path d="M12 12h.01" />
+                        <path d="M17 12h.01" />
+                        <path d="M7 12h.01" />
+                    </svg>
+                    More
+                </a>
+            </div>
+            {% else %}
+            {% if password_not_needed == false %}
+            <div class="flex flex-column g-4">
+                <label for="edit_password" class="full">Edit Password</label>
+
+                <input class="secondary round full" type="text" placeholder="Edit Password" minlength="5"
+                    name="edit_password" />
+            </div>
+            {% else %}
+            <div class="flex flex-column g-4">
+                <label for="edit_password" class="full">Edit Password</label>
+
+                <input class="secondary round full" type="text" placeholder="Passwordless Enabled" minlength="5"
+                    name="edit_password" disabled />
+            </div>
+            {% endif %}
+
+            <div class="flex flex-column g-4">
+                <label for="new_edit_password" class="full">New Edit Password (Optional)</label>
+
+                <input class="secondary round full" type="text" placeholder="New Edit Password" minlength="5"
+                    name="new_edit_password" />
+            </div>
+
+            <div class="flex flex-column g-4">
+                <label for="new_custom_url" class="full">New Custom URL (Optional)</label>
+
+                <input class="secondary round full" type="text" placeholder="New Custom URL" minlength="2"
+                    maxlength="500" name="new_custom_url" id="new_custom_url" autocomplete="off" />
+            </div>
+
+            <div class="flex g-4">
+                <button class="full round green">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="lucide lucide-save" aria-label="Floppy symbol">
+                        <path
+                            d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" />
+                        <path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7" />
+                        <path d="M7 3v4a1 1 0 0 0 1 1h7" />
+                    </svg>
+                    Save
+                </button>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+
+    <hr />
+
+    <div class="full flex justify-right">
+        <a class="button round red" href="javascript:document.getElementById('upper:publish').close();">
+            Close
+        </a>
+    </div>
+</dialog>
+
+<dialog id="upper:delete">
+    <div style="width: 25rem; max-width: 100%;">
+        <h2 class="no-margin full text-center">Delete this paste?</h2>
+
+        <hr />
+
+        <p>If you delete this paste, the following <b>cannot be undone</b>:</p>
+
+        <ul>
+            <li>This paste's custom url will be available to anybody</li>
+            <li>This paste's content will be deleted from the server and its cache</li>
+            <li>You will not be able to get this custom url back if it is claimed by somebody else</li>
+        </ul>
+
+        <p>Are you sure you would like to continue?</p>
+
+        <hr />
+
+        <div class="full flex justify-right g-4">
+            <a class="button round green" href="javascript:document.getElementById('upper:delete').close();">
+                Cancel
+            </a>
+
+            <a href="javascript:" id="delete-btn" class="button round red">Delete</a>
+        </div>
+    </div>
+</dialog>
 {% call super() %}
 {% endblock %}

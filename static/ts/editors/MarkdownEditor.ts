@@ -453,7 +453,7 @@ export default function CreateEditor(ElementID: string, content: string) {
 
     // add attributes
     const contentField = document.querySelector(
-        "#editor-tab-text .cm-editor .cm-scroller .cm-content"
+        "#tab\\:text .cm-editor .cm-scroller .cm-content"
     )!;
 
     contentField.setAttribute("spellcheck", "true");
@@ -462,65 +462,148 @@ export default function CreateEditor(ElementID: string, content: string) {
     // set value of contentInput if we have window.sessionStorage.doc
     const doc = window.localStorage.getItem("doc");
     if (doc) (window as any).EditorContent = doc;
-}
 
-// handle tabs
-function CloseAllTabs() {
-    for (let element of document.getElementsByClassName(
-        "editor-tab"
-    ) as any as HTMLElement[]) {
-        element.classList.remove("active");
+    // handle submit
+    const custom_url = document.getElementById("editing")!.innerText;
 
-        const button = document.getElementById(
-            `editor-open-${element.id.split("editor-")[1] || ""}`
-        );
+    const submit_form: HTMLFormElement = document.getElementById(
+        "save-changes"
+    ) as HTMLFormElement;
 
-        if (button) button.classList.add("secondary");
+    if (!custom_url) {
+        // create paste
+        submit_form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const res = await fetch("/api/v1/new", {
+                method: "POST",
+                body: JSON.stringify({
+                    custom_url: submit_form.custom_url.value,
+                    edit_password: submit_form.edit_password.value,
+                    group_name: submit_form.group_name.value,
+                    content: (window as any).EditorContent,
+                }),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            const json = await res.json();
+
+            if (json.success === false) {
+                return alert(json.message);
+            } else {
+                window.location.href = `/${json.payload.custom_url}?SECRET=${json.message}`; // message holds the unhashed edit password
+            }
+        });
+    } else {
+        // edit paste
+        submit_form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const res = await fetch("/api/v1/edit", {
+                method: "POST",
+                body: JSON.stringify({
+                    custom_url,
+                    edit_password: submit_form.edit_password.value,
+                    content: (window as any).EditorContent,
+                    new_custom_url:
+                        submit_form.new_custom_url.value || undefined,
+                    new_edit_password:
+                        submit_form.new_edit_password.value || undefined,
+                }),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            const json = await res.json();
+
+            if (json.success === false) {
+                return alert(json.message);
+            } else {
+                window.location.href = `/${json.payload}`;
+            }
+        });
+
+        // handle delete
+        const delete_btn: HTMLAnchorElement = document.getElementById(
+            "delete-btn"
+        ) as HTMLAnchorElement;
+
+        delete_btn.addEventListener("click", async () => {
+            const _confirm = confirm(
+                "Are you sure you would like to do this? This URL will be available for anybody to claim."
+            );
+
+            if (!_confirm) return;
+
+            const edit_password = prompt(
+                "Please enter this paste's edit password:"
+            );
+
+            if (!edit_password) return;
+
+            const res = await fetch("/api/v1/delete", {
+                method: "POST",
+                body: JSON.stringify({
+                    custom_url,
+                    edit_password: edit_password,
+                }),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            });
+
+            const json = await res.json();
+
+            if (json.success === false) {
+                return alert(json.message);
+            } else {
+                window.location.href = "/";
+            }
+        });
     }
 }
 
-document
-    .getElementById("editor-open-tab-text")!
-    .addEventListener("click", () => {
-        CloseAllTabs();
+// tabs
+(globalThis as any).switch_tab = async (target: HTMLElement, id: string) => {
+    const tab_body = document.getElementById(id);
+    if (!tab_body) return;
 
-        document
-            .getElementById("editor-open-tab-text")!
-            .classList.remove("secondary");
-        document.getElementById("editor-tab-text")!.classList.add("active");
+    while (!target.classList.contains("tab_button")) {
+        target = target.parentElement!;
+    }
 
-        document
-            .getElementById("-editor")!
-            .setAttribute(
-                "style",
-                "border-top-left-radius: 0px !important; padding: var(--u-10) !important;"
-            );
-    });
+    // remove .active from all tab buttons
+    for (const element of Array.from(
+        document.getElementsByClassName("tab_button")
+    )) {
+        if (element === target) {
+            element.classList.add("active");
+            continue;
+        }
 
-document
-    .getElementById("editor-open-tab-preview")!
-    .addEventListener("click", async () => {
-        CloseAllTabs();
-        const tab = document.getElementById("editor-tab-preview")!;
+        element.classList.remove("active");
+    }
 
-        tab.innerHTML =
+    // hide all tabs
+    for (const element of Array.from(
+        document.querySelectorAll(".editor_tab")
+    )) {
+        (element as HTMLElement).classList.remove("active");
+    }
+
+    // tab actions
+    if (id === "tab:preview") {
+        tab_body.innerHTML =
             (await ParseMarkdown((window as any).EditorContent)) || "";
-        tab.classList.add("active");
-
-        document
-            .getElementById("-editor")!
-            .setAttribute(
-                "style",
-                "border-top-left-radius: var(--u-02) !important; padding: var(--u-10) !important;"
-            );
-
-        document
-            .getElementById("editor-open-tab-preview")!
-            .classList.remove("secondary");
 
         // fix markdown rendering
         ClientFixMarkdown();
-    });
+    }
+
+    // ...
+    tab_body.classList.add("active");
+};
 
 // check CustomURL
 const CustomURLInput: HTMLInputElement | null = document.getElementById(
@@ -566,27 +649,6 @@ if (CustomURLInput)
         }, 500);
     });
 
-// details auto focus
-for (let element of document.querySelectorAll(
-    "details"
-) as any as HTMLDetailsElement[]) {
-    // check if element has an input
-    const input = element.querySelector("input");
-    if (!input) continue;
-
-    // add event listener
-    element.querySelector("summary")!.addEventListener("click", () => {
-        if (element.getAttribute("open") !== null) return; // element must be open,
-        //                                                    should not have attribute
-        //                                                    already when event is fired
-
-        // auto focus input
-        setTimeout(() => {
-            input.focus();
-        }, 0);
-    });
-}
-
 // clear stored content only if ref isn't the homepage (meaning the paste was created properly)
 if (
     !document.referrer.endsWith(`${window.location.host}/`) && // homepage
@@ -617,103 +679,4 @@ export async function ParseMarkdown(content: string): Promise<string> {
             },
         })
     ).text();
-}
-
-// handle submit
-const custom_url = document.getElementById("editing")!.innerText;
-
-const submit_form: HTMLFormElement = document.getElementById(
-    "save-changes"
-) as HTMLFormElement;
-
-if (!custom_url) {
-    // create paste
-    submit_form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const res = await fetch("/api/v1/new", {
-            method: "POST",
-            body: JSON.stringify({
-                custom_url: submit_form.custom_url.value,
-                edit_password: submit_form.edit_password.value,
-                group_name: submit_form.group_name.value,
-                content: (window as any).EditorContent,
-            }),
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
-
-        const json = await res.json();
-
-        if (json.success === false) {
-            return alert(json.message);
-        } else {
-            window.location.href = `/${json.payload.custom_url}?SECRET=${json.message}`; // message holds the unhashed edit password
-        }
-    });
-} else {
-    // edit paste
-    submit_form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const res = await fetch("/api/v1/edit", {
-            method: "POST",
-            body: JSON.stringify({
-                custom_url,
-                edit_password: submit_form.edit_password.value,
-                content: (window as any).EditorContent,
-                new_custom_url: submit_form.new_custom_url.value || undefined,
-                new_edit_password:
-                    submit_form.new_edit_password.value || undefined,
-            }),
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
-
-        const json = await res.json();
-
-        if (json.success === false) {
-            return alert(json.message);
-        } else {
-            window.location.href = `/${json.payload}`;
-        }
-    });
-
-    // handle delete
-    const delete_btn: HTMLAnchorElement = document.getElementById(
-        "delete-btn"
-    ) as HTMLAnchorElement;
-
-    delete_btn.addEventListener("click", async () => {
-        const _confirm = confirm(
-            "Are you sure you would like to do this? This URL will be available for anybody to claim. (just double checking!)"
-        );
-
-        if (!_confirm) return;
-
-        const edit_password = prompt(
-            "Please enter this paste's edit password:"
-        );
-
-        if (!edit_password) return;
-
-        const res = await fetch("/api/v1/delete", {
-            method: "POST",
-            body: JSON.stringify({
-                custom_url,
-                edit_password: edit_password,
-            }),
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
-
-        const json = await res.json();
-
-        if (json.success === false) {
-            return alert(json.message);
-        } else {
-            window.location.href = "/";
-        }
-    });
 }

@@ -200,12 +200,29 @@ for (const element of onclick) {
 (globalThis as any).toggle_child_menu = (
     self: HTMLElement,
     id: string,
-    bottom: boolean = true
+    bottom: boolean = true,
+    align_left: boolean = false,
+    invert: boolean = true
 ) => {
     // resolve button
     while (self.nodeName !== "BUTTON") {
         self = self.parentElement!;
     }
+
+    // if ((globalThis as any).current_menu) {
+    //     const menu = (globalThis as any).current_menu as [
+    //         HTMLElement,
+    //         HTMLElement,
+    //     ];
+
+    //     // hide current menu
+    //     menu[0].style.display === "none";
+    //     menu[1].style.removeProperty("background");
+    //     menu[1].style.filter = "unset";
+
+    //     // ...
+    //     (globalThis as any).current_menu = null;
+    // }
 
     // ...
     const menu: HTMLElement | null = document.querySelector(
@@ -213,10 +230,12 @@ for (const element of onclick) {
     ) as HTMLElement | null;
 
     if (menu) {
+        (globalThis as any).current_menu = [menu, self];
         self.classList.toggle("selected");
 
         if (menu.style.display === "none") {
             let rect = self.getBoundingClientRect();
+            let menu_rect = menu.getBoundingClientRect();
 
             // align menu
             if (bottom === true) {
@@ -225,12 +244,20 @@ for (const element of onclick) {
                 menu.style.bottom = `${rect.top + self.offsetTop}px`;
             }
 
+            if (align_left === true) {
+                menu.style.left = `${rect.left}px`;
+            }
+
             // show menu
             menu.style.display = "flex";
 
             // ...
-            self.style.background = "var(--background-surface)";
-            self.style.filter = "invert(1) grayscale(1)";
+            if (invert === true) {
+                self.style.background = "var(--background-surface)";
+                self.style.filter = "invert(1) grayscale(1)";
+            } else {
+                self.style.background = "var(--text-color)";
+            }
 
             // events
             menu.addEventListener("click", (event) => {
@@ -255,7 +282,7 @@ for (const element of onclick) {
             }, 100);
         } else if (menu.style.display === "flex") {
             menu.style.display = "none";
-            self.style.background = "inherit";
+            self.style.removeProperty("background");
             self.style.filter = "unset";
         }
     }
