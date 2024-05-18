@@ -57,11 +57,14 @@ Environment variables:
 ## Features
 
 - [Bundlrs Info Page](https://stellular.net/pub/info)
+- [Bundlrs README](https://stellular.net/what)
+- [Crangon Info Page](https://crgn.cc/pub/info)
+- [Crangon README](https://crgn.cc/what)
 - [Markdown Info Page](https://stellular.net/pub/markdown)
 - [Secondary Formatting Examples](https://stellular.net/37dbdb2096)
 - [Templates Info Page](https://stellular.net/pub/templates)
-- [SSM Info Page](https://stellular.net/pub/ssm)
-- [API Docs](https://stellular.net/api/docs/bundlrs/index.html)
+- [Bundlrs API Docs](https://stellular.net/api/docs/bundlrs/index.html)
+- [Crangon API Docs](https://crgn.cc/api/docs/crangon/index.html)
 
 ## Boards
 
