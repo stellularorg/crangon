@@ -94,6 +94,66 @@ a {
     color: var(--blue3);
 }
 
+/* topbar */
+.editor_topbar {
+    padding: 5px;
+    background: var(--background-surface1);
+    /* border-bottom: solid 1px var(--background-surface2a); */
+    height: 42px !important;
+    overflow: auto hidden;
+}
+
+.editor_topbar span {
+    --height: 100%;
+    height: var(--height) !important;
+    min-height: var(--height) !important;
+    padding: 0.3rem var(--u-08);
+    font-size: 16px;
+    border-radius: var(--u-02);
+    transition: background 0.15s;
+}
+
+.editor_topbar span:hover {
+    background: var(--background-surface1-5a);
+}
+
+.editor_topbar button,
+.editor_topbar .button {
+    --height: 100%;
+    font-size: 16px;
+    padding: 0.3rem var(--u-08);
+    background: transparent;
+    border-radius: var(--u-02);
+    height: var(--height) !important;
+    min-height: var(--height) !important;
+}
+
+.editor_topbar button:hover,
+.editor_topbar .button:hover {
+    background: var(--background-surface2a);
+    box-shadow: none;
+}
+
+.editor_topbar button.active,
+.editor_topbar .button.active {
+    background: var(--background-surface2a);
+}
+
+.editor_topbar button.active:not(:focus),
+.editor_tabbar .button.active:not(:focus) {
+    box-shadow: none !important;
+}
+
+.editor_topbar button.secondary,
+.editor_topbar .button.secondary {
+    background: var(--background-surface);
+}
+
+.editor_topbar button.secondary:hover,
+.editor_topbar .button.secondary:hover {
+    background: var(--background-surface0-5);
+}
+
 /* button modifications */
 button,
 .button {
@@ -645,55 +705,7 @@ table td:focus-within {
     display: none;
 }
 
-/* topbar */
-.editor_topbar {
-    padding: 5px;
-    background: var(--background-surface1);
-    /* border-bottom: solid 1px var(--background-surface2a); */
-    height: 42px !important;
-    overflow: auto hidden;
-}
-
-.editor_topbar span {
-    --height: 30px;
-    height: var(--height) !important;
-    min-height: var(--height) !important;
-    padding: 0 var(--u-08);
-    font-size: 16px;
-}
-
-.editor_topbar button,
-.editor_topbar .button {
-    --height: 30px;
-    font-size: 16px;
-    padding: 0 var(--u-08);
-    background: transparent;
-    border-radius: var(--u-02);
-    height: var(--height) !important;
-    min-height: var(--height) !important;
-}
-
-.editor_topbar button:hover,
-.editor_topbar .button:hover {
-    background: var(--background-surface2a);
-    box-shadow: none;
-}
-
-.editor_topbar button.active,
-.editor_topbar .button.active {
-    background: var(--background-surface2a);
-}
-
-.editor_topbar button.active:not(:focus),
-.editor_tabbar .button.active:not(:focus) {
-    box-shadow: none !important;
-}
-
-.editor_topbar button.secondary,
-.editor_topbar .button.secondary {
-    background: var(--background-surface);
-}
-
+/* ... */
 .link-list {
     height: max-content;
     max-height: 100vh;

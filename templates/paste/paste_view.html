@@ -25,7 +25,7 @@
                 Edit this paste
             </a>
 
-            <a class="button theme:secondary round" href="/?editing={{ paste.custom_url }}">
+            <a class="button theme:secondary round" href="/dashboard/settings/paste/{{ paste.custom_url }}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                     class="lucide lucide-settings">
@@ -45,47 +45,54 @@
         <article>{{ paste.content_html|safe }}</article>
     </div>
 
-    <div class="flex justify-space-between g-4 full" id="paste-info-box">
-        <div class="flex g-4 flex-wrap">
-            <a class="button round" href="/?editing={{ paste.custom_url }}">
+    <div class="card round editor_topbar justify-space-between full flex">
+        <!-- global menu -->
+        <div class="flex align-center g-4">
+            <a title="Edit this paste" class="button round theme:primary" href="/?editing={{ paste.custom_url }}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    class="lucide lucide-pencil">
+                    class="lucide lucide-pencil" aria-label="Pencil symbol">
                     <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
                     <path d="m15 5 4 4" />
                 </svg>
                 Edit
             </a>
 
-            <a href="/dashboard/settings/paste/{{ paste.custom_url }}" class="button round">
+            <a title="Edit paste config" class="button round theme:secondary"
+                href="/dashboard/settings/paste/{{ paste.custom_url }}">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                    class="lucide lucide-settings">
+                    class="lucide lucide-settings" aria-label="Gear symbol">
                     <path
                         d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
                     <circle cx="12" cy="12" r="3" />
                 </svg>
-                <span class="device:desktop">Config</span>
             </a>
         </div>
 
-        <div class="flex flex-column g-2" style="color: var(--text-color-faded); min-width: max-content; align-items:
-            flex-end;">
-            <span class="flex g-4" id="paste-info-pub">
-                Pub: <span class="date-time-to-localize">{{ paste.pub_date }}</span>
+        <!-- window options -->
+        <div class="flex align-center g-4">
+            <span id="paste-info-views" title="{{ paste.views }} Views" class="flex align-center g-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="lucide lucide-eye" aria-label="Eye symbol">
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                    <circle cx="12" cy="12" r="3" />
+                </svg>
+                {{ paste.views }}
             </span>
 
-            <span class="flex g-4" id="paste-info-edit">
-                Edit: <span class="date-time-to-localize">{{ paste.edit_date }}</span>
-            </span>
-
-            {% if paste.metadata.owner != "" %}
-            <span id="paste-info-owner">
-                Owner: <a href="{{ guppy }}/{{ paste.metadata.owner }}">{{ paste.metadata.owner }}</a>
-            </span>
-            {% endif %}
-
-            <span id="paste-info-views">Views: {{ paste.views }}</span>
+            <button title="Extra Information" class="secondary" aria-label="Extra Information"
+                data-dialog="upper:paste_info">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="lucide lucide-book-heart" aria-label="Book with heart symbol">
+                    <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" />
+                    <path
+                        d="M16 8.2C16 7 15 6 13.8 6c-.8 0-1.4.3-1.8.9-.4-.6-1-.9-1.8-.9C9 6 8 7 8 8.2c0 .6.3 1.2.7 1.6h0C10 11.1 12 13 12 13s2-1.9 3.3-3.1h0c.4-.4.7-1 .7-1.7z" />
+                </svg>
+                More
+            </button>
         </div>
     </div>
 </div>
@@ -94,5 +101,77 @@
     import ClientFixMarkdown from "/static/js/ClientFixMarkdown.js";
     ClientFixMarkdown();
 </script>
+
+<!-- dialogs -->
+<dialog id="upper:paste_info">
+    <div style="width: 25rem; max-width: 100%;">
+        <div id="paste-info-box" class="flex flex-column g-4">
+            <details open>
+                <summary>
+                    <div class="flex align-center g-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="lucide lucide-calendar-fold" aria-label="Calendar (with fold) symbol"
+                            style="transform: none;">
+                            <path d="M8 2v4" />
+                            <path d="M16 2v4" />
+                            <path d="M21 17V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h11Z" />
+                            <path d="M3 10h18" />
+                            <path d="M15 22v-4a2 2 0 0 1 2-2h4" />
+                        </svg>
+                        Dates
+                    </div>
+                </summary>
+
+                <div class="card secondary">
+                    <ul>
+                        <li id="paste-info-pub">
+                            Pub: <span class="date-time-to-localize">{{ paste.pub_date }}</span>
+                        </li>
+
+                        <li id="paste-info-edit">
+                            Edit: <span class="date-time-to-localize">{{ paste.edit_date }}</span>
+                        </li>
+                    </ul>
+                </div>
+            </details>
+
+            <details open>
+                <summary>
+                    <div class="flex align-center g-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="lucide lucide-badge-info" style="transform: none;"
+                            aria-label="Information badge symbol">
+                            <path
+                                d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z" />
+                            <line x1="12" x2="12" y1="16" y2="12" />
+                            <line x1="12" x2="12.01" y1="8" y2="8" />
+                        </svg>
+                        General
+                    </div>
+                </summary>
+
+                <div class="card secondary">
+                    <ul>
+                        {% if paste.metadata.owner != "" %}
+                        <li id="paste-info-owner">
+                            Owner: <a href="{{ guppy }}/{{ paste.metadata.owner }}">{{ paste.metadata.owner }}</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </details>
+        </div>
+
+        <hr />
+
+        <div class="full flex justify-right g-4">
+            <a class="button round red" href="javascript:document.getElementById('upper:paste_info').close();">
+                Close
+            </a>
+        </div>
+    </div>
+</dialog>
 {% call super() %}
 {% endblock %}

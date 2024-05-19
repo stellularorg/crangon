@@ -64,6 +64,12 @@ pub fn parse_markdown(mut original_in: String) -> String {
     out = regex_replace(&out, "(&!)(.*?);", "&$2;");
     out = out.replace("&quot;", "\"");
 
+    // css ">"
+    out = out.replace("&gt; \\.", "> .");
+    out = out.replace("&gt; #", "> #");
+    out = out.replace("(&gt;", "(>");
+    out = out.replace(" &gt; ", " > ");
+
     // only a little bit of regex-ing remains now
 
     // allowed elements
