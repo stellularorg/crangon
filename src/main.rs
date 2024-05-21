@@ -124,6 +124,7 @@ async fn main() -> std::io::Result<()> {
             // GET staff
             .service(crate::pages::staff::dashboard_request)
             .service(crate::pages::staff::staff_users_dashboard_request)
+            .service(crate::pages::staff::staff_pastes_dashboard_request)
             // GET users
             .service(crate::api::auth::get_from_owner_request)
             // GET root

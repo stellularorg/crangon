@@ -603,6 +603,109 @@ impl Database {
         };
     }
 
+    /// Get all [pastes](Paste) (limited)
+    ///
+    /// # Arguments:
+    /// * `offset` - optional value representing the SQL fetch offset
+    pub async fn get_all_pastes_limited(
+        &self,
+        offset: Option<i32>,
+    ) -> DefaultReturn<Option<Vec<PasteIdentifier>>> {
+        let offset = if offset.is_some() { offset.unwrap() } else { 0 };
+
+        // ...
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
+            "SELECT * FROM \"cr_pastes\" ORDER BY \"pub_date\" DESC LIMIT 50 OFFSET ?"
+        } else {
+            "SELECT * FROM \"cr_pastes\" ORDER BY \"pub_date\" DESC LIMIT 50 OFFSET $1"
+        };
+
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
+            .bind(offset)
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // build res
+        let mut full_res: Vec<PasteIdentifier> = Vec::new();
+
+        for row in res.unwrap() {
+            let row = self.base.textify_row(row).data;
+            full_res.push(PasteIdentifier {
+                custom_url: row.get("custom_url").unwrap().to_string(),
+                id: row.get("id").unwrap().to_string(),
+            });
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::new(),
+            payload: Option::Some(full_res),
+        };
+    }
+
+    /// Get all [pastes](Paste) (limited)
+    ///
+    /// # Arguments:
+    /// * `content` - value representing the content to search by
+    /// * `offset` - optional value representing the SQL fetch offset
+    pub async fn get_all_pastes_by_content_limited(
+        &self,
+        content: String,
+        offset: Option<i32>,
+    ) -> DefaultReturn<Option<Vec<PasteIdentifier>>> {
+        let offset = if offset.is_some() { offset.unwrap() } else { 0 };
+
+        // ...
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
+            "SELECT * FROM \"cr_pastes\" WHERE \"content\" LIKE ? ORDER BY \"pub_date\" DESC LIMIT 50 OFFSET ?"
+        } else {
+            "SELECT * FROM \"cr_pastes\" WHERE \"content\" LIKE $1 ORDER BY \"pub_date\" DESC LIMIT 50 OFFSET $2"
+        };
+
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
+            .bind(format!("%{content}%"))
+            .bind(offset)
+            .fetch_all(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // build res
+        let mut full_res: Vec<PasteIdentifier> = Vec::new();
+
+        for row in res.unwrap() {
+            let row = self.base.textify_row(row).data;
+            full_res.push(PasteIdentifier {
+                custom_url: row.get("custom_url").unwrap().to_string(),
+                id: row.get("id").unwrap().to_string(),
+            });
+        }
+
+        // return
+        return DefaultReturn {
+            success: true,
+            message: String::new(),
+            payload: Option::Some(full_res),
+        };
+    }
+
     // SET
     /// Create a new [`Paste`] given various properties
     ///
