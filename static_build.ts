@@ -16,6 +16,7 @@ const output = await build({
         "./static/ts/pages/ManageBoardPost.ts",
         "./static/ts/pages/SDManageUser.ts",
         "./static/ts/pages/SDManagePastes.ts",
+        "./static/ts/pages/PasteView.ts",
     ],
     minify: {
         identifiers: true,

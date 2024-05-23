@@ -39,6 +39,9 @@
     </div>
 </div>
 
+<div id="error" class="mdnote note-error full" style="display: none;"></div>
+<div id="success" class="mdnote note-note full" style="display: none;"></div>
+
 <div style="display: contents;">
     <div id="tab:preview" class="card round secondary tab-container secondary round" style="height:
         max-content; max-height: initial; margin-bottom: 0px;">
@@ -82,6 +85,28 @@
                 {{ paste.views }}
             </span>
 
+            {% if auth_state == true %}
+            <button id="favorite_paste" data-endpoint="/api/v1/paste/{{ paste.id }}/favorite" class="secondary round"
+                title="Toggle Favorite">
+                <svg id="favorite_star" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                    class="lucide lucide-star">
+                    <polygon
+                        points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+
+                {{ favorites_count }}
+
+                {% if has_favorited %}
+                <style>
+                    #favorite_star {
+                        fill: currentColor !important;
+                    }
+                </style>
+                {% endif %}
+            </button>
+            {% endif %}
+
             <button title="Extra Information" class="secondary" aria-label="Extra Information"
                 data-dialog="upper:paste_info">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
@@ -100,6 +125,8 @@
 <script type="module">
     import ClientFixMarkdown from "/static/js/ClientFixMarkdown.js";
     ClientFixMarkdown();
+
+    import "/static/js/PasteView.js";
 </script>
 
 <!-- dialogs -->

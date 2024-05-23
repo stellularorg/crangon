@@ -110,6 +110,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::pastes::edit_request)
             .service(crate::api::pastes::delete_request)
             .service(crate::api::pastes::metadata_request)
+            .service(crate::api::pastes::favorite_request)
             // GET api
             .service(crate::api::pastes::get_from_url_request)
             .service(crate::api::pastes::get_from_id_request)

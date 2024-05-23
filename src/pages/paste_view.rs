@@ -24,6 +24,8 @@ struct PasteViewTemplate {
     title: String,
     head_string: String,
     paste: Paste<PasteMetadata>,
+    favorites_count: i32,
+    has_favorited: bool,
     // required fields (super::base)
     info: String,
     auth_state: bool,
@@ -162,6 +164,23 @@ pub async fn paste_view_request(
     let paste = unwrap.clone().paste;
     let metadata = &paste.metadata;
 
+    // favorites
+    let favorites_count = data
+        .db
+        .get_paste_favorites(paste.id.to_string())
+        .await
+        .payload;
+
+    let has_favorited = if token_user.is_none() {
+        false
+    } else {
+        let user = token_user.clone().unwrap().payload.unwrap();
+        data.db
+            .get_user_paste_favorite(user.user.username, paste.id.to_string(), false)
+            .await
+            .success
+    };
+
     // ...
     let body_content = PasteViewTemplate {
         title: if metadata.title.is_none() | title_unwrap.unwrap().is_empty() {
@@ -203,6 +222,8 @@ pub async fn paste_view_request(
                 &favicon_unwrap.unwrap()
             }
         ),
+        favorites_count,
+        has_favorited,
         // required fields
         info: base.info,
         auth_state: base.auth_state,

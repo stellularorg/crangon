@@ -371,3 +371,32 @@ pub async fn get_from_id_request(req: HttpRequest, data: web::Data<db::AppData>)
                 .unwrap(),
         );
 }
+
+#[post("/api/v1/paste/{id:.*}/favorite")]
+/// Toggle a paste favorite
+pub async fn favorite_request(req: HttpRequest, data: web::Data<db::AppData>) -> impl Responder {
+    let paste_id = req.match_info().get("id").unwrap();
+
+    // verify auth status
+    let (set_cookie, _, token_user) =
+        crate::pages::base::check_auth_status(req.clone(), data.clone()).await;
+
+    if token_user.is_none() {
+        return HttpResponse::NotAcceptable().body("An account is required to favorite pastes.");
+    }
+
+    // ...
+    let res = data
+        .db
+        .toggle_user_paste_favorite(
+            token_user.unwrap().payload.unwrap().user.username,
+            paste_id.to_string(),
+        )
+        .await;
+
+    // return
+    return HttpResponse::Ok()
+        .append_header(("Content-Type", "application/json"))
+        .append_header(("Set-Cookie", set_cookie))
+        .body(serde_json::to_string(&res).unwrap());
+}

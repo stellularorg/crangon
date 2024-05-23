@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use dorsal::query as sqlquery;
 
-use crate::log_db;
+use crate::log_db::{self, Log};
 
 #[derive(Clone)]
 pub struct AppData {
@@ -102,44 +102,12 @@ pub struct GroupMetadata {
     pub owner: String, // username of owner
 }
 
-#[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
-// Takes the place of "about" in BoardMetadata, identifies a board as a user mail stream
-pub struct UserMailStreamIdentifier {
-    pub _is_user_mail_stream: bool, // always going to be true ... cannot be edited into board about ANYWHERE
-    pub user1: String,              // username of first user
-    pub user2: String,              // username of second user
-}
-
-#[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
-pub struct BoardMetadata {
-    pub owner: String,                      // username of owner
-    pub is_private: String, // if the homepage of the board is shown to other users (not owner)
-    pub allow_anonymous: Option<String>, // if anonymous users can post
-    pub allow_open_posting: Option<String>, // if all users can post on the board (not just owner)
-    pub topic_required: Option<String>, // if posts are required to include a topic value
-    pub about: Option<String>, // welcome message
-    pub tags: Option<String>, // SPACE separated list of tags that identify the board for searches
-                            // TODO: we could likely export a list of "valid" tags at some point in the future
-}
-
-#[derive(Default, Clone, Serialize, Deserialize, PartialEq)]
-pub struct BoardPostLog {
-    pub author: String, // username of owner
-    pub content: String,
-    pub content_html: String,
-    pub topic: Option<String>, // post topic, content is hidden unless expanded if provided
-    pub board: String,         // name of board the post is located in
-    pub is_hidden: bool,       // if the post is hidden in the feed (does nothing right now)
-    pub reply: Option<String>, // the ID of the post we're replying to
-    pub pinned: Option<bool>,  // pin the post to the top of the board feed
-    pub replies: Option<usize>, // not really managed in the log, just used to show the number of replies this post has
-    pub tags: Option<String>,   // same as board tags, just for posts specifically
-}
-
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
-pub struct BoardIdentifier {
-    pub name: String,
-    pub tags: String,
+#[derive(Clone, Serialize, Deserialize)]
+pub struct PasteFavoriteLog {
+    /// the username of the user that favorited the paste
+    pub user: String,
+    /// the id of the paste that was favorited
+    pub id: String,
 }
 
 // ...
@@ -773,7 +741,7 @@ impl Database {
             };
         }
 
-        // project cannot have names we may need
+        // paste cannot have names we may need
         if ["dashboard", "api"].contains(&p.custom_url.as_str()) {
             return DefaultReturn {
                 success: false,
@@ -1521,5 +1489,171 @@ impl Database {
             message: String::from("Paste created"),
             payload: Option::Some(p.name.to_string()),
         };
+    }
+
+
+    // social
+
+    // GET
+    /// Get the number of [`PasteFavoriteLog`]s a [`Paste`] has
+    pub async fn get_paste_favorites(&self, id: String) -> DefaultReturn<i32> {
+        // get paste
+        let existing = self.get_paste_by_id(id.clone()).await;
+
+        if existing.success == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Paste does not exist!"),
+                payload: 0,
+            };
+        }
+
+        // get favorites
+        DefaultReturn {
+            success: true,
+            message: id.clone(),
+            // favorites are stored in the "cr_logs" table AS WELL AS an incremented value in the cache,
+            // we read the value from cache when checking the paste's favorites, but read the cache value when fetching number
+            payload: self
+                .base
+                .cachedb
+                .get(format!("social:paste-favorites:{}", id))
+                .await
+                .unwrap_or(String::from("0"))
+                .parse::<i32>()
+                .unwrap(),
+        }
+    }
+
+    pub async fn get_user_paste_favorite(
+        &self,
+        user: String,
+        paste_id: String,
+        skip_existing_check: bool,
+    ) -> DefaultReturn<Option<Log>> {
+        // get paste
+        if skip_existing_check == false {
+            let existing = self.get_paste_by_id(paste_id.clone()).await;
+
+            if existing.success == false {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("Paste does not exist!"),
+                    payload: Option::None,
+                };
+            }
+        }
+
+        // ...
+        let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
+            "SELECT * FROM \"cr_logs\" WHERE \"content\" = ? AND \"logtype\" = 'paste_favorite'"
+        } else {
+            "SELECT * FROM \"cr_logs\" WHERE \"content\" = $1 AND \"logtype\" = 'paste_favorite'"
+        };
+
+        let c = &self.base.db.client;
+        let res = sqlquery(query)
+            .bind::<&String>(
+                &serde_json::to_string::<PasteFavoriteLog>(&PasteFavoriteLog {
+                    user,
+                    id: paste_id.clone(),
+                })
+                .unwrap(),
+            )
+            .fetch_one(c)
+            .await;
+
+        if res.is_err() {
+            return DefaultReturn {
+                success: false,
+                message: String::from(res.err().unwrap().to_string()),
+                payload: Option::None,
+            };
+        }
+
+        // ...
+        let row = res.unwrap();
+        let row = self.base.textify_row(row).data;
+
+        DefaultReturn {
+            success: true,
+            message: paste_id,
+            payload: Option::Some(Log {
+                id: row.get("id").unwrap().to_string(),
+                logtype: row.get("logtype").unwrap().to_string(),
+                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+                content: row.get("content").unwrap().to_string(),
+            }),
+        }
+    }
+
+    // SET
+    /// Toggle a [`PasteFavoriteLog`] on a [`Paste`] by `user` and `paste_id`
+    pub async fn toggle_user_paste_favorite(
+        &self,
+        user: String,
+        paste_id: String,
+    ) -> DefaultReturn<Option<String>> {
+        // get paste
+        let existing = self.get_paste_by_id(paste_id.clone()).await;
+
+        if existing.success == false {
+            return DefaultReturn {
+                success: false,
+                message: String::from("Paste does not exist!"),
+                payload: Option::None,
+            };
+        }
+
+        // check if user is paste owner
+        let existing = existing.payload.unwrap();
+
+        if existing.paste.metadata.owner == user {
+            return DefaultReturn {
+                success: false,
+                message: String::from("You're the paste owner!"),
+                payload: Option::None,
+            };
+        }
+
+        // attempt to get the user's existing favorite
+        let existing_favorite = self
+            .get_user_paste_favorite(user.clone(), paste_id.clone(), true)
+            .await;
+
+        // delete existing
+        if existing_favorite.success == true {
+            let payload = existing_favorite.payload.unwrap();
+
+            // decr favorites
+            self.base
+                .cachedb
+                .decr(format!("social:paste-favorites:{}", paste_id.clone()))
+                .await;
+
+            // handle log
+            return self.logs.delete_log(payload.id).await;
+        }
+        // add new
+        else {
+            // incr favorites
+            self.base
+                .cachedb
+                .incr(format!("social:paste-favorites:{}", paste_id.clone()))
+                .await;
+
+            // handle log
+            return self
+                .logs
+                .create_log(
+                    String::from("paste_favorite"),
+                    serde_json::to_string::<PasteFavoriteLog>(&PasteFavoriteLog {
+                        user,
+                        id: paste_id,
+                    })
+                    .unwrap(),
+                )
+                .await;
+        }
     }
 }
