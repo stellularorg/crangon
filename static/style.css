@@ -109,7 +109,7 @@ a {
     min-height: var(--height) !important;
     padding: 0.3rem var(--u-08);
     font-size: 16px;
-    border-radius: var(--u-02);
+    border-radius: var(--roundness);
     transition: background 0.15s;
 }
 
@@ -123,7 +123,7 @@ a {
     font-size: 16px;
     padding: 0.3rem var(--u-08);
     background: transparent;
-    border-radius: var(--u-02);
+    border-radius: var(--roundness);
     height: var(--height) !important;
     min-height: var(--height) !important;
 }
@@ -282,7 +282,7 @@ details[open] summary + .content {
     border: solid 1px var(--background-surface2a);
     border-top: none;
     padding: var(--u-08);
-    border-radius: 0 0 var(--u-02) var(--u-02);
+    border-radius: 0 0 var(--roundness) var(--roundness);
     display: block;
 }
 
