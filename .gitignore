@@ -13,3 +13,7 @@ bun.lockb
 
 # testing
 booklist.txt
+
+# ...
+public/**/*
+!public/README.md

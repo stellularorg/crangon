@@ -31,6 +31,7 @@ async fn main() -> std::io::Result<()> {
     }
 
     let static_dir_flag: Option<String> = config::get_named_argument(&args, "static-dir");
+    let public_serve_path = std::env::var("PUBLIC_PATH").unwrap_or(String::from("/public"));
 
     // create database
     let db_type: Option<String> = config::get_named_argument(&args, "db-type");
@@ -99,6 +100,13 @@ async fn main() -> std::io::Result<()> {
                     },
                 )
                 .show_files_listing(),
+            )
+            // public dir
+            .service(
+                fs::Files::new(&public_serve_path, "./public")
+                    .show_files_listing()
+                    .index_file("index.html")
+                    .redirect_to_slash_directory(),
             )
             // docs
             .service(fs::Files::new("/api/docs", "./target/doc").show_files_listing())
