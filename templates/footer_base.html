@@ -24,6 +24,33 @@
                     </svg>
                     {{ site_name }}
                 </button>
+
+                <a class="button round secondary" id="theme_button" href="javascript:window.toggle_theme()"
+                    title="Toggle Theme">
+                    <div id="theme-icon-sun">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="lucide lucide-sun">
+                            <circle cx="12" cy="12" r="4" />
+                            <path d="M12 2v2" />
+                            <path d="M12 20v2" />
+                            <path d="m4.93 4.93 1.41 1.41" />
+                            <path d="m17.66 17.66 1.41 1.41" />
+                            <path d="M2 12h2" />
+                            <path d="M20 12h2" />
+                            <path d="m6.34 17.66-1.41 1.41" />
+                            <path d="m19.07 4.93-1.41 1.41" />
+                        </svg>
+                    </div>
+
+                    <div id="theme-icon-moon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="lucide lucide-moon">
+                            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+                        </svg>
+                    </div>
+                </a>
             </div>
 
             <hr class="small" />
@@ -127,34 +154,16 @@
                 </summary>
 
                 <div class="card secondary flex flex-column g-4">
-                    <a class="button round full justify-start secondary" id="theme_button"
-                        href="javascript:window.toggle_theme()">
-                        <div id="theme-icon-sun">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" class="lucide lucide-sun">
-                                <circle cx="12" cy="12" r="4" />
-                                <path d="M12 2v2" />
-                                <path d="M12 20v2" />
-                                <path d="m4.93 4.93 1.41 1.41" />
-                                <path d="m17.66 17.66 1.41 1.41" />
-                                <path d="M2 12h2" />
-                                <path d="M20 12h2" />
-                                <path d="m6.34 17.66-1.41 1.41" />
-                                <path d="m19.07 4.93-1.41 1.41" />
-                            </svg>
-                        </div>
-
-                        <div id="theme-icon-moon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                stroke-linejoin="round" class="lucide lucide-moon">
-                                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
-                            </svg>
-                        </div>
-
+                    <button class="round full justify-start secondary"
+                        onclick="document.getElementById('theme_button').click();">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="lucide lucide-eclipse" aria-label="Eclipse symbol">
+                            <circle cx="12" cy="12" r="10" />
+                            <path d="M12 2a7 7 0 1 0 10 10" />
+                        </svg>
                         theme
-                    </a>
+                    </button>
 
                     {% if auth_state == false %}
                     {% if guppy != "" %}

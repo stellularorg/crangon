@@ -1,5 +1,6 @@
 use actix_web::HttpResponse;
 use actix_web::{get, web, HttpRequest, Responder};
+use dorsal::db::special::auth_db::UserMetadata;
 
 use super::base;
 use askama::Template;
@@ -26,6 +27,7 @@ struct PasteViewTemplate {
     paste: Paste<PasteMetadata>,
     favorites_count: i32,
     has_favorited: bool,
+    owner: String,
     // required fields (super::base)
     info: String,
     auth_state: bool,
@@ -162,7 +164,16 @@ pub async fn paste_view_request(
 
     // ...
     let paste = unwrap.clone().paste;
+    let user = unwrap.clone().user;
+
     let metadata = &paste.metadata;
+    let user_metadata = if user.is_some() {
+        Option::Some(
+            serde_json::from_str::<UserMetadata>(&user.as_ref().unwrap().user.metadata).unwrap(),
+        )
+    } else {
+        Option::None
+    };
 
     // favorites
     let favorites_count = data
@@ -224,6 +235,17 @@ pub async fn paste_view_request(
         ),
         favorites_count,
         has_favorited,
+        owner: if user_metadata.is_some() && user_metadata.as_ref().unwrap().nickname.is_some() {
+            user_metadata
+                .as_ref()
+                .unwrap()
+                .nickname
+                .as_ref()
+                .unwrap()
+                .to_owned()
+        } else {
+            metadata.owner.clone()
+        },
         // required fields
         info: base.info,
         auth_state: base.auth_state,
