@@ -2,7 +2,7 @@
 //! Database handler for all database types
 use std::collections::HashMap;
 
-use dorsal::{db, utility};
+use dorsal::utility;
 use serde::{Deserialize, Serialize};
 
 use dorsal::query as sqlquery;
@@ -161,6 +161,17 @@ impl Database {
         .execute(c)
         .await;
 
+        let _ = sqlquery(
+            "CREATE TABLE IF NOT EXISTS \"cr_logs\" (
+                id VARCHAR(1000000),
+                logtype VARCHAR(1000000),
+                timestamp  VARCHAR(1000000),
+                content VARCHAR(1000000)
+            )",
+        )
+        .execute(c)
+        .await;
+
         // ...
         let _ = sqlquery(
             "CREATE TABLE IF NOT EXISTS \"Users\" (
@@ -175,7 +186,7 @@ impl Database {
         .await;
 
         let _ = sqlquery(
-            "CREATE TABLE IF NOT EXISTS \"cr_logs\" (
+            "CREATE TABLE IF NOT EXISTS \"Logs\" (
                 id VARCHAR(1000000),
                 logtype VARCHAR(1000000),
                 timestamp  VARCHAR(1000000),

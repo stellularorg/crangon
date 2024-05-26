@@ -35,4 +35,5 @@ uuid = { version = "1.6.1", features = ["v4"] }
 actix-cors = "0.7.0"
 askama = "0.12.1"
 sqlx = "0.7.4"
-shared = { version = "0.1.0", registry = "stellular" } # crates: disable-check
+shared = { version = "0.1.1", registry = "stellular" } # crates: disable-check
+regex = "1.10.4"
