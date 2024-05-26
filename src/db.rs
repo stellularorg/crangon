@@ -2,7 +2,7 @@
 //! Database handler for all database types
 use std::collections::HashMap;
 
-use dorsal::utility;
+use dorsal::{db, utility};
 use serde::{Deserialize, Serialize};
 
 use dorsal::query as sqlquery;
@@ -742,7 +742,7 @@ impl Database {
         }
 
         // paste cannot have names we may need
-        if ["dashboard", "api"].contains(&p.custom_url.as_str()) {
+        if ["dashboard", "api", "public", "static"].contains(&p.custom_url.as_str()) {
             return DefaultReturn {
                 success: false,
                 message: String::from("Custom URL is invalid"),

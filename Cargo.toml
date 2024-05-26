@@ -20,7 +20,6 @@ default = ["dorsal/sqlite"]
 awc = { version = "3.4.0", features = ["rustls"] }
 actix-files = "0.6.5"
 actix-web = "4.4.1"
-comrak = "0.22.0"
 dotenv = "0.15.0"
 either = "1.9.0"
 env_logger = "0.11.2"
@@ -29,7 +28,6 @@ dorsal = { version = "0.1.1", registry = "stellular", default-features = false }
 idna = "0.5.0"
 once_cell = "1.19.0"
 pest_derive = "2.7.7"
-regex = "1.10.2"
 serde = "1.0.195"
 serde_json = "1.0.111"
 sha2 = "0.10.8"
@@ -37,3 +35,4 @@ uuid = { version = "1.6.1", features = ["v4"] }
 actix-cors = "0.7.0"
 askama = "0.12.1"
 sqlx = "0.7.4"
+shared = { version = "0.1.0", registry = "stellular" } # crates: disable-check
