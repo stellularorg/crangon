@@ -50,7 +50,7 @@ export function HandleCustomElements() {
 
         // handle class elements
         const themes = document.querySelectorAll(
-            "#tab\\:preview theme"
+            "#tab\\:preview theme",
         ) as any as HTMLElement[];
 
         if (themes.length > 0) {
@@ -63,12 +63,12 @@ export function HandleCustomElements() {
                 else if (theme.innerText === "purple")
                     document.documentElement.classList.add(
                         "purple-theme",
-                        "dark-theme"
+                        "dark-theme",
                     );
                 else if (theme.innerText === "blue")
                     document.documentElement.classList.add(
                         "blue-theme",
-                        "dark-theme"
+                        "dark-theme",
                     );
                 else if (theme.innerText === "pink")
                     document.documentElement.classList.add("pink-theme");
@@ -83,7 +83,7 @@ export function HandleCustomElements() {
     // remove images (if needed)
     if (window.localStorage.getItem("bundles:user.DisableImages") === "true")
         for (const image of document.querySelectorAll(
-            "img"
+            "img",
         ) as any as HTMLImageElement[])
             image.src = "about:blank"; // this will force just the alt text to show
 
@@ -92,13 +92,13 @@ export function HandleCustomElements() {
         window.localStorage.getItem("bundles:user.DisableAnimations") === "true"
     )
         for (const element of document.querySelectorAll(
-            '[role="animation"]'
+            '[role="animation"]',
         ) as any as HTMLElement[])
             element.style.animation = "";
 
     // if bundles:user.DisableCustomPasteCSS is true, delete all style elements
     const styleElements = Array.from(
-        document.querySelectorAll("#tab\\:preview style")
+        document.querySelectorAll("#tab\\:preview style"),
     );
 
     if (
@@ -109,14 +109,14 @@ export function HandleCustomElements() {
 
         // disable custom-color
         for (const element of Array.from(
-            document.querySelectorAll('#tab\\:preview [role="custom-color"]')
+            document.querySelectorAll('#tab\\:preview [role="custom-color"]'),
         ))
             (element as HTMLElement).style.color = "";
     }
 
     // copy buttons
     const preElements = Array.from(
-        document.querySelectorAll("pre")
+        document.querySelectorAll("pre"),
     ) as HTMLElement[];
 
     for (const element of preElements) {
@@ -128,9 +128,25 @@ export function HandleCustomElements() {
 
     (globalThis as any).copy_pre_code = (e: any) => {
         navigator.clipboard.writeText(
-            e.target.parentElement.querySelector("code").innerText
+            e.target.parentElement.querySelector("code").innerText,
         );
     };
+
+    // know your place
+    const footer_element = document.querySelector("footer");
+
+    if (
+        !footer_element ||
+        footer_element.style.getPropertyValue("display") == "none" ||
+        footer_element.style.getPropertyValue("visibility") == "hidden"
+    ) {
+        const warning_label = document.createElement("div");
+        warning_label.className =
+            "full flex justify-center align-center g-4 card round";
+        warning_label.innerHTML =
+            '<p>Hiding the footer ruins user accessibility. Please complain to the owner of this paste to fix this styling issue. - <a href="/">Go Home</a></p>';
+        document.body.appendChild(warning_label);
+    }
 }
 
 /**
@@ -142,7 +158,7 @@ export default async function ClientFixMarkdown() {
 
     // escape all code blocks
     for (const block of Array.from(
-        document.querySelectorAll("#tab\\:preview pre code")
+        document.querySelectorAll("#tab\\:preview pre code"),
     )) {
         (block as HTMLElement).innerHTML = (block as HTMLElement).innerHTML
             .replaceAll("<", "&lt;")
