@@ -24,7 +24,6 @@ dotenv = "0.15.0"
 either = "1.9.0"
 env_logger = "0.11.2"
 hex_fmt = "0.3.0"
-dorsal = { version = "0.1.1", registry = "stellular", default-features = false } # crates: disable-check
 idna = "0.5.0"
 once_cell = "1.19.0"
 pest_derive = "2.7.7"
@@ -37,3 +36,4 @@ askama = "0.12.1"
 sqlx = "0.7.4"
 shared = { version = "0.1.1", registry = "stellular" } # crates: disable-check
 regex = "1.10.4"
+dorsal = { version = "0.1.3-1", default-features = false }
