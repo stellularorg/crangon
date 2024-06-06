@@ -125,6 +125,7 @@ async fn main() -> std::io::Result<()> {
             .service(crate::api::pastes::exists_request)
             .service(crate::api::auth::callback_request)
             .service(crate::api::auth::logout)
+            .service(crate::api::auth::whoami) // get current username
             // GET dashboard
             .service(crate::pages::home::dashboard_request)
             .service(crate::pages::settings::user_settings_request)

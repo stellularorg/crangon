@@ -6,6 +6,7 @@ pub struct BaseTemplate {
     pub info: String,
     pub auth_state: bool,
     pub guppy: String,
+    pub deducktive: String,
     pub site_name: String,
     pub body_embed: String,
 }
@@ -32,6 +33,7 @@ pub fn get_base_values(token_cookie: bool) -> BaseTemplate {
         info,
         auth_state: token_cookie,
         guppy: std::env::var("GUPPY_ROOT").unwrap_or(String::new()),
+        deducktive: std::env::var("DEDUCKTIVE_ROOT").unwrap_or(String::new()),
         site_name: std::env::var("SITE_NAME").unwrap_or("Crangon".to_string()),
         body_embed,
     }

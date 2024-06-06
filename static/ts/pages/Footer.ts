@@ -6,7 +6,7 @@
     if (
         (window as any).PASTE_USES_CUSTOM_THEME &&
         (window as any).localStorage.getItem(
-            "bundles:user.ForceClientTheme"
+            "bundles:user.ForceClientTheme",
         ) !== "true"
     )
         return;
@@ -71,7 +71,7 @@ if (
 ) {
     const style = document.createElement("style");
     style.innerHTML = (window as any).localStorage.getItem(
-        "bundles:user.GlobalCSSString"
+        "bundles:user.GlobalCSSString",
     );
     document.body.appendChild(style);
 }
@@ -79,16 +79,16 @@ if (
 // localize dates
 setTimeout(() => {
     for (const element of Array.from(
-        document.querySelectorAll(".date-time-to-localize")
+        document.querySelectorAll(".date-time-to-localize"),
     ) as HTMLElement[])
         element.innerText = new Date(
-            parseInt(element.innerText)
+            parseInt(element.innerText),
         ).toLocaleString();
 }, 50);
 
 // disabled="false"
 for (const element of Array.from(
-    document.querySelectorAll('[disabled="false"]')
+    document.querySelectorAll('[disabled="false"]'),
 ) as HTMLButtonElement[]) {
     element.removeAttribute("disabled");
 }
@@ -96,7 +96,7 @@ for (const element of Array.from(
 // disable "a"
 setTimeout(() => {
     for (const element of Array.from(
-        document.querySelectorAll("a[disabled]")
+        document.querySelectorAll("a[disabled]"),
     )) {
         element.removeAttribute("href");
     }
@@ -107,7 +107,7 @@ const dismissables = document.querySelectorAll(".dismissable");
 
 for (const dismissable of Array.from(dismissables) as HTMLElement[]) {
     const is_dismissed = window.sessionStorage.getItem(
-        `dismissed:${dismissable.id}`
+        `dismissed:${dismissable.id}`,
     );
 
     if (is_dismissed === "true") {
@@ -119,7 +119,7 @@ for (const dismissable of Array.from(dismissables) as HTMLElement[]) {
             dismiss_button.addEventListener("click", () => {
                 window.sessionStorage.setItem(
                     `dismissed:${dismissable.id}`,
-                    "true"
+                    "true",
                 );
 
                 dismissable.remove();
@@ -188,7 +188,7 @@ for (const avatar of Array.from(avatars) as HTMLImageElement[]) {
 
 // events
 const onclick = Array.from(
-    document.querySelectorAll("[b_onclick]")
+    document.querySelectorAll("[b_onclick]"),
 ) as HTMLElement[];
 
 for (const element of onclick) {
@@ -202,7 +202,7 @@ for (const element of onclick) {
     id: string,
     bottom: boolean = true,
     align_left: boolean = false,
-    invert: boolean = true
+    invert: boolean = true,
 ) => {
     // resolve button
     while (self.nodeName !== "BUTTON") {
@@ -226,7 +226,7 @@ for (const element of onclick) {
 
     // ...
     const menu: HTMLElement | null = document.querySelector(
-        id
+        id,
     ) as HTMLElement | null;
 
     if (menu) {
@@ -290,19 +290,19 @@ for (const element of onclick) {
 
 // wants redirect
 for (const element of Array.from(
-    document.querySelectorAll('[data-wants-redirect="true"]')
+    document.querySelectorAll('[data-wants-redirect="true"]'),
 ) as HTMLAnchorElement[]) {
     element.href = `${element.href}?callback=${encodeURIComponent(
-        `${window.location.origin}/api/v1/auth/callback`
+        `${window.location.origin}/api/v1/auth/callback`,
     )}`;
 }
 
 // modal
 for (const element of Array.from(
-    document.querySelectorAll("[data-dialog]")
+    document.querySelectorAll("[data-dialog]"),
 ) as HTMLAnchorElement[]) {
     const dialog_element: HTMLDialogElement = document.getElementById(
-        element.getAttribute("data-dialog")!
+        element.getAttribute("data-dialog")!,
     ) as HTMLDialogElement;
 
     element.addEventListener("click", () => {
@@ -323,6 +323,47 @@ window.addEventListener("click", (e: any) => {
 
     if (clicked_in_dialog === false) e.target.close();
 });
+
+// reports
+const report_button = document.getElementById("report_button");
+const report_form = document.getElementById(
+    "report_page",
+) as HTMLFormElement | null;
+
+if (report_button && report_form) {
+    if (window.location.pathname === "/") {
+        report_button.remove();
+    }
+
+    report_button.addEventListener("click", () => {
+        (
+            document.getElementById("upper:report") as HTMLDialogElement
+        ).showModal();
+    });
+
+    report_form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const res = await fetch(report_button.getAttribute("data-endpoint")!, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                report_type: report_form.report_type.options[report_form.report_type.selectedIndex].value,
+                content: report_form.content.value,
+                address: window.location.href,
+                // get current user username
+                as_user: await (await fetch("/api/v1/auth/whoami")).text()
+            }),
+        });
+
+        const json = await res.json();
+        alert(json.message);
+
+        (document.getElementById("upper:report") as HTMLDialogElement).close();
+    });
+}
 
 // default export
 export default {};

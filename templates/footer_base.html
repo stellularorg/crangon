@@ -1,23 +1,50 @@
-{% extends "base.html" %}
-
-{% block base_content %}
+{% extends "base.html" %} {% block base_content %}
 <!-- page content -->
-<div id="_page" style="display: contents;">
-    <main class="flex flex-column justify-space-between g-10" {% block container_stuff %}{% endblock %}>
+<div id="_page" style="display: contents">
+    <main
+        class="flex flex-column justify-space-between g-10"
+        {%
+        block
+        container_stuff
+        %}{%
+        endblock
+        %}
+    >
         <div id="_footer_base_page" {% block main_stuff %}{% endblock %}>
             {% block content %}{% endblock %}
         </div>
 
         <!-- footer -->
-        <footer class="flex justify-center g-10 align-center full" {% block footer_stuff %}{% endblock %}>
+        <footer
+            class="flex justify-center g-10 align-center full"
+            {%
+            block
+            footer_stuff
+            %}{%
+            endblock
+            %}
+        >
             <hr class="small" />
 
             <div class="flex align-center g-2">
                 <!-- site menu -->
-                <button title="Site Menu" data-dialog="upper:crangon_links" class="round secondary">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="lucide lucide-menu">
+                <button
+                    title="Site Menu"
+                    data-dialog="upper:crangon_links"
+                    class="round secondary"
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="lucide lucide-menu"
+                    >
                         <line x1="4" x2="20" y1="12" y2="12" />
                         <line x1="4" x2="20" y1="6" y2="6" />
                         <line x1="4" x2="20" y1="18" y2="18" />
@@ -25,12 +52,25 @@
                     {{ site_name }}
                 </button>
 
-                <a class="button round secondary" id="theme_button" href="javascript:window.toggle_theme()"
-                    title="Toggle Theme">
+                <a
+                    class="button round secondary"
+                    id="theme_button"
+                    href="javascript:window.toggle_theme()"
+                    title="Toggle Theme"
+                >
                     <div id="theme-icon-sun">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="lucide lucide-sun">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="lucide lucide-sun"
+                        >
                             <circle cx="12" cy="12" r="4" />
                             <path d="M12 2v2" />
                             <path d="M12 20v2" />
@@ -44,13 +84,50 @@
                     </div>
 
                     <div id="theme-icon-moon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="lucide lucide-moon">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="lucide lucide-moon"
+                        >
                             <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
                         </svg>
                     </div>
                 </a>
+
+                {% if deducktive != "" %}
+                <button
+                    id="report_button"
+                    title="Report Page"
+                    class="round red secondary"
+                    data-endpoint="{{ deducktive }}/api/v1/reports"
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="lucide lucide-flag"
+                        aria-label="Flag symbol"
+                    >
+                        <path
+                            d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"
+                        />
+                        <line x1="4" x2="4" y1="22" y2="15" />
+                    </svg>
+                </button>
+                {% endif %}
             </div>
 
             <hr class="small" />
@@ -67,26 +144,54 @@
 </div>
 
 <dialog id="upper:crangon_links">
-    <div style="width: 25rem; max-width: 100%;">
+    <div style="width: 25rem; max-width: 100%">
         <div id="paste-info-box" class="flex flex-column g-4">
             <details open>
                 <summary>
                     <div class="flex align-center g-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="lucide lucide-link" aria-label="Link symbol" style="transform: none;">
-                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="lucide lucide-link"
+                            aria-label="Link symbol"
+                            style="transform: none"
+                        >
+                            <path
+                                d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+                            />
+                            <path
+                                d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+                            />
                         </svg>
                         Links
                     </div>
                 </summary>
 
                 <div class="card secondary flex flex-column g-4">
-                    <a href="{{ info }}" class="button round full justify-start secondary">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="lucide lucide-info" aria-label="Info symbol (I)">
+                    <a
+                        href="{{ info }}"
+                        class="button round full justify-start secondary"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="lucide lucide-info"
+                            aria-label="Info symbol (I)"
+                        >
                             <circle cx="12" cy="12" r="10" />
                             <path d="M12 16v-4" />
                             <path d="M12 8h.01" />
@@ -94,38 +199,84 @@
                         info
                     </a>
 
-                    <a href="/dashboard/settings" class="button round full justify-start secondary">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="lucide lucide-settings" aria-label="Settings symbol">
+                    <a
+                        href="/dashboard/settings"
+                        class="button round full justify-start secondary"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="lucide lucide-settings"
+                            aria-label="Settings symbol"
+                        >
                             <path
-                                d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                                d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
+                            />
                             <circle cx="12" cy="12" r="3" />
                         </svg>
                         settings
                     </a>
 
-                    <a href="/" class="button round full justify-start theme:primary">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="lucide lucide-fish" aria-label="Fish symbol">
+                    <a
+                        href="/"
+                        class="button round full justify-start theme:primary"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="lucide lucide-fish"
+                            aria-label="Fish symbol"
+                        >
                             <path
-                                d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6s-7.56-2.53-8.5-6Z" />
+                                d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6s-7.56-2.53-8.5-6Z"
+                            />
                             <path d="M18 12v.5" />
                             <path d="M16 17.93a9.77 9.77 0 0 1 0-11.86" />
                             <path
-                                d="M7 10.67C7 8 5.58 5.97 2.73 5.5c-1 1.5-1 5 .23 6.5-1.24 1.5-1.24 5-.23 6.5C5.58 18.03 7 16 7 13.33" />
-                            <path d="M10.46 7.26C10.2 5.88 9.17 4.24 8 3h5.8a2 2 0 0 1 1.98 1.67l.23 1.4" />
-                            <path d="m16.01 17.93-.23 1.4A2 2 0 0 1 13.8 21H9.5a5.96 5.96 0 0 0 1.49-3.98" />
+                                d="M7 10.67C7 8 5.58 5.97 2.73 5.5c-1 1.5-1 5 .23 6.5-1.24 1.5-1.24 5-.23 6.5C5.58 18.03 7 16 7 13.33"
+                            />
+                            <path
+                                d="M10.46 7.26C10.2 5.88 9.17 4.24 8 3h5.8a2 2 0 0 1 1.98 1.67l.23 1.4"
+                            />
+                            <path
+                                d="m16.01 17.93-.23 1.4A2 2 0 0 1 13.8 21H9.5a5.96 5.96 0 0 0 1.49-3.98"
+                            />
                         </svg>
                         new
                     </a>
 
                     {% if auth_state == true %}
-                    <a href="/dashboard" class="button round full justify-start theme:secondary">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="lucide lucide-layout-dashboard" aria-label="Dashboard symbol">
+                    <a
+                        href="/dashboard"
+                        class="button round full justify-start theme:secondary"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="lucide lucide-layout-dashboard"
+                            aria-label="Dashboard symbol"
+                        >
                             <rect width="7" height="9" x="3" y="3" rx="1" />
                             <rect width="7" height="5" x="14" y="3" rx="1" />
                             <rect width="7" height="9" x="14" y="12" rx="1" />
@@ -140,11 +291,23 @@
             <details open>
                 <summary>
                     <div class="flex align-center g-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="lucide lucide-cat" aria-label="Cat symbol" style="transform: none;">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="lucide lucide-cat"
+                            aria-label="Cat symbol"
+                            style="transform: none"
+                        >
                             <path
-                                d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z" />
+                                d="M12 5c.67 0 1.35.09 2 .26 1.78-2 5.03-2.84 6.42-2.26 1.4.58-.42 7-.42 7 .57 1.07 1 2.24 1 3.44C21 17.9 16.97 21 12 21s-9-3-9-7.56c0-1.25.5-2.4 1-3.44 0 0-1.89-6.42-.5-7 1.39-.58 4.72.23 6.5 2.23A9.04 9.04 0 0 1 12 5Z"
+                            />
                             <path d="M8 14v.5" />
                             <path d="M16 14v.5" />
                             <path d="M11.25 16.25h1.5L12 17l-.75-.75Z" />
@@ -154,44 +317,87 @@
                 </summary>
 
                 <div class="card secondary flex flex-column g-4">
-                    <button class="round full justify-start secondary"
-                        onclick="document.getElementById('theme_button').click();">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="lucide lucide-eclipse" aria-label="Eclipse symbol">
+                    <button
+                        class="round full justify-start secondary"
+                        onclick="document.getElementById('theme_button').click();"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="lucide lucide-eclipse"
+                            aria-label="Eclipse symbol"
+                        >
                             <circle cx="12" cy="12" r="10" />
                             <path d="M12 2a7 7 0 1 0 10 10" />
                         </svg>
                         theme
                     </button>
 
-                    {% if auth_state == false %}
-                    {% if guppy != "" %}
-                    <a href="{{ guppy }}/flow/auth/register" class="button round full justify-start secondary green"
-                        data-wants-redirect="true">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="lucide lucide-party-popper" aria-label="Party popper symbol">
+                    {% if auth_state == false %} {% if guppy != "" %}
+                    <a
+                        href="{{ guppy }}/flow/auth/register"
+                        class="button round full justify-start secondary green"
+                        data-wants-redirect="true"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="lucide lucide-party-popper"
+                            aria-label="Party popper symbol"
+                        >
                             <path d="M5.8 11.3 2 22l10.7-3.79" />
                             <path d="M4 3h.01" />
                             <path d="M22 8h.01" />
                             <path d="M15 2h.01" />
                             <path d="M22 20h.01" />
                             <path
-                                d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12v0c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10" />
-                            <path d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11v0c-.11.7-.72 1.22-1.43 1.22H17" />
-                            <path d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98v0C9.52 4.9 9 5.52 9 6.23V7" />
+                                d="m22 2-2.24.75a2.9 2.9 0 0 0-1.96 3.12v0c.1.86-.57 1.63-1.45 1.63h-.38c-.86 0-1.6.6-1.76 1.44L14 10"
+                            />
                             <path
-                                d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z" />
+                                d="m22 13-.82-.33c-.86-.34-1.82.2-1.98 1.11v0c-.11.7-.72 1.22-1.43 1.22H17"
+                            />
+                            <path
+                                d="m11 2 .33.82c.34.86-.2 1.82-1.11 1.98v0C9.52 4.9 9 5.52 9 6.23V7"
+                            />
+                            <path
+                                d="M11 13c1.93 1.93 2.83 4.17 2 5-.83.83-3.07-.07-5-2-1.93-1.93-2.83-4.17-2-5 .83-.83 3.07.07 5 2Z"
+                            />
                         </svg>
                         register
                     </a>
 
-                    <a href="{{ guppy }}/flow/auth/login" class="button round full justify-start secondary green"
-                        data-wants-redirect="true">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="lucide lucide-laugh" aria-label="Super smiley symbol">
+                    <a
+                        href="{{ guppy }}/flow/auth/login"
+                        class="button round full justify-start secondary green"
+                        data-wants-redirect="true"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="lucide lucide-laugh"
+                            aria-label="Super smiley symbol"
+                        >
                             <circle cx="12" cy="12" r="10" />
                             <path d="M18 13a6 6 0 0 1-6 5 6 6 0 0 1-6-5h12Z" />
                             <line x1="9" x2="9.01" y1="9" y2="9" />
@@ -199,12 +405,24 @@
                         </svg>
                         login
                     </a>
-                    {% endif %}
-                    {% else %}
-                    <a href="/api/v1/auth/logout" class="button round full justify-start secondary red">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="lucide lucide-frown" aria-label="Frown symbol">
+                    {% endif %} {% else %}
+                    <a
+                        href="/api/v1/auth/logout"
+                        class="button round full justify-start secondary red"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="lucide lucide-frown"
+                            aria-label="Frown symbol"
+                        >
                             <circle cx="12" cy="12" r="10" />
                             <path d="M16 16s-1.5-2-4-2-4 2-4 2" />
                             <line x1="9" x2="9.01" y1="9" y2="9" />
@@ -219,12 +437,23 @@
             <details>
                 <summary>
                     <div class="flex align-center g-4">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="lucide lucide-badge-help" aria-label="Question mark in circle symbol"
-                            style="transform: none;">
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="lucide lucide-badge-help"
+                            aria-label="Question mark in circle symbol"
+                            style="transform: none"
+                        >
                             <path
-                                d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z" />
+                                d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"
+                            />
                             <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                             <line x1="12" x2="12.01" y1="17" y2="17" />
                         </svg>
@@ -233,23 +462,51 @@
                 </summary>
 
                 <div class="card secondary flex flex-column g-4">
-                    <a href="https://code.stellular.org/stellular/crangon"
-                        class="button round full justify-start secondary">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="lucide lucide-code" aria-label="Code symbol">
+                    <a
+                        href="https://code.stellular.org/stellular/crangon"
+                        class="button round full justify-start secondary"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="lucide lucide-code"
+                            aria-label="Code symbol"
+                        >
                             <polyline points="16 18 22 12 16 6" />
                             <polyline points="8 6 2 12 8 18" />
                         </svg>
                         source code
                     </a>
 
-                    <a href="/api/docs/crangon/index.html" class="button round full justify-start secondary">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                            class="lucide lucide-braces">
-                            <path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1" />
-                            <path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1" />
+                    <a
+                        href="/api/docs/crangon/index.html"
+                        class="button round full justify-start secondary"
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="lucide lucide-braces"
+                        >
+                            <path
+                                d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"
+                            />
+                            <path
+                                d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"
+                            />
                         </svg>
                         api
                     </a>
@@ -260,7 +517,55 @@
         <hr />
 
         <div class="full flex justify-right g-4">
-            <a class="button round red" href="javascript:document.getElementById('upper:crangon_links').close();">
+            <a
+                class="button round red"
+                href="javascript:document.getElementById('upper:crangon_links').close();"
+            >
+                Close
+            </a>
+        </div>
+    </div>
+</dialog>
+
+<dialog id="upper:report">
+    <div style="width: 25rem; max-width: 100%">
+        <form class="full flex flex-column g-4" id="report_page">
+            <label for="report_type"><b>Report Type</b></label>
+
+            <select
+                required
+                name="report_type"
+                id="report_type"
+                class="full round"
+            >
+                <option value="Harassment">Harassment</option>
+                <option value="Abuse">Abuse</option>
+                <option value="Illegal">Illegal</option>
+                <option value="Harmful">Harmful</option>
+                <option value="Other">Other</option>
+            </select>
+
+            <label for="content"><b>Content</b></label>
+
+            <textarea
+                maxlength="500"
+                required
+                name="content"
+                id="content"
+                class="round"
+                placeholder="Post Content"
+            ></textarea>
+
+            <button class="round theme:primary">Post</button>
+        </form>
+
+        <hr />
+
+        <div class="full flex justify-right g-4">
+            <a
+                class="button round red"
+                href="javascript:document.getElementById('upper:report').close();"
+            >
                 Close
             </a>
         </div>

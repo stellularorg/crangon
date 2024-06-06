@@ -15,6 +15,7 @@ struct PasswordAskTemplate {
     info: String,
     auth_state: bool,
     guppy: String,
+    deducktive: String,
     site_name: String,
     body_embed: String,
 }
@@ -32,6 +33,7 @@ struct PasteViewTemplate {
     info: String,
     auth_state: bool,
     guppy: String,
+    deducktive: String,
     site_name: String,
     body_embed: String,
 }
@@ -105,6 +107,7 @@ pub async fn paste_view_request(
                     info: base.info,
                     auth_state: base.auth_state,
                     guppy: base.guppy,
+                    deducktive: base.deducktive,
                     site_name: base.site_name,
                     body_embed: base.body_embed,
                 }
@@ -250,6 +253,7 @@ pub async fn paste_view_request(
         info: base.info,
         auth_state: base.auth_state,
         guppy: base.guppy,
+        deducktive: base.deducktive,
         site_name: base.site_name,
         body_embed: base.body_embed,
     }
