@@ -356,6 +356,9 @@ if (report_button && report_form) {
                 // get current user username
                 as_user: await (await fetch("/api/v1/auth/whoami")).text()
             }),
+            mode: "cors",
+            cache: "no-cache",
+            credentials: "omit",
         });
 
         const json = await res.json();
