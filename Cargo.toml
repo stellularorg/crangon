@@ -34,6 +34,6 @@ uuid = { version = "1.6.1", features = ["v4"] }
 actix-cors = "0.7.0"
 askama = "0.12.1"
 sqlx = "0.7.4"
-shared = { version = "0.1.1", registry = "stellular" } # crates: disable-check
 regex = "1.10.4"
 dorsal = { version = "0.1.3-1", default-features = false }
+sauropod = "0.1.1"
