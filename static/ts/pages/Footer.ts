@@ -343,21 +343,30 @@ if (report_button) {
 
         iframe.src = iframe.getAttribute("data-src")!;
 
-        const iframe_load_event = async () => {
+        const iframe_load_event = () => {
+            // sync needed things
+            setTimeout(async () => {
+                iframe.contentWindow!.postMessage(
+                    {
+                        assign: "REPORT_AS_USER",
+                        value:
+                            (await (
+                                await fetch("/api/v1/auth/whoami")
+                            ).text()) || "",
+                    },
+                    "*",
+                );
+
+                iframe.contentWindow!.postMessage(
+                    {
+                        assign: "REAL_HREF",
+                        value: window.location.href,
+                    },
+                    "*",
+                );
+            }, 100);
+
             iframe.removeEventListener("load", iframe_load_event);
-
-            // sync variables
-            iframe.contentWindow!.postMessage({
-                assign: "REPORT_AS_USER",
-                value:
-                    (await (await fetch("/api/v1/auth/whoami")).text()) || "",
-            }, "*");
-
-            iframe.contentWindow!.postMessage({
-                assign: "REAL_HREF",
-                value:
-                    window.location.href,
-            }, "*");
         };
 
         iframe.addEventListener("load", iframe_load_event);
