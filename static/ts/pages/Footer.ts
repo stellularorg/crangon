@@ -326,45 +326,31 @@ window.addEventListener("click", (e: any) => {
 
 // reports
 const report_button = document.getElementById("report_button");
-const report_form = document.getElementById(
-    "report_page",
-) as HTMLFormElement | null;
 
-if (report_button && report_form) {
+if (report_button) {
     if (window.location.pathname === "/") {
         report_button.remove();
     }
 
-    report_button.addEventListener("click", () => {
+    report_button.addEventListener("click", async () => {
+        const iframe = document.querySelector(
+            "#upper\\:report iframe",
+        ) as HTMLIFrameElement;
+
         (
             document.getElementById("upper:report") as HTMLDialogElement
         ).showModal();
-    });
 
-    report_form.addEventListener("submit", async (event) => {
-        event.preventDefault();
+        iframe.src = iframe.getAttribute("data-src")!;
 
-        const res = await fetch(report_button.getAttribute("data-endpoint")!, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                report_type: report_form.report_type.options[report_form.report_type.selectedIndex].value,
-                content: report_form.content.value,
-                address: window.location.href,
-                // get current user username
-                as_user: await (await fetch("/api/v1/auth/whoami")).text()
-            }),
-            mode: "cors",
-            cache: "no-cache",
-            credentials: "omit",
-        });
+        const iframe_load_event = async () => {
+            // sync variables
+            (iframe.contentWindow as any).REPORT_AS_USER =
+                (await (await fetch("/api/v1/auth/whoami")).text()) || "";
+            iframe.removeEventListener("load", iframe_load_event);
+        };
 
-        const json = await res.json();
-        alert(json.message);
-
-        (document.getElementById("upper:report") as HTMLDialogElement).close();
+        iframe.addEventListener("load", iframe_load_event);
     });
 }
 

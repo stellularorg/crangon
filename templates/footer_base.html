@@ -527,37 +527,16 @@
     </div>
 </dialog>
 
+{% if deducktive != "" %}
 <dialog id="upper:report">
     <div style="width: 25rem; max-width: 100%">
-        <form class="full flex flex-column g-4" id="report_page">
-            <label for="report_type"><b>Report Type</b></label>
-
-            <select
-                required
-                name="report_type"
-                id="report_type"
-                class="full round"
-            >
-                <option value="Harassment">Harassment</option>
-                <option value="Abuse">Abuse</option>
-                <option value="Illegal">Illegal</option>
-                <option value="Harmful">Harmful</option>
-                <option value="Other">Other</option>
-            </select>
-
-            <label for="content"><b>Content</b></label>
-
-            <textarea
-                maxlength="500"
-                required
-                name="content"
-                id="content"
-                class="round"
-                placeholder="Report Content"
-            ></textarea>
-
-            <button class="round theme:primary">Report Page</button>
-        </form>
+        <iframe
+            data-src="{{ deducktive }}/api/v1/reports/embed"
+            frameborder="0"
+            class="full"
+            style="height: 500px"
+            sandbox="allow-same-origin allow-top-navigation allow-scripts allow-forms allow-pointer-lock allow-popups"
+        ></iframe>
 
         <hr />
 
@@ -571,4 +550,4 @@
         </div>
     </div>
 </dialog>
-{% endblock %}
+{% endif %} {% endblock %}
