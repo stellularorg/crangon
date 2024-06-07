@@ -344,10 +344,20 @@ if (report_button) {
         iframe.src = iframe.getAttribute("data-src")!;
 
         const iframe_load_event = async () => {
-            // sync variables
-            (iframe.contentWindow as any).REPORT_AS_USER =
-                (await (await fetch("/api/v1/auth/whoami")).text()) || "";
             iframe.removeEventListener("load", iframe_load_event);
+
+            // sync variables
+            iframe.contentWindow!.postMessage({
+                assign: "REPORT_AS_USER",
+                value:
+                    (await (await fetch("/api/v1/auth/whoami")).text()) || "",
+            }, "*");
+
+            iframe.contentWindow!.postMessage({
+                assign: "REAL_HREF",
+                value:
+                    window.location.href,
+            }, "*");
         };
 
         iframe.addEventListener("load", iframe_load_event);
