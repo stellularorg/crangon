@@ -51,10 +51,9 @@ pub async fn home_request(
     // ...
     let str: &Option<String> = &info.editing;
 
-    let paste = if str.is_some() {
-        Option::Some(data.db.get_paste_by_url(str.to_owned().unwrap()).await)
-    } else {
-        Option::None
+    let paste = match str {
+        Some(ref str) => Option::Some(data.db.get_paste_by_url(str.to_owned()).await),
+        None          => Option::None
     };
 
     let metadata = match paste.as_ref() {
