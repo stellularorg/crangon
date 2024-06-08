@@ -247,6 +247,15 @@ block content %}
     </div>
 </div>
 
+{% if me == owner %}
+<!-- hide report button for paste owner -->
+<style>
+    #report_button {
+        display: none;
+    }
+</style>
+{% endif %}
+
 <!-- dialogs -->
 <dialog id="upper:paste_info">
     <div style="width: 25rem; max-width: 100%">
@@ -284,16 +293,16 @@ block content %}
                     <ul>
                         <li id="paste-info-pub">
                             Pub:
-                            <span class="date-time-to-localize"
-                                >{{ paste.pub_date }}</span
-                            >
+                            <span class="date-time-to-localize">
+                                {{ paste.pub_date }}
+                            </span>
                         </li>
 
                         <li id="paste-info-edit">
                             Edit:
-                            <span class="date-time-to-localize"
-                                >{{ paste.edit_date }}</span
-                            >
+                            <span class="date-time-to-localize">
+                                {{ paste.edit_date }}
+                            </span>
                         </li>
                     </ul>
                 </div>
@@ -331,9 +340,9 @@ block content %}
                         {% if paste.metadata.owner != "" %}
                         <li id="paste-info-owner">
                             Owner:
-                            <a href="{{ guppy }}/{{ paste.metadata.owner }}"
-                                >{{ owner }}</a
-                            >
+                            <a href="{{ guppy }}/{{ paste.metadata.owner }}">
+                                {{ owner }}
+                            </a>
                         </li>
                         {% endif %}
                     </ul>

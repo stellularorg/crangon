@@ -9,15 +9,15 @@ use crate::db::{self, AppData, FullPaste, Paste, PasteMetadata};
 
 #[derive(Template)]
 #[template(path = "paste/password_ask.html")]
-struct PasswordAskTemplate {
-    custom_url: String,
+pub(super) struct PasswordAskTemplate {
+    pub(super) custom_url: String,
     // required fields (super::base)
-    info: String,
-    auth_state: bool,
-    guppy: String,
-    deducktive: String,
-    site_name: String,
-    body_embed: String,
+    pub(super) info: String,
+    pub(super) auth_state: bool,
+    pub(super) guppy: String,
+    pub(super) deducktive: String,
+    pub(super) site_name: String,
+    pub(super) body_embed: String,
 }
 
 #[derive(Template)]
@@ -29,6 +29,7 @@ struct PasteViewTemplate {
     favorites_count: i32,
     has_favorited: bool,
     owner: String,
+    me: String,
     // required fields (super::base)
     info: String,
     auth_state: bool,
@@ -83,47 +84,43 @@ pub async fn paste_view_request(
     let metadata = &unwrap.paste.metadata;
 
     // handle view password
-    if metadata.view_password.is_some()
-        && info.view.is_none()
-        && metadata.view_password.as_ref().unwrap() != "off"
-    {
-        if metadata
-            .view_password
-            .as_ref()
-            .unwrap()
-            .starts_with("LOCKED(USER_BANNED)-")
-        {
-            return HttpResponse::NotFound().body("Failed to view paste (LOCKED: OWNER BANNED)");
-        }
-
-        let base = base::get_base_values(token_user.is_some());
-        return HttpResponse::Ok()
-            .append_header(("Set-Cookie", ""))
-            .append_header(("Content-Type", "text/html"))
-            .body(
-                PasswordAskTemplate {
-                    custom_url: unwrap.clone().paste.custom_url,
-                    // required fields
-                    info: base.info,
-                    auth_state: base.auth_state,
-                    guppy: base.guppy,
-                    deducktive: base.deducktive,
-                    site_name: base.site_name,
-                    body_embed: base.body_embed,
+    match metadata.view_password {
+        Some(ref view_password) => {
+            // show password prompt
+            if info.view.is_none() && view_password != "off" {
+                if view_password.starts_with("LOCKED(USER_BANNED)-") {
+                    return HttpResponse::NotFound()
+                        .body("Failed to view paste (LOCKED: OWNER BANNED)");
                 }
-                .render()
-                .unwrap(),
-            );
-    }
 
-    // (check password)
-    if info.view.is_some()
-        && metadata.view_password.is_some()
-        && metadata.view_password.as_ref().unwrap() != "off"
-        && &info.view.as_ref().unwrap() != &metadata.view_password.as_ref().unwrap()
-    {
-        return HttpResponse::NotFound()
-            .body("You do not have permission to view this paste's contents.");
+                let base = base::get_base_values(token_user.is_some());
+                return HttpResponse::Ok()
+                    .append_header(("Set-Cookie", ""))
+                    .append_header(("Content-Type", "text/html"))
+                    .body(
+                        PasswordAskTemplate {
+                            custom_url: unwrap.clone().paste.custom_url,
+                            // required fields
+                            info: base.info,
+                            auth_state: base.auth_state,
+                            guppy: base.guppy,
+                            deducktive: base.deducktive,
+                            site_name: base.site_name,
+                            body_embed: base.body_embed,
+                        }
+                        .render()
+                        .unwrap(),
+                    );
+            }
+            // check given password
+            else if info.view.is_some()
+                && (&info.view.as_ref().unwrap() != &metadata.view_password.as_ref().unwrap())
+            {
+                return HttpResponse::NotFound()
+                    .body("You do not have permission to view this paste's contents.");
+            }
+        }
+        None => (),
     }
 
     // count view
@@ -164,6 +161,12 @@ pub async fn paste_view_request(
     let favicon_unwrap = metadata.favicon.as_ref();
 
     let base = base::get_base_values(token_user.is_some());
+
+    // get active user
+    let active_username = match token_user {
+        Some(ref ua) => ua.payload.as_ref().unwrap().user.username.clone(),
+        None => String::new(),
+    };
 
     // ...
     let paste = unwrap.clone().paste;
@@ -238,17 +241,14 @@ pub async fn paste_view_request(
         ),
         favorites_count,
         has_favorited,
-        owner: if user_metadata.is_some() && user_metadata.as_ref().unwrap().nickname.is_some() {
-            user_metadata
-                .as_ref()
-                .unwrap()
-                .nickname
-                .as_ref()
-                .unwrap()
-                .to_owned()
-        } else {
-            metadata.owner.clone()
+        owner: match user_metadata {
+            Some(ref meta) => match meta.nickname {
+                Some(ref nick) => nick.to_owned(),
+                None => metadata.owner.clone(),
+            },
+            None => metadata.owner.clone(),
         },
+        me: active_username,
         // required fields
         info: base.info,
         auth_state: base.auth_state,

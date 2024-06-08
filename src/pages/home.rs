@@ -57,21 +57,14 @@ pub async fn home_request(
         Option::None
     };
 
-    let metadata = if paste.is_some() && paste.as_ref().unwrap().payload.is_some() {
-        Option::Some(
-            &paste
-                .as_ref()
-                .unwrap()
-                .payload
-                .as_ref()
-                .unwrap()
-                .paste
-                .metadata,
-        )
-    } else {
-        Option::None
+    let metadata = match paste.as_ref() {
+        Some(p) => match p.payload {
+            Some(ref p) => Option::Some(p.paste.metadata.to_owned()),
+            None => Option::None
+        },
+        None => Option::None
     };
-
+    
     // if metadata has "private_source" set to "on" and we're not the owner, return
     if metadata.is_some() {
         let owner = &metadata.as_ref().unwrap().owner;

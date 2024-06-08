@@ -81,21 +81,43 @@ pub async fn paste_settings_request(
     let metadata = &unwrap.paste.metadata;
 
     // handle view password
-    if metadata.view_password.is_some()
-        && info.view.is_none()
-        && metadata.view_password.as_ref().unwrap() != "off"
-    {
-        return super::errors::error404(req, data).await;
-    }
+    match metadata.view_password {
+        Some(ref view_password) => {
+            // show password prompt
+            if info.view.is_none() && view_password != "off" {
+                if view_password.starts_with("LOCKED(USER_BANNED)-") {
+                    return HttpResponse::NotFound()
+                        .body("Failed to view paste (LOCKED: OWNER BANNED)");
+                }
 
-    // (check password)
-    if info.view.is_some()
-        && metadata.view_password.is_some()
-        && metadata.view_password.as_ref().unwrap() != "off"
-        && &info.view.as_ref().unwrap() != &metadata.view_password.as_ref().unwrap()
-    {
-        return HttpResponse::NotFound()
-            .body("You do not have permission to view this paste's contents.");
+                let base = base::get_base_values(token_user.is_some());
+                return HttpResponse::Ok()
+                    .append_header(("Set-Cookie", ""))
+                    .append_header(("Content-Type", "text/html"))
+                    .body(
+                        super::paste_view::PasswordAskTemplate {
+                            custom_url: unwrap.clone().paste.custom_url,
+                            // required fields
+                            info: base.info,
+                            auth_state: base.auth_state,
+                            guppy: base.guppy,
+                            deducktive: base.deducktive,
+                            site_name: base.site_name,
+                            body_embed: base.body_embed,
+                        }
+                        .render()
+                        .unwrap(),
+                    );
+            }
+            // check given password
+            else if info.view.is_some()
+                && (&info.view.as_ref().unwrap() != &metadata.view_password.as_ref().unwrap())
+            {
+                return HttpResponse::NotFound()
+                    .body("You do not have permission to view this paste's contents.");
+            }
+        }
+        None => (),
     }
 
     // ...
