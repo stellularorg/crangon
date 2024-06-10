@@ -125,7 +125,6 @@ pub async fn home_request(
                     // OR have a passwordless permission
                     if in_permissions_list.is_some() {
                         let permission = in_permissions_list.unwrap();
-    
                         // OR must have EditTextPasswordless or Passwordless
                         (permission == &db::PastePermissionLevel::EditTextPasswordless)
                             | (permission == &db::PastePermissionLevel::Passwordless)

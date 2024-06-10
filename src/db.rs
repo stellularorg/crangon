@@ -226,17 +226,19 @@ impl Database {
     /// Ban a [`UserState`] by its `username`
     pub async fn ban_user_by_name(&self, name: String) -> DefaultReturn<Option<String>> {
         // make sure user exists
-        let existing = &self.get_user_by_username(name.clone()).await;
-        if !existing.success {
-            return DefaultReturn {
-                success: false,
-                message: String::from("User does not exist!"),
-                payload: Option::None,
-            };
-        }
+        let existing = match self.get_user_by_username(name.clone()).await.payload {
+            Some(e) => e,
+            None => {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("User does not exist!"),
+                    payload: Option::None,
+                }
+            }
+        };
 
         // make sure user role is "member"
-        let user = &existing.payload.as_ref().unwrap().user;
+        let user = &existing.user;
         if user.role != "member" {
             return DefaultReturn {
                 success: false,
@@ -906,22 +908,23 @@ impl Database {
         }
 
         // make sure paste exists
-        let existing = &self.get_paste_by_url(url.clone()).await;
-        if !existing.success {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Paste does not exist!"),
-                payload: Option::None,
-            };
-        }
+        let existing = match self.get_paste_by_url(url.clone()).await.payload {
+            Some(e) => e,
+            None => {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("Paste does not exist!"),
+                    payload: Option::None,
+                }
+            }
+        };
 
         // (parse metadata from existing)
-        let existing_metadata = &existing.payload.as_ref().unwrap().paste.metadata;
+        let paste = &existing.paste;
+        let existing_metadata = &paste.metadata;
 
         // verify password
         // if password hash doesn't match AND edit_as is none OR edit_as != existing_metadata's owner value
-        let paste = &existing.payload.clone().unwrap().paste;
-
         let skip_password_check = if edit_as.is_some() {
             let edit_as = edit_as.as_ref().unwrap();
             let in_permissions_list = existing_metadata.permissions_list.get(edit_as);
@@ -987,15 +990,20 @@ impl Database {
 
         // if we're changing url, make sure this paste doesn't already exist
         if new_url.is_some() {
-            let existing = &self.get_paste_by_url(new_url.clone().unwrap()).await;
-
-            if existing.success {
-                return DefaultReturn {
-                    success: false,
-                    message: String::from("A paste with this URL already exists!"),
-                    payload: Option::None,
-                };
-            }
+            match self
+                .get_paste_by_url(new_url.clone().unwrap())
+                .await
+                .payload
+            {
+                Some(_) => {
+                    return DefaultReturn {
+                        success: false,
+                        message: String::from("A paste with this URL already exists!"),
+                        payload: Option::None,
+                    }
+                }
+                None => (),
+            };
 
             // remove this paste's old cache entry
             self.base.cachedb.remove(format!("paste:{}", url)).await;
@@ -1087,17 +1095,20 @@ impl Database {
         }
 
         // make sure paste exists
-        let existing = &self.get_paste_by_url(url.clone()).await;
-        if !existing.success {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Paste does not exist!"),
-                payload: Option::None,
-            };
-        }
+        let existing = match self.get_paste_by_url(url.clone()).await.payload {
+            Some(e) => e,
+            None => {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("Paste does not exist!"),
+                    payload: Option::None,
+                }
+            }
+        };
 
         // (parse metadata from existing)
-        let existing_metadata = &existing.payload.as_ref().unwrap().paste.metadata;
+        let paste = &existing.paste;
+        let existing_metadata = &paste.metadata;
 
         // get edit_as user account
         let ua = if edit_as.is_some() {
@@ -1111,8 +1122,6 @@ impl Database {
         };
 
         // verify password
-        // if password hash doesn't match AND edit_as is none OR edit_as != existing_metadata's owner value
-        let paste = &existing.payload.clone().unwrap().paste;
 
         // ...skip password check IF the user is the paste owner!
         let skip_password_check = if edit_as.is_some() {
@@ -1126,7 +1135,6 @@ impl Database {
             | (ua.as_ref().is_some() && ua.as_ref().unwrap().is_some() && ua.unwrap().unwrap().level.permissions.contains(&String::from("ManagePastes")))
                 | if in_permissions_list.is_some() {
                     let permission = in_permissions_list.unwrap();
-        
                     // OR must have Passwordless
                     permission == &PastePermissionLevel::Passwordless
                 } else {
@@ -1208,14 +1216,16 @@ impl Database {
         }
 
         // make sure paste exists
-        let existing = &self.get_paste_by_url(url.clone()).await;
-        if !existing.success {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Paste does not exist!"),
-                payload: Option::None,
-            };
-        }
+        match self.get_paste_by_url(url.clone()).await.payload {
+            Some(_) => (),
+            None => {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("Paste does not exist!"),
+                    payload: Option::None,
+                }
+            }
+        };
 
         // check for existing view log
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
@@ -1300,17 +1310,20 @@ impl Database {
         }
 
         // make sure paste exists
-        let existing = &self.get_paste_by_url(url.clone()).await;
-        if !existing.success {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Paste does not exist!"),
-                payload: Option::None,
-            };
-        }
+        let existing = match self.get_paste_by_url(url.clone()).await.payload {
+            Some(e) => e,
+            None => {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("Paste does not exist!"),
+                    payload: Option::None,
+                }
+            }
+        };
 
         // (parse metadata from existing)
-        let existing_metadata = &existing.payload.as_ref().unwrap().paste.metadata;
+        let paste = &existing.paste;
+        let existing_metadata = &paste.metadata;
 
         // get edit_as user account
         let ua = if delete_as.is_some() {
@@ -1324,7 +1337,6 @@ impl Database {
         };
 
         // verify password
-        let paste = &existing.payload.clone().unwrap().paste;
 
         // ...skip password check IF the user is the paste owner!
         let skip_password_check = if delete_as.is_some() {
@@ -1507,15 +1519,16 @@ impl Database {
     /// Get the number of [`PasteFavoriteLog`]s a [`Paste`] has
     pub async fn get_paste_favorites(&self, id: String) -> DefaultReturn<i32> {
         // get paste
-        let existing = self.get_paste_by_id(id.clone()).await;
-
-        if existing.success == false {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Paste does not exist!"),
-                payload: 0,
-            };
-        }
+        match self.get_paste_by_id(id.clone()).await.payload {
+            Some(_) => (),
+            None => {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("Paste does not exist!"),
+                    payload: 0,
+                }
+            }
+        };
 
         // get favorites
         DefaultReturn {
@@ -1542,15 +1555,16 @@ impl Database {
     ) -> DefaultReturn<Option<Log>> {
         // get paste
         if skip_existing_check == false {
-            let existing = self.get_paste_by_id(paste_id.clone()).await;
-
-            if existing.success == false {
-                return DefaultReturn {
-                    success: false,
-                    message: String::from("Paste does not exist!"),
-                    payload: Option::None,
-                };
-            }
+            match self.get_paste_by_id(paste_id.clone()).await.payload {
+                Some(_) => (),
+                None => {
+                    return DefaultReturn {
+                        success: false,
+                        message: String::from("Paste does not exist!"),
+                        payload: Option::None,
+                    }
+                }
+            };
         }
 
         // ...
@@ -1604,19 +1618,18 @@ impl Database {
         paste_id: String,
     ) -> DefaultReturn<Option<String>> {
         // get paste
-        let existing = self.get_paste_by_id(paste_id.clone()).await;
-
-        if existing.success == false {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Paste does not exist!"),
-                payload: Option::None,
-            };
-        }
+        let existing = match self.get_paste_by_id(paste_id.clone()).await.payload {
+            Some(e) => e,
+            None => {
+                return DefaultReturn {
+                    success: false,
+                    message: String::from("Paste does not exist!"),
+                    payload: Option::None,
+                }
+            }
+        };
 
         // check if user is paste owner
-        let existing = existing.payload.unwrap();
-
         if existing.paste.metadata.owner == user {
             return DefaultReturn {
                 success: false,
