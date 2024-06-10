@@ -10,7 +10,11 @@ pub struct CallbackQueryProps {
 #[get("/api/v1/auth/callback")]
 pub async fn callback_request(info: web::Query<CallbackQueryProps>) -> impl Responder {
     let set_cookie = if info.uid.is_some() {
-        format!("__Secure-Token={}; SameSite=Lax; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age={}", info.uid.as_ref().unwrap(), 60 * 60 * 24 * 365)
+        format!(
+            "__Secure-Token={}; SameSite=Lax; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age={}",
+            info.uid.as_ref().unwrap(),
+            60 * 60 * 24 * 365
+        )
     } else {
         String::new()
     };
@@ -48,7 +52,10 @@ pub async fn logout(req: HttpRequest, data: web::Data<AppData>) -> impl Responde
 
     // return
     return HttpResponse::Ok()
-        .append_header(("Set-Cookie", "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0"))
+        .append_header((
+            "Set-Cookie",
+            "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0",
+        ))
         .append_header(("Content-Type", "text/plain"))
         .body("You have been signed out. You can now close this tab.");
 }

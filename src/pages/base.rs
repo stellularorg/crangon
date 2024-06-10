@@ -67,7 +67,8 @@ pub async fn check_auth_status(
     if token_user.is_some() {
         // make sure user exists, refresh token if not
         if token_user.as_ref().unwrap().success == false {
-            set_cookie = "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
+            set_cookie =
+                "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
             token_user = Option::None;
         }
     }

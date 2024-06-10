@@ -600,10 +600,7 @@ impl Database {
         };
 
         let c = &self.base.db.client;
-        let res = sqlquery(query)
-            .bind(offset)
-            .fetch_all(c)
-            .await;
+        let res = sqlquery(query).bind(offset).fetch_all(c).await;
 
         if res.is_err() {
             return DefaultReturn {
@@ -807,7 +804,9 @@ impl Database {
                 if utility::hash(e.to_string()) != existing_group.payload.unwrap().submit_password {
                     return DefaultReturn {
                         success: false,
-                        message: String::from("The paste edit password must match the group submit password during creation."),
+                        message: String::from(
+                            "The paste edit password must match the group submit password during creation.",
+                        ),
                         payload: Option::None,
                     };
                 }
@@ -1119,7 +1118,7 @@ impl Database {
         let skip_password_check = if edit_as.is_some() {
             let edit_as = edit_as.as_ref().unwrap();
             let in_permissions_list = existing_metadata.permissions_list.get(edit_as);
-        
+
             // must be paste owner
             (edit_as == &existing_metadata.owner)
             // OR must have the "ManagePastes" permission
@@ -1501,7 +1500,6 @@ impl Database {
             payload: Option::Some(p.name.to_string()),
         };
     }
-
 
     // social
 
