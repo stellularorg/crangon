@@ -4,7 +4,8 @@ use actix_web::{get, web, HttpResponse, Responder};
 use super::base;
 use askama::Template;
 
-use crate::db::{self, DefaultReturn, FullUser, PasteIdentifier};
+use crate::db::{self, FullUser, PasteIdentifier};
+use dorsal::db::special::auth_db::{AuthError, Result as AuthResult, UserMetadata};
 
 #[derive(Template)]
 #[template(path = "staff/homepage.html")]
@@ -20,7 +21,7 @@ struct HomeTemplate {
 #[derive(Template)]
 #[template(path = "staff/users.html")]
 struct UsersTemplate {
-    user: Option<FullUser<String>>,
+    user: AuthResult<FullUser<UserMetadata>>,
     username: String,
     // required fields (super::base)
     info: String,
@@ -123,16 +124,12 @@ pub async fn staff_users_dashboard_request(
     }
 
     // get user
-    let user: db::DefaultReturn<Option<FullUser<String>>> = if info.username.is_some() {
+    let user = if info.username.is_some() {
         data.db
             .get_user_by_username(info.username.as_ref().unwrap().to_owned())
             .await
     } else {
-        DefaultReturn {
-            success: false,
-            message: String::new(),
-            payload: Option::None,
-        }
+        Err(AuthError::Other)
     };
 
     // ...
@@ -147,7 +144,7 @@ pub async fn staff_users_dashboard_request(
                 } else {
                     String::new()
                 },
-                user: user.payload,
+                user,
                 // required fields
                 info: base.info,
                 auth_state: base.auth_state,
@@ -202,7 +199,7 @@ pub async fn staff_pastes_dashboard_request(
         .append_header(("Content-Type", "text/html"))
         .body(
             PastesTemplate {
-                pastes: pastes.payload.unwrap(),
+                pastes: pastes.ok().unwrap(),
                 search_content: info.search_content.clone().unwrap_or(String::new()),
                 offset: if info.offset.is_some() {
                     info.offset.unwrap()

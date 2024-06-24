@@ -1,22 +1,23 @@
 //! # Database
 //! Database handler for all database types
 use std::collections::HashMap;
-
 use dorsal::utility;
 use serde::{Deserialize, Serialize};
-
 use dorsal::query as sqlquery;
-
 use crate::log_db::{self, Log};
+
+pub use dorsal::db::special::auth_db::{
+    AuthError, Result as AuthResult, UserMetadata, FullUser, UserState,
+};
+use crate::model::DatabaseError;
+
+pub type Result<T> = std::result::Result<T, DatabaseError>;
 
 #[derive(Clone)]
 pub struct AppData {
     pub db: Database,
     pub http_client: awc::Client,
 }
-
-pub use dorsal::db::special::auth_db::{FullUser, UserState};
-pub use dorsal::DefaultReturn;
 
 // Paste and Group require the type of their metadata to be specified so it can be converted if needed
 #[derive(Debug, Default, PartialEq, Clone, Serialize, Deserialize)]
@@ -207,7 +208,7 @@ impl Database {
     pub async fn get_user_by_unhashed(
         &self,
         unhashed: String,
-    ) -> DefaultReturn<Option<FullUser<String>>> {
+    ) -> AuthResult<FullUser<UserMetadata>> {
         self.auth.get_user_by_unhashed(unhashed).await
     }
 
@@ -218,33 +219,23 @@ impl Database {
     pub async fn get_user_by_username(
         &self,
         username: String,
-    ) -> DefaultReturn<Option<FullUser<String>>> {
+    ) -> AuthResult<FullUser<UserMetadata>> {
         self.auth.get_user_by_username(username).await
     }
 
     // SET
     /// Ban a [`UserState`] by its `username`
-    pub async fn ban_user_by_name(&self, name: String) -> DefaultReturn<Option<String>> {
+    pub async fn ban_user_by_name(&self, name: String) -> AuthResult<()> {
         // make sure user exists
-        let existing = match self.get_user_by_username(name.clone()).await.payload {
-            Some(e) => e,
-            None => {
-                return DefaultReturn {
-                    success: false,
-                    message: String::from("User does not exist!"),
-                    payload: Option::None,
-                }
-            }
+        let existing = match self.get_user_by_username(name.clone()).await {
+            Ok(ua) => ua,
+            Err(e) => return Err(e),
         };
 
         // make sure user role is "member"
         let user = &existing.user;
         if user.role != "member" {
-            return DefaultReturn {
-                success: false,
-                message: String::from("User must be of role \"member\""),
-                payload: Option::None,
-            };
+            return Err(AuthError::Other);
         }
 
         // update user
@@ -255,19 +246,14 @@ impl Database {
         };
 
         let c = &self.base.db.client;
-        let res = sqlquery(query)
+        if let Err(_) = sqlquery(query)
             .bind::<&str>("banned")
             .bind::<&String>(&name)
             .execute(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from(res.err().unwrap().to_string()),
-                payload: Option::None,
-            };
-        }
+            .await
+        {
+            return Err(AuthError::Other);
+        };
 
         // lock user assets
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
@@ -276,9 +262,8 @@ impl Database {
             "UPDATE \"cr_pastes\" SET (\"metadata\") = ($1) WHERE \"metadata\" LIKE $2"
         };
 
-        let c = &self.base.db.client;
         // TODO: some kind of bulk cache update to handle this
-        let res = sqlquery(query)
+        if let Err(_) = sqlquery(query)
             .bind::<&String>(
                 &serde_json::to_string::<PasteMetadata>(&PasteMetadata {
                     // lock editors out
@@ -299,40 +284,16 @@ impl Database {
             )
             .bind::<&String>(&format!("%\"owner\":\"{name}\"%"))
             .execute(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from(res.err().unwrap().to_string()),
-                payload: Option::None,
-            };
+            .await
+        {
+            return Err(AuthError::Other);
         }
 
         // update cache
-        let existing_in_cache = self.base.cachedb.get(format!("user:{}", name)).await;
-
-        if existing_in_cache.is_some() {
-            let mut user =
-                serde_json::from_str::<UserState<String>>(&existing_in_cache.unwrap()).unwrap();
-            user.role = String::from("banned"); // update role
-
-            // update cache
-            self.base
-                .cachedb
-                .update(
-                    format!("user:{}", name),
-                    serde_json::to_string::<UserState<String>>(&user).unwrap(),
-                )
-                .await;
-        }
+        self.base.cachedb.remove(format!("user:{}", name)).await;
 
         // return
-        return DefaultReturn {
-            success: true,
-            message: String::from("User banned!"),
-            payload: Option::Some(name),
-        };
+        return Ok(());
     }
 
     // pastes
@@ -365,7 +326,7 @@ impl Database {
         &self,
         query: &str,
         selector: &str,
-    ) -> DefaultReturn<Option<FullPaste<PasteMetadata, String>>> {
+    ) -> Result<FullPaste<PasteMetadata, UserMetadata>> {
         // check in cache
         let cached = self.base.cachedb.get(format!("paste:{}", selector)).await;
 
@@ -375,42 +336,32 @@ impl Database {
                 serde_json::from_str::<Paste<PasteMetadata>>(cached.unwrap().as_str()).unwrap();
 
             // get user
-            let user = if paste.metadata.owner.len() > 0 {
-                // TODO: maybe don't clone here
-                (self
-                    .get_user_by_username(paste.clone().metadata.owner)
-                    .await)
-                    .payload
+            let user = if &paste.metadata.owner.len() > &0 {
+                match self
+                    .get_user_by_username(paste.metadata.owner.clone())
+                    .await
+                {
+                    Ok(ua) => Some(ua),
+                    Err(_) => return Err(DatabaseError::Other),
+                }
             } else {
-                Option::None
+                None
             };
 
             // return
-            return DefaultReturn {
-                success: true,
-                message: String::from("Paste exists (cache)"),
-                payload: Option::Some(FullPaste { paste, user }),
-            };
+            return Ok(FullPaste { paste, user });
         }
 
         // fetch from db
         let c = &self.base.db.client;
-        let res = sqlquery(query)
+        let row = match sqlquery(query)
             .bind::<&String>(&selector.to_lowercase())
             .fetch_one(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Paste does not exist"),
-                payload: Option::None,
-            };
-        }
-
-        // ...
-        let row = res.unwrap();
-        let row = self.base.textify_row(row).data;
+            .await
+        {
+            Ok(r) => self.base.textify_row(r).data,
+            Err(_) => return Err(DatabaseError::NotFound),
+        };
 
         // get views
         let views = &self
@@ -443,22 +394,20 @@ impl Database {
             .await;
 
         // get user
-        let user = if paste.metadata.owner.len() > 0 {
-            // TODO: maybe don't clone here
-            (self
-                .get_user_by_username(paste.clone().metadata.owner)
-                .await)
-                .payload
+        let user = if &paste.metadata.owner.len() > &0 {
+            match self
+                .get_user_by_username(paste.metadata.owner.clone())
+                .await
+            {
+                Ok(ua) => Some(ua),
+                Err(_) => return Err(DatabaseError::Other),
+            }
         } else {
-            Option::None
+            None
         };
 
         // return
-        return DefaultReturn {
-            success: true,
-            message: String::from("Paste exists (new)"),
-            payload: Option::Some(FullPaste { paste, user }),
-        };
+        return Ok(FullPaste { paste, user });
     }
 
     // GET
@@ -469,7 +418,7 @@ impl Database {
     pub async fn get_paste_by_url(
         &self,
         mut url: String,
-    ) -> DefaultReturn<Option<FullPaste<PasteMetadata, String>>> {
+    ) -> Result<FullPaste<PasteMetadata, UserMetadata>> {
         url = idna::punycode::encode_str(&url).unwrap();
 
         if url.ends_with("-") {
@@ -492,7 +441,7 @@ impl Database {
     pub async fn get_paste_by_id(
         &self,
         id: String,
-    ) -> DefaultReturn<Option<FullPaste<PasteMetadata, String>>> {
+    ) -> Result<FullPaste<PasteMetadata, UserMetadata>> {
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "SELECT * FROM \"cr_pastes\" WHERE \"id\" = ?"
         } else {
@@ -511,7 +460,7 @@ impl Database {
         &self,
         owner: String,
         offset: Option<i32>,
-    ) -> DefaultReturn<Option<Vec<PasteIdentifier>>> {
+    ) -> Result<Vec<PasteIdentifier>> {
         let offset = if offset.is_some() { offset.unwrap() } else { 0 };
 
         // check in cache
@@ -527,11 +476,7 @@ impl Database {
                 serde_json::from_str::<Vec<PasteIdentifier>>(cached.unwrap().as_str()).unwrap();
 
             // return
-            return DefaultReturn {
-                success: true,
-                message: owner,
-                payload: Option::Some(pastes),
-            };
+            return Ok(pastes);
         }
 
         // ...
@@ -542,24 +487,20 @@ impl Database {
         };
 
         let c = &self.base.db.client;
-        let res = sqlquery(query)
+        let res = match sqlquery(query)
             .bind::<&String>(&format!("%\"owner\":\"{}\"%", &owner))
             .bind(offset)
             .fetch_all(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from(res.err().unwrap().to_string()),
-                payload: Option::None,
-            };
-        }
+            .await
+        {
+            Ok(r) => r,
+            Err(_) => return Err(DatabaseError::Other),
+        };
 
         // build res
         let mut full_res: Vec<PasteIdentifier> = Vec::new();
 
-        for row in res.unwrap() {
+        for row in res {
             let row = self.base.textify_row(row).data;
             full_res.push(PasteIdentifier {
                 custom_url: row.get("custom_url").unwrap().to_string(),
@@ -577,11 +518,7 @@ impl Database {
             .await;
 
         // return
-        return DefaultReturn {
-            success: true,
-            message: owner,
-            payload: Option::Some(full_res),
-        };
+        return Ok(full_res);
     }
 
     /// Get all [pastes](Paste) (limited)
@@ -591,7 +528,7 @@ impl Database {
     pub async fn get_all_pastes_limited(
         &self,
         offset: Option<i32>,
-    ) -> DefaultReturn<Option<Vec<PasteIdentifier>>> {
+    ) -> Result<Vec<PasteIdentifier>> {
         let offset = if offset.is_some() { offset.unwrap() } else { 0 };
 
         // ...
@@ -602,20 +539,15 @@ impl Database {
         };
 
         let c = &self.base.db.client;
-        let res = sqlquery(query).bind(offset).fetch_all(c).await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from(res.err().unwrap().to_string()),
-                payload: Option::None,
-            };
-        }
+        let res = match sqlquery(query).bind(offset).fetch_all(c).await {
+            Ok(r) => r,
+            Err(_) => return Err(DatabaseError::Other),
+        };
 
         // build res
         let mut full_res: Vec<PasteIdentifier> = Vec::new();
 
-        for row in res.unwrap() {
+        for row in res {
             let row = self.base.textify_row(row).data;
             full_res.push(PasteIdentifier {
                 custom_url: row.get("custom_url").unwrap().to_string(),
@@ -624,11 +556,7 @@ impl Database {
         }
 
         // return
-        return DefaultReturn {
-            success: true,
-            message: String::new(),
-            payload: Option::Some(full_res),
-        };
+        return Ok(full_res);
     }
 
     /// Get all [pastes](Paste) (limited)
@@ -640,7 +568,7 @@ impl Database {
         &self,
         content: String,
         offset: Option<i32>,
-    ) -> DefaultReturn<Option<Vec<PasteIdentifier>>> {
+    ) -> Result<Vec<PasteIdentifier>> {
         let offset = if offset.is_some() { offset.unwrap() } else { 0 };
 
         // ...
@@ -651,24 +579,20 @@ impl Database {
         };
 
         let c = &self.base.db.client;
-        let res = sqlquery(query)
+        let res = match sqlquery(query)
             .bind(format!("%{content}%"))
             .bind(offset)
             .fetch_all(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from(res.err().unwrap().to_string()),
-                payload: Option::None,
-            };
-        }
+            .await
+        {
+            Ok(r) => r,
+            Err(_) => return Err(DatabaseError::Other),
+        };
 
         // build res
         let mut full_res: Vec<PasteIdentifier> = Vec::new();
 
-        for row in res.unwrap() {
+        for row in res {
             let row = self.base.textify_row(row).data;
             full_res.push(PasteIdentifier {
                 custom_url: row.get("custom_url").unwrap().to_string(),
@@ -677,11 +601,7 @@ impl Database {
         }
 
         // return
-        return DefaultReturn {
-            success: true,
-            message: String::new(),
-            payload: Option::Some(full_res),
-        };
+        return Ok(full_res);
     }
 
     // SET
@@ -692,11 +612,9 @@ impl Database {
     /// * `as_user` - The ID of the user creating the paste
     pub async fn create_paste(
         &self,
-        props: &mut Paste<String>,
+        mut props: Paste<String>,
         as_user: Option<String>, // id of paste owner
-    ) -> DefaultReturn<Option<Paste<String>>> {
-        let p: &mut Paste<String> = props; // borrowed props
-
+    ) -> Result<String> {
         // create default metadata
         let metadata: PasteMetadata = PasteMetadata {
             owner: if as_user.is_some() {
@@ -717,47 +635,33 @@ impl Database {
         // check values
 
         // (check empty)
-        if p.custom_url.is_empty() {
-            p.custom_url = utility::random_id().chars().take(10).collect();
+        if props.custom_url.is_empty() {
+            props.custom_url = utility::random_id().chars().take(10).collect();
         }
 
-        if p.edit_password.is_empty() {
-            p.edit_password = utility::random_id().chars().take(10).collect();
+        if props.edit_password.is_empty() {
+            props.edit_password = utility::random_id().chars().take(10).collect();
         }
 
         // (check length)
-        if (p.custom_url.len() < 2) | (p.custom_url.len() > 500) {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Custom URL is invalid"),
-                payload: Option::None,
-            };
+        if (props.custom_url.len() < 2) | (props.custom_url.len() > 500) {
+            return Err(DatabaseError::ValueError);
         }
 
-        if !p.group_name.is_empty() && (p.group_name.len() < 2) | (p.group_name.len() > 500) {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Group Name is invalid"),
-                payload: Option::None,
-            };
+        if !props.group_name.is_empty()
+            && (props.group_name.len() < 2) | (props.group_name.len() > 500)
+        {
+            return Err(DatabaseError::ValueError);
         }
 
         // check content
-        if (p.content.len() < 1) | (p.content.len() > 400_000) {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Content is invalid"),
-                payload: Option::None,
-            };
+        if (props.content.len() < 1) | (props.content.len() > 400_000) {
+            return Err(DatabaseError::ValueError);
         }
 
         // paste cannot have names we may need
-        if ["dashboard", "api", "public", "static"].contains(&p.custom_url.as_str()) {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Custom URL is invalid"),
-                payload: Option::None,
-            };
+        if ["dashboard", "api", "public", "static"].contains(&props.custom_url.as_str()) {
+            return Err(DatabaseError::ValueError);
         }
 
         // (characters used)
@@ -766,74 +670,53 @@ impl Database {
             .build()
             .unwrap();
 
-        if regex.captures(&p.custom_url).iter().len() < 1 {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Custom URL is invalid"),
-                payload: Option::None,
-            };
+        if regex.captures(&props.custom_url).iter().len() < 1 {
+            return Err(DatabaseError::ValueError);
         }
 
         // if we're trying to create a paste in a group, make sure the group exists
         // (create it if it doesn't)
-        if !p.group_name.is_empty() {
-            let n = &p.group_name;
-            let e = &p.edit_password;
-            let o = &p.custom_url;
+        if !props.group_name.is_empty() {
+            let n = &props.group_name;
+            let e = &props.edit_password;
+            let o = &props.custom_url;
 
-            let existing_group = self.get_group_by_name(n.to_string()).await;
-
-            if !existing_group.success {
-                let res = self
-                    .create_group(Group {
-                        name: n.to_string(),
-                        submit_password: e.to_string(), // groups will have the same password as their first paste
-                        metadata: GroupMetadata {
-                            owner: metadata.clone().owner,
-                        },
-                    })
-                    .await;
-
-                if !res.success {
-                    return DefaultReturn {
-                        success: false,
-                        message: res.message,
-                        payload: Option::None,
-                    };
+            match self.get_group_by_name(n.to_string()).await {
+                Ok(existing_group) => {
+                    // check group password
+                    if utility::hash(e.to_string()) != existing_group.submit_password {
+                        return Err(DatabaseError::ValueError);
+                    }
                 }
-            } else {
-                // check group password
-                if utility::hash(e.to_string()) != existing_group.payload.unwrap().submit_password {
-                    return DefaultReturn {
-                        success: false,
-                        message: String::from(
-                            "The paste edit password must match the group submit password during creation.",
-                        ),
-                        payload: Option::None,
+                Err(_) => {
+                    if let Err(e) = self
+                        .create_group(Group {
+                            name: n.to_string(),
+                            submit_password: e.to_string(), // groups will have the same password as their first paste
+                            metadata: GroupMetadata {
+                                owner: metadata.clone().owner,
+                            },
+                        })
+                        .await
+                    {
+                        return Err(e);
                     };
                 }
             }
 
             // append to custom_url
-            p.custom_url = format!("{}/{}", n, o);
+            props.custom_url = format!("{}/{}", n, o);
         }
 
         // make sure paste does not exist
-        let existing: DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
-            self.get_paste_by_url(p.custom_url.to_owned()).await;
-
-        if existing.success | existing.payload.is_some() {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Paste already exists!"),
-                payload: Option::None,
-            };
+        if let Ok(_) = self.get_paste_by_url(props.custom_url.to_owned()).await {
+            return Err(DatabaseError::MustBeUnique);
         }
 
-        p.custom_url = idna::punycode::encode_str(&p.custom_url).unwrap();
+        props.custom_url = idna::punycode::encode_str(&props.custom_url).unwrap();
 
-        if p.custom_url.ends_with("-") {
-            p.custom_url.pop();
+        if props.custom_url.ends_with("-") {
+            props.custom_url.pop();
         }
 
         // create paste
@@ -844,51 +727,40 @@ impl Database {
         };
 
         let c = &self.base.db.client;
-        let p: &mut Paste<String> = &mut props.clone();
-        p.id = utility::random_id();
 
-        let edit_password = &p.edit_password;
-        let edit_password_hash = utility::hash(edit_password.to_string());
+        props.id = utility::random_id();
+        let edit_password_hash = utility::hash(props.edit_password.to_string());
 
-        let edit_date = &p.edit_date;
-        let pub_date = &p.pub_date;
+        let edit_date = &props.edit_date;
+        let pub_date = &props.pub_date;
 
-        let res = sqlquery(query)
-            .bind::<&String>(&p.custom_url)
-            .bind::<&String>(&p.id)
-            .bind::<&String>(&p.group_name)
+        match sqlquery(query)
+            .bind::<&String>(&props.custom_url)
+            .bind::<&String>(&props.id)
+            .bind::<&String>(&props.group_name)
             .bind::<&String>(&edit_password_hash)
             .bind::<&String>(&pub_date.to_string())
             .bind::<&String>(&edit_date.to_string())
-            .bind::<&String>(&p.content)
-            .bind::<&String>(&p.content_html)
+            .bind::<&String>(&props.content)
+            .bind::<&String>(&props.content_html)
             .bind::<&String>(&serde_json::to_string(&metadata).unwrap())
             .execute(c)
-            .await;
+            .await
+        {
+            Ok(_) => {
+                // update cache
+                if as_user.is_some() {
+                    self.base
+                        .cachedb
+                        .remove_starting_with(format!("pastes-by-owner:{}*", as_user.unwrap()))
+                        .await;
+                }
 
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: res.err().unwrap().to_string(),
-                payload: Option::None,
-            };
+                // return
+                Ok(props.edit_password.clone())
+            }
+            Err(_) => Err(DatabaseError::Other),
         }
-
-        // update cache
-        if as_user.is_some() {
-            self.base
-                .cachedb
-                .remove_starting_with(format!("pastes-by-owner:{}*", as_user.unwrap()))
-                .await;
-        }
-
-        // return
-        let pass = &p.edit_password;
-        return DefaultReturn {
-            success: true,
-            message: pass.to_string(),
-            payload: Option::Some(p.to_owned()),
-        };
     }
 
     /// Edit an existing [`Paste`] given its `custom_url`
@@ -900,7 +772,7 @@ impl Database {
         new_url: Option<String>,
         new_edit_password: Option<String>,
         edit_as: Option<String>, // username of account that is editing this paste
-    ) -> DefaultReturn<Option<String>> {
+    ) -> Result<()> {
         url = idna::punycode::encode_str(&url).unwrap();
 
         if url.ends_with("-") {
@@ -908,15 +780,9 @@ impl Database {
         }
 
         // make sure paste exists
-        let existing = match self.get_paste_by_url(url.clone()).await.payload {
-            Some(e) => e,
-            None => {
-                return DefaultReturn {
-                    success: false,
-                    message: String::from("Paste does not exist!"),
-                    payload: Option::None,
-                }
-            }
+        let existing = match self.get_paste_by_url(url.clone()).await {
+            Ok(p) => p,
+            Err(e) => return Err(e),
         };
 
         // (parse metadata from existing)
@@ -945,11 +811,7 @@ impl Database {
         };
 
         if !skip_password_check && utility::hash(edit_password) != paste.edit_password {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Password invalid"),
-                payload: Option::None,
-            };
+            return Err(DatabaseError::NotAllowed);
         }
 
         // check new_url and new_edit_password
@@ -969,13 +831,7 @@ impl Database {
             {
                 // we've already skipped the password check at this point, so we're
                 // just going to have to fully deny the edit
-                return DefaultReturn {
-                    success: false,
-                    message: String::from(
-                        "You must have a higher paste permission level to do this.",
-                    ),
-                    payload: Option::None,
-                };
+                return Err(DatabaseError::NotAllowed);
             }
         }
 
@@ -990,23 +846,14 @@ impl Database {
 
         // if we're changing url, make sure this paste doesn't already exist
         if new_url.is_some() {
-            match self
-                .get_paste_by_url(new_url.clone().unwrap())
-                .await
-                .payload
-            {
-                Some(_) => {
-                    return DefaultReturn {
-                        success: false,
-                        message: String::from("A paste with this URL already exists!"),
-                        payload: Option::None,
-                    }
+            match self.get_paste_by_url(new_url.clone().unwrap()).await {
+                Ok(_) => return Err(DatabaseError::MustBeUnique),
+                Err(_) => {
+                    // remove this paste's old cache entry
+                    self.base.cachedb.remove(format!("paste:{}", url)).await;
+                    ()
                 }
-                None => (),
             };
-
-            // remove this paste's old cache entry
-            self.base.cachedb.remove(format!("paste:{}", url)).await;
         }
 
         let mut custom_url = if new_url.is_some() {
@@ -1031,7 +878,7 @@ impl Database {
         let edit_date = &utility::unix_epoch_timestamp().to_string();
 
         let c = &self.base.db.client;
-        let res = sqlquery(query)
+        if let Err(_) = sqlquery(query)
             .bind::<&String>(&content)
             .bind::<&String>(content_html)
             .bind::<&String>(&edit_password_hash)
@@ -1039,45 +886,16 @@ impl Database {
             .bind::<&String>(edit_date) // update edit_date
             .bind::<&String>(&url)
             .execute(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from(res.err().unwrap().to_string()),
-                payload: Option::None,
-            };
-        }
+            .await
+        {
+            return Err(DatabaseError::Other);
+        };
 
         // update cache
-        let existing_in_cache = self.base.cachedb.get(format!("paste:{}", url)).await;
-
-        if existing_in_cache.is_some() {
-            let mut paste =
-                serde_json::from_str::<Paste<PasteMetadata>>(&existing_in_cache.unwrap()).unwrap();
-
-            paste.content = content; // update content
-            paste.content_html = content_html.to_string(); // update content_html
-            paste.edit_password = edit_password_hash; // update edit_password
-            paste.edit_date = edit_date.parse::<u128>().unwrap(); // update edit_date
-            paste.custom_url = custom_url.to_string(); // update custom_url
-
-            // update cache
-            self.base
-                .cachedb
-                .update(
-                    format!("paste:{}", url),
-                    serde_json::to_string::<Paste<PasteMetadata>>(&paste).unwrap(),
-                )
-                .await;
-        }
+        self.base.cachedb.remove(format!("paste:{}", url)).await;
 
         // return
-        return DefaultReturn {
-            success: true,
-            message: String::from("Paste updated!"),
-            payload: Option::Some(custom_url.to_string()),
-        };
+        return Ok(());
     }
 
     /// Update a [`Paste`]'s metadata by its `custom_url`
@@ -1087,7 +905,7 @@ impl Database {
         metadata: PasteMetadata,
         edit_password: String,
         edit_as: Option<String>, // username of account that is editing this paste
-    ) -> DefaultReturn<Option<String>> {
+    ) -> Result<()> {
         url = idna::punycode::encode_str(&url).unwrap();
 
         if url.ends_with("-") {
@@ -1095,15 +913,9 @@ impl Database {
         }
 
         // make sure paste exists
-        let existing = match self.get_paste_by_url(url.clone()).await.payload {
-            Some(e) => e,
-            None => {
-                return DefaultReturn {
-                    success: false,
-                    message: String::from("Paste does not exist!"),
-                    payload: Option::None,
-                }
-            }
+        let existing = match self.get_paste_by_url(url.clone()).await {
+            Ok(p) => p,
+            Err(e) => return Err(e),
         };
 
         // (parse metadata from existing)
@@ -1112,13 +924,12 @@ impl Database {
 
         // get edit_as user account
         let ua = if edit_as.is_some() {
-            Option::Some(
-                self.get_user_by_username(edit_as.clone().unwrap())
-                    .await
-                    .payload,
-            )
+            match self.get_user_by_username(edit_as.clone().unwrap()).await {
+                Ok(ua) => Some(ua),
+                Err(_) => return Err(DatabaseError::Other),
+            }
         } else {
-            Option::None
+            None
         };
 
         // verify password
@@ -1129,27 +940,32 @@ impl Database {
             let in_permissions_list = existing_metadata.permissions_list.get(edit_as);
 
             // must be paste owner
-            (edit_as == &existing_metadata.owner)
+            if edit_as == &existing_metadata.owner {
+                true
+            }
             // OR must have the "ManagePastes" permission
-            // rustfmt blocking
-            | (ua.as_ref().is_some() && ua.as_ref().unwrap().is_some() && ua.unwrap().unwrap().level.permissions.contains(&String::from("ManagePastes")))
-                | if in_permissions_list.is_some() {
-                    let permission = in_permissions_list.unwrap();
-                    // OR must have Passwordless
-                    permission == &PastePermissionLevel::Passwordless
-                } else {
-                    false
-                }
+            else if ua.is_some()
+                && ua
+                    .unwrap()
+                    .level
+                    .permissions
+                    .contains(&"ManagePastes".to_string())
+            {
+                true
+            }
+            // OR must have EditTextPasswordless or Passwordless
+            else if in_permissions_list.is_some() {
+                let permission = in_permissions_list.unwrap();
+                permission == &PastePermissionLevel::Passwordless
+            } else {
+                false
+            }
         } else {
             false
         };
 
         if !skip_password_check && utility::hash(edit_password) != paste.edit_password {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Password invalid"),
-                payload: Option::None,
-            };
+            return Err(DatabaseError::NotAllowed);
         }
 
         // update paste
@@ -1160,44 +976,20 @@ impl Database {
         };
 
         let c = &self.base.db.client;
-        let res = sqlquery(query)
+        if let Err(_) = sqlquery(query)
             .bind::<&String>(&serde_json::to_string(&metadata).unwrap())
             .bind::<&String>(&url)
             .execute(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from(res.err().unwrap().to_string()),
-                payload: Option::None,
-            };
-        }
+            .await
+        {
+            return Err(DatabaseError::Other);
+        };
 
         // update cache
-        let existing_in_cache = self.base.cachedb.get(format!("paste:{}", url)).await;
-
-        if existing_in_cache.is_some() {
-            let mut paste =
-                serde_json::from_str::<Paste<PasteMetadata>>(&existing_in_cache.unwrap()).unwrap();
-            paste.metadata = metadata; // update metadata
-
-            // update cache
-            self.base
-                .cachedb
-                .update(
-                    format!("paste:{}", url),
-                    serde_json::to_string::<Paste<PasteMetadata>>(&paste).unwrap(),
-                )
-                .await;
-        }
+        self.base.cachedb.remove(format!("paste:{}", url)).await;
 
         // return
-        return DefaultReturn {
-            success: true,
-            message: String::from("Paste updated!"),
-            payload: Option::Some(url),
-        };
+        return Ok(());
     }
 
     /// Count a view to a [`Paste`] given its `custom_url`
@@ -1208,7 +1000,7 @@ impl Database {
         &self,
         url: &String,
         view_as: &String, // username of account that is viewing this paste
-    ) -> DefaultReturn<Option<String>> {
+    ) -> Result<()> {
         let mut url = idna::punycode::encode_str(&url).unwrap();
 
         if url.ends_with("-") {
@@ -1216,15 +1008,8 @@ impl Database {
         }
 
         // make sure paste exists
-        match self.get_paste_by_url(url.clone()).await.payload {
-            Some(_) => (),
-            None => {
-                return DefaultReturn {
-                    success: false,
-                    message: String::from("Paste does not exist!"),
-                    payload: Option::None,
-                }
-            }
+        if let Err(e) = self.get_paste_by_url(url.clone()).await {
+            return Err(e);
         };
 
         // check for existing view log
@@ -1273,27 +1058,15 @@ impl Database {
                 }
 
                 // return
-                return DefaultReturn {
-                    success: true,
-                    message: String::from("View counted!"),
-                    payload: Option::Some(url.to_string()),
-                };
+                return Ok(());
             }
 
             // default error return
-            return DefaultReturn {
-                success: false,
-                message: String::from("Failed to check for existing view!"),
-                payload: Option::None,
-            };
+            return Err(DatabaseError::Other);
         }
 
         // return
-        return DefaultReturn {
-            success: true,
-            message: String::from("View counted!"),
-            payload: Option::Some(url.to_string()),
-        };
+        return Ok(());
     }
 
     /// Delete a [`Paste`] given its `custom_url` and `edit_password`
@@ -1302,7 +1075,7 @@ impl Database {
         mut url: String,
         edit_password: String,
         delete_as: Option<String>,
-    ) -> DefaultReturn<Option<String>> {
+    ) -> Result<()> {
         url = idna::punycode::encode_str(&url).unwrap();
 
         if url.ends_with("-") {
@@ -1310,30 +1083,23 @@ impl Database {
         }
 
         // make sure paste exists
-        let existing = match self.get_paste_by_url(url.clone()).await.payload {
-            Some(e) => e,
-            None => {
-                return DefaultReturn {
-                    success: false,
-                    message: String::from("Paste does not exist!"),
-                    payload: Option::None,
-                }
-            }
+        let existing = match self.get_paste_by_url(url.clone()).await {
+            Ok(p) => p,
+            Err(e) => return Err(e),
         };
 
         // (parse metadata from existing)
         let paste = &existing.paste;
         let existing_metadata = &paste.metadata;
 
-        // get edit_as user account
+        // get delete_as user account
         let ua = if delete_as.is_some() {
-            Option::Some(
-                self.get_user_by_username(delete_as.clone().unwrap())
-                    .await
-                    .payload,
-            )
+            match self.get_user_by_username(delete_as.clone().unwrap()).await {
+                Ok(ua) => Some(ua),
+                Err(_) => return Err(DatabaseError::Other),
+            }
         } else {
-            Option::None
+            None
         };
 
         // verify password
@@ -1344,28 +1110,32 @@ impl Database {
             let in_permissions_list = existing_metadata.permissions_list.get(delete_as);
 
             // must be paste owner
-            (delete_as == &existing_metadata.owner)
+            if delete_as == &existing_metadata.owner {
+                true
+            }
             // OR must have the "ManagePastes" permission
-            // rustfmt blocking
-            | (ua.as_ref().is_some() && ua.as_ref().unwrap().is_some() && ua.unwrap().unwrap().level.permissions.contains(&String::from("ManagePastes")))
-                | if in_permissions_list.is_some() {
-                    let permission = in_permissions_list.unwrap();
-
-                    // OR must have EditTextPasswordless or Passwordless
-                    permission == &PastePermissionLevel::Passwordless
-                } else {
-                    false
-                }
+            else if ua.is_some()
+                && ua
+                    .unwrap()
+                    .level
+                    .permissions
+                    .contains(&"ManagePastes".to_string())
+            {
+                true
+            }
+            // OR must have EditTextPasswordless or Passwordless
+            else if in_permissions_list.is_some() {
+                let permission = in_permissions_list.unwrap();
+                permission == &PastePermissionLevel::Passwordless
+            } else {
+                false
+            }
         } else {
             false
         };
 
         if !skip_password_check && utility::hash(edit_password) != paste.edit_password {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Password invalid"),
-                payload: Option::None,
-            };
+            return Err(DatabaseError::NotAllowed);
         }
 
         // delete paste
@@ -1376,15 +1146,9 @@ impl Database {
         };
 
         let c = &self.base.db.client;
-        let res = sqlquery(query).bind::<&String>(&url).execute(c).await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from(res.err().unwrap().to_string()),
-                payload: Option::None,
-            };
-        }
+        if let Err(_) = sqlquery(query).bind::<&String>(&url).execute(c).await {
+            return Err(DatabaseError::Other);
+        };
 
         // delete paste views
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
@@ -1394,28 +1158,19 @@ impl Database {
         };
 
         let c = &self.base.db.client;
-        let res = sqlquery(query)
+        if let Err(_) = sqlquery(query)
             .bind::<&String>(&format!("{}::%", &url))
             .execute(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Failed to delete paste"),
-                payload: Option::None,
-            };
-        }
+            .await
+        {
+            return Err(DatabaseError::Other);
+        };
 
         // update cache
         self.base.cachedb.remove(format!("paste:{}", url)).await;
 
         // return
-        return DefaultReturn {
-            success: true,
-            message: String::from("Paste deleted!"),
-            payload: Option::Some(url),
-        };
+        return Ok(());
     }
 
     // groups
@@ -1425,7 +1180,7 @@ impl Database {
     ///
     /// # Arguments:
     /// * `url` - group name
-    pub async fn get_group_by_name(&self, url: String) -> DefaultReturn<Option<Group<String>>> {
+    pub async fn get_group_by_name(&self, url: String) -> Result<Group<GroupMetadata>> {
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
             "SELECT * FROM \"cr_groups\" WHERE \"name\" = ?"
         } else {
@@ -1433,30 +1188,20 @@ impl Database {
         };
 
         let c = &self.base.db.client;
-        let res = sqlquery(query).bind::<&String>(&url).fetch_one(c).await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Group does not exist"),
-                payload: Option::None,
-            };
-        }
-
-        // ...
-        let row = res.unwrap();
-        let row = self.base.textify_row(row).data;
+        let row = match sqlquery(query).bind::<&String>(&url).fetch_one(c).await {
+            Ok(r) => self.base.textify_row(r).data,
+            Err(_) => return Err(DatabaseError::NotFound),
+        };
 
         // return
-        return DefaultReturn {
-            success: true,
-            message: String::from("Group exists"),
-            payload: Option::Some(Group {
-                name: row.get("name").unwrap().to_string(),
-                submit_password: row.get("submit_password").unwrap().to_string(),
-                metadata: row.get("metadata").unwrap().to_string(),
-            }),
-        };
+        return Ok(Group {
+            name: row.get("name").unwrap().to_string(),
+            submit_password: row.get("submit_password").unwrap().to_string(),
+            metadata: match serde_json::from_str(row.get("metadata").unwrap()) {
+                Ok(m) => m,
+                Err(_) => return Err(DatabaseError::ValueError),
+            },
+        });
     }
 
     // SET
@@ -1464,19 +1209,10 @@ impl Database {
     ///
     /// # Arguments:
     /// * `props` - [`Group<GroupMetadata>`](Group)
-    pub async fn create_group(&self, props: Group<GroupMetadata>) -> DefaultReturn<Option<String>> {
-        let p: &Group<GroupMetadata> = &props; // borrowed props
-
+    pub async fn create_group(&self, mut props: Group<GroupMetadata>) -> Result<()> {
         // make sure group does not exist
-        let existing: DefaultReturn<Option<Group<String>>> =
-            self.get_group_by_name(p.name.to_owned()).await;
-
-        if existing.success {
-            return DefaultReturn {
-                success: false,
-                message: String::from("Group already exists!"),
-                payload: Option::None,
-            };
+        if let Ok(_) = self.get_group_by_name(props.name.to_owned()).await {
+            return Err(DatabaseError::MustBeUnique);
         }
 
         // create group
@@ -1487,64 +1223,40 @@ impl Database {
         };
 
         let c = &self.base.db.client;
-        let p: &mut Group<GroupMetadata> = &mut props.clone();
+        props.submit_password = utility::hash(props.submit_password.clone());
 
-        p.submit_password = utility::hash(p.submit_password.clone());
-        let res = sqlquery(query)
-            .bind::<&String>(&p.name)
-            .bind::<&String>(&p.submit_password)
-            .bind::<&String>(&serde_json::to_string(&p.metadata).unwrap())
+        if let Err(_) = sqlquery(query)
+            .bind::<&String>(&props.name)
+            .bind::<&String>(&props.submit_password)
+            .bind::<&String>(&serde_json::to_string(&props.metadata).unwrap())
             .execute(c)
-            .await;
-
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: res.err().unwrap().to_string(),
-                payload: Option::None,
-            };
+            .await
+        {
+            return Err(DatabaseError::Other);
         }
 
         // return
-        return DefaultReturn {
-            success: true,
-            message: String::from("Paste created"),
-            payload: Option::Some(p.name.to_string()),
-        };
+        return Ok(());
     }
 
     // social
 
     // GET
     /// Get the number of [`PasteFavoriteLog`]s a [`Paste`] has
-    pub async fn get_paste_favorites(&self, id: String) -> DefaultReturn<i32> {
+    pub async fn get_paste_favorites(&self, id: String) -> i32 {
         // get paste
-        match self.get_paste_by_id(id.clone()).await.payload {
-            Some(_) => (),
-            None => {
-                return DefaultReturn {
-                    success: false,
-                    message: String::from("Paste does not exist!"),
-                    payload: 0,
-                }
-            }
+        if let Err(_) = self.get_paste_by_id(id.clone()).await {
+            return 0;
         };
 
         // get favorites
-        DefaultReturn {
-            success: true,
-            message: id.clone(),
-            // favorites are stored in the "cr_logs" table AS WELL AS an incremented value in the cache,
-            // we read the value from cache when checking the paste's favorites, but read the cache value when fetching number
-            payload: self
-                .base
-                .cachedb
-                .get(format!("social:paste-favorites:{}", id))
-                .await
-                .unwrap_or(String::from("0"))
-                .parse::<i32>()
-                .unwrap(),
-        }
+        self.base
+            .cachedb
+            .get(format!("social:paste-favorites:{}", id))
+            .await
+            .unwrap_or(String::from("0"))
+            .parse::<i32>()
+            .unwrap()
     }
 
     pub async fn get_user_paste_favorite(
@@ -1552,18 +1264,11 @@ impl Database {
         user: String,
         paste_id: String,
         skip_existing_check: bool,
-    ) -> DefaultReturn<Option<Log>> {
+    ) -> Result<Log> {
         // get paste
         if skip_existing_check == false {
-            match self.get_paste_by_id(paste_id.clone()).await.payload {
-                Some(_) => (),
-                None => {
-                    return DefaultReturn {
-                        success: false,
-                        message: String::from("Paste does not exist!"),
-                        payload: Option::None,
-                    }
-                }
+            if let Err(e) = self.get_paste_by_id(paste_id.clone()).await {
+                return Err(e);
             };
         }
 
@@ -1575,7 +1280,7 @@ impl Database {
         };
 
         let c = &self.base.db.client;
-        let res = sqlquery(query)
+        let row = match sqlquery(query)
             .bind::<&String>(
                 &serde_json::to_string::<PasteFavoriteLog>(&PasteFavoriteLog {
                     user,
@@ -1584,69 +1289,40 @@ impl Database {
                 .unwrap(),
             )
             .fetch_one(c)
-            .await;
+            .await
+        {
+            Ok(r) => self.base.textify_row(r).data,
+            Err(_) => return Err(DatabaseError::Other),
+        };
 
-        if res.is_err() {
-            return DefaultReturn {
-                success: false,
-                message: String::from(res.err().unwrap().to_string()),
-                payload: Option::None,
-            };
-        }
-
-        // ...
-        let row = res.unwrap();
-        let row = self.base.textify_row(row).data;
-
-        DefaultReturn {
-            success: true,
-            message: paste_id,
-            payload: Option::Some(Log {
-                id: row.get("id").unwrap().to_string(),
-                logtype: row.get("logtype").unwrap().to_string(),
-                timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
-                content: row.get("content").unwrap().to_string(),
-            }),
-        }
+        // return
+        Ok(Log {
+            id: row.get("id").unwrap().to_string(),
+            logtype: row.get("logtype").unwrap().to_string(),
+            timestamp: row.get("timestamp").unwrap().parse::<u128>().unwrap(),
+            content: row.get("content").unwrap().to_string(),
+        })
     }
 
     // SET
     /// Toggle a [`PasteFavoriteLog`] on a [`Paste`] by `user` and `paste_id`
-    pub async fn toggle_user_paste_favorite(
-        &self,
-        user: String,
-        paste_id: String,
-    ) -> DefaultReturn<Option<String>> {
+    pub async fn toggle_user_paste_favorite(&self, user: String, paste_id: String) -> Result<()> {
         // get paste
-        let existing = match self.get_paste_by_id(paste_id.clone()).await.payload {
-            Some(e) => e,
-            None => {
-                return DefaultReturn {
-                    success: false,
-                    message: String::from("Paste does not exist!"),
-                    payload: Option::None,
-                }
-            }
+        let existing = match self.get_paste_by_id(paste_id.clone()).await {
+            Ok(p) => p,
+            Err(e) => return Err(e),
         };
 
         // check if user is paste owner
         if existing.paste.metadata.owner == user {
-            return DefaultReturn {
-                success: false,
-                message: String::from("You're the paste owner!"),
-                payload: Option::None,
-            };
+            return Err(DatabaseError::NotAllowed);
         }
 
         // attempt to get the user's existing favorite
-        let existing_favorite = self
+        if let Ok(existing) = self
             .get_user_paste_favorite(user.clone(), paste_id.clone(), true)
-            .await;
-
-        // delete existing
-        if existing_favorite.success == true {
-            let payload = existing_favorite.payload.unwrap();
-
+            .await
+        {
             // decr favorites
             self.base
                 .cachedb
@@ -1654,7 +1330,7 @@ impl Database {
                 .await;
 
             // handle log
-            return self.logs.delete_log(payload.id).await;
+            return self.logs.delete_log(existing.id).await;
         }
         // add new
         else {

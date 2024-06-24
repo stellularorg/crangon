@@ -1,10 +1,7 @@
-{% extends "../toolbar_base.html" %}
-
-{% block title %}Staff Dashboard - {{ site_name }}{% endblock %}
-{% block main_stuff %}style="overflow: hidden; max-height: 100%;"{% endblock %}
-
-{% block content %}
-<div id="link-header" style="display: flex;" class="flex-column bg-1">
+{% extends "../toolbar_base.html" %} {% block title %}Staff Dashboard - {{
+site_name }}{% endblock %} {% block main_stuff %}style="overflow: hidden;
+max-height: 100%;"{% endblock %} {% block content %}
+<div id="link-header" style="display: flex" class="flex-column bg-1">
     <div class="link-header-top"></div>
 
     <div class="link-header-middle">
@@ -19,22 +16,29 @@
 </div>
 
 <main class="small flex flex-column g-4">
-    <div id="error" class="mdnote note-error full" style="display: none;"></div>
-    <div id="success" class="mdnote note-note full" style="display: none;"></div>
+    <div id="error" class="mdnote note-error full" style="display: none"></div>
+    <div id="success" class="mdnote note-note full" style="display: none"></div>
 
     <div class="flex justify-space-between align-center mobile:flex-column g-4">
         <b>Manage Users</b>
 
-        <form style="width: 50%;" class="flex g-4 mobile:max">
-            <input type="text" name="username" id="username" placeholder="Username" class="round" value="{{ username }}"
-                maxlength="250" style="width: calc(100% - 50px);" />
+        <form style="width: 50%" class="flex g-4 mobile:max">
+            <input
+                type="text"
+                name="username"
+                id="username"
+                placeholder="Username"
+                class="round"
+                value="{{ username }}"
+                maxlength="250"
+                style="width: calc(100% - 50px)"
+            />
 
-            <button class="round theme:primary" style="width: 50px;">Go</button>
+            <button class="round theme:primary" style="width: 50px">Go</button>
         </form>
     </div>
 
-    {% if user.is_some() %}
-    {% let user = user.as_ref().unwrap() %}
+    {% if user.is_ok() %} {% let user = user.as_ref().ok().unwrap() %}
 
     <div class="card full round secondary flex flex-column g-4">
         <h4 class="no-margin">{{ user.user.username }}</h4>
@@ -43,8 +47,13 @@
 
         <div class="flex full g-4 flex-wrap justify-space-between align-center">
             <h6 class="no-margin">Banhammer</h6>
-            <button class="round theme:primary" id="hammer-time"
-                data-endpoint="/api/v1/auth/users/{{ user.user.username }}/ban">Ban User</button>
+            <button
+                class="round theme:primary"
+                id="hammer-time"
+                data-endpoint="/api/v1/auth/users/{{ user.user.username }}/ban"
+            >
+                Ban User
+            </button>
         </div>
     </div>
     {% endif %}

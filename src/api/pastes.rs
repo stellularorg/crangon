@@ -1,6 +1,6 @@
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
 
-use crate::db::{self, DefaultReturn, FullPaste, PasteMetadata};
+use crate::db::{self, FullPaste, PasteMetadata};
 use crate::markdown;
 use dorsal::utility;
 
@@ -100,7 +100,7 @@ pub async fn create_request(
     let res = data
         .db
         .create_paste(
-            &mut db::Paste {
+            db::Paste {
                 custom_url: custom_url.clone(),
                 id: String::new(), // reassigned anyways, this doesn't matter
                 edit_password: edit_password.to_string(),

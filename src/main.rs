@@ -7,6 +7,7 @@ mod db;
 mod log_db;
 
 mod api;
+mod model;
 mod pages;
 
 mod markdown;

@@ -11,4 +11,5 @@ mod config;
 pub mod db;
 pub mod log_db;
 pub mod markdown;
+pub mod model;
 pub mod pages;
