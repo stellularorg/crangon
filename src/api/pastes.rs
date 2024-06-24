@@ -1,8 +1,9 @@
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
 
-use crate::db::{self, FullPaste, PasteMetadata};
+use crate::db;
 use crate::markdown;
-use dorsal::utility;
+use crate::model::DatabaseError;
+use dorsal::{utility, DefaultReturn};
 
 #[derive(Default, PartialEq, serde::Deserialize)]
 pub struct OffsetQueryProps {
@@ -71,22 +72,15 @@ pub async fn create_request(
 
     // get token user
     let token_cookie = req.cookie("__Secure-Token");
-    let token_user = if token_cookie.is_some() {
-        Option::Some(
-            data.db
-                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
-                .await,
-        )
-    } else {
-        Option::None
+    let token_user = match token_cookie {
+        Some(c) => match data.db.auth.get_user_by_unhashed(c.to_string()).await {
+            Ok(ua) => Some(ua),
+            Err(_) => None,
+        },
+        None => None,
     };
 
-    if token_user.is_some() {
-        // make sure user exists
-        if token_user.as_ref().unwrap().success == false {
-            return HttpResponse::NotFound().body("Invalid token");
-        }
-    } else {
+    if token_user.is_none() {
         // if server requires an account, return
         let requires_account = crate::config::get_var("AUTH_REQUIRED");
 
@@ -113,9 +107,9 @@ pub async fn create_request(
                 views: 0,
             },
             if token_user.is_some() {
-                Option::Some(token_user.unwrap().payload.unwrap().user.username)
+                Some(token_user.unwrap().user.username)
             } else {
-                Option::None
+                None
             },
         )
         .await;
@@ -123,7 +117,17 @@ pub async fn create_request(
     // return
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
-        .body(serde_json::to_string(&res).unwrap());
+        .body(
+            serde_json::to_string(&match res {
+                Ok(r) => DefaultReturn {
+                    success: true,
+                    message: r,
+                    payload: true,
+                },
+                Err(e) => e.into(),
+            })
+            .unwrap(),
+        );
 }
 
 #[post("/api/v1/edit")]
@@ -141,22 +145,13 @@ pub async fn edit_request(
 
     // get token user
     let token_cookie = req.cookie("__Secure-Token");
-    let token_user = if token_cookie.is_some() {
-        Option::Some(
-            data.db
-                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
-                .await,
-        )
-    } else {
-        Option::None
+    let token_user = match token_cookie {
+        Some(c) => match data.db.auth.get_user_by_unhashed(c.to_string()).await {
+            Ok(ua) => Some(ua),
+            Err(_) => None,
+        },
+        None => None,
     };
-
-    if token_user.is_some() {
-        // make sure user exists
-        if token_user.as_ref().unwrap().success == false {
-            return HttpResponse::NotFound().body("Invalid token");
-        }
-    }
 
     // ...
     let res = data
@@ -168,9 +163,9 @@ pub async fn edit_request(
             new_url,
             new_edit_password,
             if token_user.is_some() {
-                Option::Some(token_user.unwrap().payload.unwrap().user.username)
+                Some(token_user.unwrap().user.username)
             } else {
-                Option::None
+                None
             },
         )
         .await;
@@ -178,7 +173,17 @@ pub async fn edit_request(
     // return
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
-        .body(serde_json::to_string(&res).unwrap());
+        .body(
+            serde_json::to_string(&match res {
+                Ok(_) => DefaultReturn {
+                    success: true,
+                    message: String::from("Paste edited"),
+                    payload: true,
+                },
+                Err(e) => e.into(),
+            })
+            .unwrap(),
+        );
 }
 
 #[post("/api/v1/delete")]
@@ -193,22 +198,13 @@ pub async fn delete_request(
 
     // get token user
     let token_cookie = req.cookie("__Secure-Token");
-    let token_user = if token_cookie.is_some() {
-        Option::Some(
-            data.db
-                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
-                .await,
-        )
-    } else {
-        Option::None
+    let token_user = match token_cookie {
+        Some(c) => match data.db.auth.get_user_by_unhashed(c.to_string()).await {
+            Ok(ua) => Some(ua),
+            Err(_) => None,
+        },
+        None => None,
     };
-
-    if token_user.is_some() {
-        // make sure user exists
-        if token_user.as_ref().unwrap().success == false {
-            return HttpResponse::NotFound().body("Invalid token");
-        }
-    }
 
     // delete
     let res = data
@@ -217,7 +213,7 @@ pub async fn delete_request(
             custom_url,
             edit_password,
             if token_user.is_some() {
-                Option::Some(token_user.unwrap().payload.unwrap().user.username)
+                Option::Some(token_user.unwrap().user.username)
             } else {
                 Option::None
             },
@@ -227,7 +223,17 @@ pub async fn delete_request(
     // return
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
-        .body(serde_json::to_string(&res).unwrap());
+        .body(
+            serde_json::to_string(&match res {
+                Ok(_) => DefaultReturn {
+                    success: true,
+                    message: String::from("Paste deleted"),
+                    payload: true,
+                },
+                Err(e) => e.into(),
+            })
+            .unwrap(),
+        );
 }
 
 #[post("/api/v1/metadata")]
@@ -245,22 +251,13 @@ pub async fn metadata_request(
 
     // get token user
     let token_cookie = req.cookie("__Secure-Token");
-    let token_user = if token_cookie.is_some() {
-        Option::Some(
-            data.db
-                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
-                .await,
-        )
-    } else {
-        Option::None
+    let token_user = match token_cookie {
+        Some(c) => match data.db.auth.get_user_by_unhashed(c.to_string()).await {
+            Ok(ua) => Some(ua),
+            Err(_) => None,
+        },
+        None => None,
     };
-
-    if token_user.is_some() {
-        // make sure user exists
-        if token_user.as_ref().unwrap().success == false {
-            return HttpResponse::NotFound().body("Invalid token");
-        }
-    }
 
     // ...
     let res = data
@@ -270,7 +267,7 @@ pub async fn metadata_request(
             metadata,
             edit_password,
             if token_user.is_some() {
-                Option::Some(token_user.unwrap().payload.unwrap().user.username)
+                Option::Some(token_user.unwrap().user.username)
             } else {
                 Option::None
             },
@@ -280,7 +277,17 @@ pub async fn metadata_request(
     // return
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
-        .body(serde_json::to_string(&res).unwrap());
+        .body(
+            serde_json::to_string(&match res {
+                Ok(_) => DefaultReturn {
+                    success: true,
+                    message: String::from("Paste edited"),
+                    payload: true,
+                },
+                Err(e) => e.into(),
+            })
+            .unwrap(),
+        );
 }
 
 #[get("/api/v1/exists/{url:.*}")]
@@ -292,7 +299,7 @@ pub async fn exists_request(req: HttpRequest, data: web::Data<db::AppData>) -> i
     // return
     return HttpResponse::Ok()
         .append_header(("Content-Type", "text/plain"))
-        .body(res.success.to_string());
+        .body(res.is_ok().to_string());
 }
 
 #[get("/api/v1/url/{url:.*}")]
@@ -302,36 +309,31 @@ pub async fn get_from_url_request(
     data: web::Data<db::AppData>,
 ) -> impl Responder {
     let custom_url: String = req.match_info().get("url").unwrap().to_string();
-    let res: DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
-        data.db.get_paste_by_url(custom_url).await;
+    let res = data.db.get_paste_by_url(custom_url).await;
 
-    // if res.metadata contains '"private_source":"on"', return NotFound
-    if res.payload.is_some() && res.clone().payload.unwrap().paste.metadata.private_source == "on" {
-        return HttpResponse::NotFound()
-            .body("You do not have permission to view this paste's contents.");
-    }
+    if let Ok(ref r) = res {
+        if r.paste.metadata.private_source == "on" {
+            return HttpResponse::NotFound().body(DatabaseError::NotAllowed.to_string());
+        }
 
-    // if res.metadata contains a view password, return fail
-    if res.payload.is_some()
-        && res
-            .clone()
-            .payload
-            .unwrap()
-            .paste
-            .metadata
-            .view_password
-            .is_some()
-    {
-        return HttpResponse::NotFound()
-            .body("You do not have permission to view this paste's contents.");
+        if r.paste.metadata.view_password.is_some() {
+            return HttpResponse::NotFound().body(DatabaseError::NotAllowed.to_string());
+        }
     }
 
     // return
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
         .body(
-            serde_json::to_string::<DefaultReturn<Option<FullPaste<PasteMetadata, String>>>>(&res)
-                .unwrap(),
+            serde_json::to_string(&match res {
+                Ok(r) => DefaultReturn {
+                    success: true,
+                    message: String::from("Paste exists"),
+                    payload: Some(r),
+                },
+                Err(e) => e.into(),
+            })
+            .unwrap(),
         );
 }
 
@@ -339,36 +341,31 @@ pub async fn get_from_url_request(
 /// Get paste by ID
 pub async fn get_from_id_request(req: HttpRequest, data: web::Data<db::AppData>) -> impl Responder {
     let id: String = req.match_info().get("id").unwrap().to_string();
-    let res: DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
-        data.db.get_paste_by_id(id).await;
+    let res = data.db.get_paste_by_id(id).await;
 
-    // if res.metadata contains '"private_source":"on"', return NotFound
-    if res.payload.is_some() && res.clone().payload.unwrap().paste.metadata.private_source == "on" {
-        return HttpResponse::NotFound()
-            .body("You do not have permission to view this paste's contents.");
-    }
+    if let Ok(ref r) = res {
+        if r.paste.metadata.private_source == "on" {
+            return HttpResponse::NotFound().body(DatabaseError::NotAllowed.to_string());
+        }
 
-    // if res.metadata contains a view password, return fail
-    if res.payload.is_some()
-        && res
-            .clone()
-            .payload
-            .unwrap()
-            .paste
-            .metadata
-            .view_password
-            .is_some()
-    {
-        return HttpResponse::NotFound()
-            .body("You do not have permission to view this paste's contents.");
+        if r.paste.metadata.view_password.is_some() {
+            return HttpResponse::NotFound().body(DatabaseError::NotAllowed.to_string());
+        }
     }
 
     // return
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
         .body(
-            serde_json::to_string::<DefaultReturn<Option<FullPaste<PasteMetadata, String>>>>(&res)
-                .unwrap(),
+            serde_json::to_string(&match res {
+                Ok(r) => DefaultReturn {
+                    success: true,
+                    message: String::from("Paste exists"),
+                    payload: Some(r),
+                },
+                Err(e) => e.into(),
+            })
+            .unwrap(),
         );
 }
 
@@ -382,21 +379,28 @@ pub async fn favorite_request(req: HttpRequest, data: web::Data<db::AppData>) ->
         crate::pages::base::check_auth_status(req.clone(), data.clone()).await;
 
     if token_user.is_none() {
-        return HttpResponse::NotAcceptable().body("An account is required to favorite pastes.");
+        return HttpResponse::NotAcceptable().body(DatabaseError::NotAllowed.to_string());
     }
 
     // ...
     let res = data
         .db
-        .toggle_user_paste_favorite(
-            token_user.unwrap().payload.unwrap().user.username,
-            paste_id.to_string(),
-        )
+        .toggle_user_paste_favorite(token_user.unwrap().user.username, paste_id.to_string())
         .await;
 
     // return
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
         .append_header(("Set-Cookie", set_cookie))
-        .body(serde_json::to_string(&res).unwrap());
+        .body(
+            serde_json::to_string(&match res {
+                Ok(_) => DefaultReturn {
+                    success: true,
+                    message: String::from("Paste favorite toggled"),
+                    payload: true,
+                },
+                Err(e) => e.into(),
+            })
+            .unwrap(),
+        );
 }

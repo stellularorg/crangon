@@ -1,4 +1,5 @@
 use actix_web::{web::Data, HttpRequest};
+use dorsal::db::special::auth_db::{FullUser, UserMetadata};
 
 use crate::db::AppData;
 
@@ -45,33 +46,24 @@ pub async fn check_auth_status(
 ) -> (
     String,
     Option<actix_web::cookie::Cookie<'static>>,
-    Option<dorsal::DefaultReturn<Option<dorsal::db::special::auth_db::FullUser<String>>>>,
+    Option<FullUser<UserMetadata>>,
 ) {
     // verify auth status
     let token_cookie = req.cookie("__Secure-Token");
     let mut set_cookie: &str = "";
 
-    let mut token_user: Option<
-        dorsal::DefaultReturn<Option<dorsal::db::special::auth_db::FullUser<String>>>,
-    > = if token_cookie.is_some() {
-        Option::Some(
-            data.db
-                .auth
-                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
-                .await,
-        )
-    } else {
-        Option::None
-    };
-
-    if token_user.is_some() {
-        // make sure user exists, refresh token if not
-        if token_user.as_ref().unwrap().success == false {
-            set_cookie =
+    let token_user = match token_cookie {
+        Some(ref c) => match data.db.auth.get_user_by_unhashed(c.to_string()).await {
+            Ok(ua) => Some(ua),
+            Err(_) => {
+                // make sure user exists, refresh token if not
+                set_cookie =
                 "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
-            token_user = Option::None;
-        }
-    }
+                None
+            }
+        },
+        None => None,
+    };
 
     // return
     (set_cookie.to_string(), token_cookie, token_user)
