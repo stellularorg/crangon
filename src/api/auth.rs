@@ -1,5 +1,6 @@
 use crate::db::{self, AppData};
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
+use dorsal::DefaultReturn;
 
 #[derive(Default, PartialEq, serde::Deserialize)]
 pub struct CallbackQueryProps {
@@ -41,14 +42,13 @@ pub async fn logout(req: HttpRequest, data: web::Data<AppData>) -> impl Responde
         return HttpResponse::NotAcceptable().body("Missing token");
     }
 
-    let res = data
+    if let Err(e) = data
         .db
         .get_user_by_unhashed(cookie.unwrap().value().to_string()) // if the user is returned, that means the ID is valid
-        .await;
-
-    if !res.success {
-        return HttpResponse::NotAcceptable().body("Invalid token");
-    }
+        .await
+    {
+        return HttpResponse::NotAcceptable().body(e.to_string());
+    };
 
     // return
     return HttpResponse::Ok()
@@ -69,19 +69,18 @@ pub async fn whoami(req: HttpRequest, data: web::Data<AppData>) -> impl Responde
         return HttpResponse::Ok().body("");
     }
 
-    let res = data
+    match data
         .db
         .get_user_by_unhashed(cookie.unwrap().value().to_string()) // if the user is returned, that means the ID is valid
-        .await;
-
-    if !res.success {
-        return HttpResponse::Ok().body("");
+        .await
+    {
+        Ok(ua) => HttpResponse::Ok()
+            .append_header(("Content-Type", "text/plain"))
+            .body(ua.user.username),
+        Err(_) => HttpResponse::Ok()
+            .append_header(("Content-Type", "text/plain"))
+            .body(String::new()),
     }
-
-    // return
-    return HttpResponse::Ok()
-        .append_header(("Content-Type", "text/plain"))
-        .body(res.payload.unwrap().user.username);
 }
 
 #[get("/api/v1/auth/users/{name:.*?}/pastes")]
@@ -93,17 +92,22 @@ pub async fn get_from_owner_request(
 ) -> impl Responder {
     let name: String = req.match_info().get("name").unwrap().to_string();
 
-    // get pastes
-    let res: db::DefaultReturn<Option<Vec<db::PasteIdentifier>>> =
-        data.db.get_pastes_by_owner_limited(name, info.offset).await;
-
     // return
-    return HttpResponse::Ok()
-        .append_header(("Content-Type", "application/json"))
-        .body(
-            serde_json::to_string::<db::DefaultReturn<Option<Vec<db::PasteIdentifier>>>>(&res)
+    match data.db.get_pastes_by_owner_limited(name, info.offset).await {
+        Ok(p) => HttpResponse::Ok()
+            .append_header(("Content-Type", "application/json"))
+            .body(
+                serde_json::to_string(&DefaultReturn {
+                    success: true,
+                    message: String::new(),
+                    payload: p,
+                })
                 .unwrap(),
-        );
+            ),
+        Err(e) => HttpResponse::BadRequest()
+            .append_header(("Content-Type", "application/json"))
+            .body(serde_json::to_string::<DefaultReturn<()>>(&e.into()).unwrap()),
+    }
 }
 
 #[post("/api/v1/auth/users/{name:.*?}/ban")]
@@ -113,29 +117,20 @@ pub async fn ban_request(req: HttpRequest, data: web::Data<db::AppData>) -> impl
 
     // get token user
     let token_cookie = req.cookie("__Secure-Token");
-    let token_user = if token_cookie.is_some() {
-        Option::Some(
-            data.db
-                .get_user_by_unhashed(token_cookie.as_ref().unwrap().value().to_string()) // if the user is returned, that means the ID is valid
-                .await,
-        )
-    } else {
-        Option::None
+    let token_user = match token_cookie {
+        Some(c) => match data.db.auth.get_user_by_unhashed(c.to_string()).await {
+            Ok(ua) => Some(ua),
+            Err(_) => None,
+        },
+        None => None,
     };
 
-    if token_user.is_some() {
-        // make sure user exists
-        if token_user.as_ref().unwrap().success == false {
-            return HttpResponse::NotFound().body("Invalid token");
-        }
-    } else {
-        return HttpResponse::NotAcceptable().body("An account is required to do this");
+    if token_user.is_none() {
+        return HttpResponse::NotAcceptable().body("An account is required to do this.");
     }
 
     // make sure token_user is of role "staff"
     if !token_user
-        .unwrap()
-        .payload
         .unwrap()
         .level
         .permissions
@@ -144,11 +139,20 @@ pub async fn ban_request(req: HttpRequest, data: web::Data<db::AppData>) -> impl
         return HttpResponse::NotAcceptable().body("Only staff can do this");
     }
 
-    // ban user
-    let res: db::DefaultReturn<Option<String>> = data.db.ban_user_by_name(name).await;
-
     // return
-    return HttpResponse::Ok()
-        .append_header(("Content-Type", "application/json"))
-        .body(serde_json::to_string::<db::DefaultReturn<Option<String>>>(&res).unwrap());
+    match data.db.ban_user_by_name(name).await {
+        Ok(r) => HttpResponse::Ok()
+            .append_header(("Content-Type", "application/json"))
+            .body(
+                serde_json::to_string::<DefaultReturn<()>>(&DefaultReturn {
+                    success: true,
+                    message: String::from("User banned"),
+                    payload: r,
+                })
+                .unwrap(),
+            ),
+        Err(e) => HttpResponse::NotAcceptable()
+            .append_header(("Content-Type", "application/json"))
+            .body(serde_json::to_string::<DefaultReturn<()>>(&e.into()).unwrap()),
+    }
 }
