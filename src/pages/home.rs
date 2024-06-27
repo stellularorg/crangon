@@ -29,7 +29,7 @@ pub struct HomeQueryProps {
 #[derive(Template)]
 #[template(path = "user/dashboard.html")]
 struct DashboardTemplate {
-    user: db::UserState<String>,
+    user: db::UserState<db::UserMetadata>,
     // required fields (super::base)
     info: String,
     auth_state: bool,
@@ -57,26 +57,28 @@ pub async fn home_request(
     };
 
     let metadata = match paste.as_ref() {
-        Some(p) => match p.payload {
-            Some(ref p) => Option::Some(p.paste.metadata.to_owned()),
-            None => Option::None,
+        Some(p) => match p {
+            Ok(ref p) => Some(p.paste.metadata.to_owned()),
+            Err(_) => None,
         },
-        None => Option::None,
+        None => None,
     };
 
     // if metadata has "private_source" set to "on" and we're not the owner, return
     if metadata.is_some() {
         let owner = &metadata.as_ref().unwrap().owner;
         if metadata.as_ref().unwrap().private_source == String::from("on") {
-            if token_user.is_none() {
-                return HttpResponse::NotFound()
-                    .body("You do not have permission to view this paste's contents.");
-            }
-
-            let payload = &token_user.as_ref().unwrap().payload;
-            if owner.to_string() != payload.as_ref().unwrap().user.username {
-                return HttpResponse::NotFound()
-                    .body("You do not have permission to view this paste's contents.");
+            match token_user {
+                Some(ref ua) => {
+                    if owner.to_string() != ua.user.username {
+                        return HttpResponse::NotFound()
+                            .body("You do not have permission to view this paste's contents.");
+                    }
+                }
+                None => {
+                    return HttpResponse::NotFound()
+                        .body("You do not have permission to view this paste's contents.")
+                }
             }
         }
     };
@@ -94,42 +96,41 @@ pub async fn home_request(
                 } else {
                     String::new()
                 },
-                starting_content: if paste.is_some() {
-                    if paste.as_ref().unwrap().success {
-                        paste
-                            .as_ref()
-                            .unwrap()
-                            .payload
-                            .as_ref()
-                            .unwrap()
+                starting_content: match paste {
+                    Some(p) => match p {
+                        Ok(p) => p
                             .paste
                             .content
                             .replace("\\", "\\\\")
                             .replace("`", "\\`")
                             .replace("$", "\\$")
-                            .replace("/", "\\/")
-                    } else {
-                        String::new()
-                    }
-                } else {
-                    String::new()
+                            .replace("/", "\\/"),
+                        Err(_) => String::new(),
+                    },
+                    None => String::new(),
                 },
-                password_not_needed: if metadata.is_some() && token_user.is_some() {
+                password_not_needed: if metadata.is_some() {
                     let metadata = metadata.unwrap();
-                    let username = token_user.unwrap().payload.unwrap().user.username;
+                    match token_user {
+                        Some(ua) => {
+                            let username = ua.user.username;
+                            let in_permissions_list = metadata.permissions_list.get(&username);
 
-                    let in_permissions_list = metadata.permissions_list.get(&username);
-
-                    // MUST be paste owner
-                    (metadata.owner == username) |
-                    // OR have a passwordless permission
-                    if in_permissions_list.is_some() {
-                        let permission = in_permissions_list.unwrap();
-                        // OR must have EditTextPasswordless or Passwordless
-                        (permission == &db::PastePermissionLevel::EditTextPasswordless)
-                            | (permission == &db::PastePermissionLevel::Passwordless)
-                    } else {
-                        false
+                            // MUST be paste owner
+                            if metadata.owner == username {
+                                true
+                            }
+                            // OR have a passwordless permission
+                            else if in_permissions_list.is_some() {
+                                let permission = in_permissions_list.unwrap();
+                                // OR must have EditTextPasswordless or Passwordless
+                                (permission == &db::PastePermissionLevel::EditTextPasswordless)
+                                    | (permission == &db::PastePermissionLevel::Passwordless)
+                            } else {
+                                false
+                            }
+                        }
+                        None => false,
                     }
                 } else {
                     false
@@ -184,7 +185,7 @@ pub async fn dashboard_request(req: HttpRequest, data: web::Data<AppData>) -> im
 
     // ...
     let base = base::get_base_values(token_user.is_some());
-    let user = token_user.unwrap().payload.unwrap();
+    let user = token_user.unwrap();
 
     return HttpResponse::Ok()
         .append_header(("Set-Cookie", set_cookie))
