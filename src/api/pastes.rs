@@ -73,7 +73,12 @@ pub async fn create_request(
     // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = match token_cookie {
-        Some(c) => match data.db.auth.get_user_by_unhashed(c.to_string()).await {
+        Some(c) => match data
+            .db
+            .auth
+            .get_user_by_unhashed(c.to_string().replace("__Secure-Token=", ""))
+            .await
+        {
             Ok(ua) => Some(ua),
             Err(_) => None,
         },
@@ -121,8 +126,8 @@ pub async fn create_request(
             serde_json::to_string(&match res {
                 Ok(r) => DefaultReturn {
                     success: true,
-                    message: r,
-                    payload: true,
+                    message: r.edit_password.clone(),
+                    payload: r,
                 },
                 Err(e) => e.into(),
             })
@@ -146,7 +151,12 @@ pub async fn edit_request(
     // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = match token_cookie {
-        Some(c) => match data.db.auth.get_user_by_unhashed(c.to_string()).await {
+        Some(c) => match data
+            .db
+            .auth
+            .get_user_by_unhashed(c.to_string().replace("__Secure-Token=", ""))
+            .await
+        {
             Ok(ua) => Some(ua),
             Err(_) => None,
         },
@@ -157,7 +167,7 @@ pub async fn edit_request(
     let res = data
         .db
         .edit_paste_by_url(
-            custom_url,
+            custom_url.clone(),
             content,
             edit_password,
             new_url,
@@ -178,7 +188,7 @@ pub async fn edit_request(
                 Ok(_) => DefaultReturn {
                     success: true,
                     message: String::from("Paste edited"),
-                    payload: true,
+                    payload: custom_url,
                 },
                 Err(e) => e.into(),
             })
@@ -199,7 +209,12 @@ pub async fn delete_request(
     // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = match token_cookie {
-        Some(c) => match data.db.auth.get_user_by_unhashed(c.to_string()).await {
+        Some(c) => match data
+            .db
+            .auth
+            .get_user_by_unhashed(c.to_string().replace("__Secure-Token=", ""))
+            .await
+        {
             Ok(ua) => Some(ua),
             Err(_) => None,
         },
@@ -252,7 +267,12 @@ pub async fn metadata_request(
     // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = match token_cookie {
-        Some(c) => match data.db.auth.get_user_by_unhashed(c.to_string()).await {
+        Some(c) => match data
+            .db
+            .auth
+            .get_user_by_unhashed(c.to_string().replace("__Secure-Token=", ""))
+            .await
+        {
             Ok(ua) => Some(ua),
             Err(_) => None,
         },

@@ -53,15 +53,22 @@ pub async fn check_auth_status(
     let mut set_cookie: &str = "";
 
     let token_user = match token_cookie {
-        Some(ref c) => match data.db.auth.get_user_by_unhashed(c.to_string()).await {
-            Ok(ua) => Some(ua),
-            Err(_) => {
-                // make sure user exists, refresh token if not
-                set_cookie =
+        Some(ref c) => {
+            match data
+                .db
+                .auth
+                .get_user_by_unhashed(c.to_string().replace("__Secure-Token=", ""))
+                .await
+            {
+                Ok(ua) => Some(ua),
+                Err(_) => {
+                    // make sure user exists, refresh token if not
+                    set_cookie =
                 "__Secure-Token=refresh; SameSite=Strict; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age=0";
-                None
+                    None
+                }
             }
-        },
+        }
         None => None,
     };
 

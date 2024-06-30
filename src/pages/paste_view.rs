@@ -1,11 +1,10 @@
 use actix_web::HttpResponse;
 use actix_web::{get, web, HttpRequest, Responder};
-use dorsal::db::special::auth_db::UserMetadata;
 
 use super::base;
 use askama::Template;
 
-use crate::db::{self, AppData, FullPaste, Paste, PasteMetadata};
+use crate::db::{self, AppData, Paste, PasteMetadata};
 
 #[derive(Template)]
 #[template(path = "paste/password_ask.html")]
@@ -68,20 +67,16 @@ pub async fn paste_view_request(
     let url: String = req.match_info().get("url").unwrap().to_string();
     let url_c = url.clone();
 
-    let paste: db::DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
-        data.db.get_paste_by_url(url).await;
-
-    if paste.success == false {
-        return super::errors::error404(req, data).await;
-    }
-
-    let unwrap = paste.payload.as_ref().unwrap();
+    let paste = match data.db.get_paste_by_url(url).await {
+        Ok(p) => p,
+        Err(_) => return super::errors::error404(req, data).await,
+    };
 
     // verify auth status
     let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
 
     // ...
-    let metadata = &unwrap.paste.metadata;
+    let metadata = &paste.paste.metadata;
 
     // handle view password
     match metadata.view_password {
@@ -99,7 +94,7 @@ pub async fn paste_view_request(
                     .append_header(("Content-Type", "text/html"))
                     .body(
                         PasswordAskTemplate {
-                            custom_url: unwrap.clone().paste.custom_url,
+                            custom_url: paste.paste.custom_url,
                             // required fields
                             info: base.info,
                             auth_state: base.auth_state,
@@ -124,15 +119,14 @@ pub async fn paste_view_request(
     }
 
     // count view
-    if token_user.is_some() && token_user.as_ref().unwrap().payload.is_some() {
-        let payload = &token_user.as_ref().unwrap().payload;
-        let username = &payload.as_ref().unwrap().user.username;
+    if let Some(ref ua) = token_user {
+        let username = ua.user.username.clone();
 
         // count view (this will check for an existing view!)
-        data.db.add_view_to_url(&url_c, &username).await;
+        let _ = data.db.add_view_to_url(&url_c, &username).await;
 
         // check permission
-        let in_permissions_list = unwrap.paste.metadata.permissions_list.get(username);
+        let in_permissions_list = paste.paste.metadata.permissions_list.get(&username);
 
         if in_permissions_list.is_some() {
             // "Blocked" is NOT as secure as setting view_password!
@@ -147,7 +141,7 @@ pub async fn paste_view_request(
     }
 
     // ...
-    let paste_preview_text: String = unwrap
+    let paste_preview_text: String = paste
         .paste
         .content
         .chars()
@@ -164,19 +158,14 @@ pub async fn paste_view_request(
 
     // get active user
     let active_username = match token_user {
-        Some(ref ua) => ua.payload.as_ref().unwrap().user.username.clone(),
+        Some(ref ua) => ua.user.username.clone(),
         None => String::new(),
     };
 
     // ...
-    let paste = unwrap.clone().paste;
-    let user = unwrap.clone().user;
-
-    let metadata = &paste.metadata;
-    let user_metadata = if user.is_some() {
-        Option::Some(
-            serde_json::from_str::<UserMetadata>(&user.as_ref().unwrap().user.metadata).unwrap(),
-        )
+    let metadata = &paste.paste.metadata;
+    let user_metadata = if paste.user.is_some() {
+        Option::Some(paste.user.as_ref().unwrap().user.metadata.clone())
     } else {
         Option::None
     };
@@ -184,18 +173,17 @@ pub async fn paste_view_request(
     // favorites
     let favorites_count = data
         .db
-        .get_paste_favorites(paste.id.to_string())
-        .await
-        .payload;
+        .get_paste_favorites(paste.paste.id.to_string())
+        .await;
 
     let has_favorited = if token_user.is_none() {
         false
     } else {
-        let user = token_user.clone().unwrap().payload.unwrap();
+        let user = token_user.clone().unwrap();
         data.db
-            .get_user_paste_favorite(user.user.username, paste.id.to_string(), false)
+            .get_user_paste_favorite(user.user.username, paste.paste.id.to_string(), false)
             .await
-            .success
+            .is_ok()
     };
 
     // ...
@@ -205,7 +193,7 @@ pub async fn paste_view_request(
         } else {
             title_unwrap.unwrap().clone()
         },
-        paste: paste.clone(),
+        paste: paste.paste.clone(),
         head_string: format!(
             "<meta property=\"og:url\" content=\"{}\" />
                     <meta property=\"og:title\" content=\"{}\" />
@@ -263,7 +251,7 @@ pub async fn paste_view_request(
     return HttpResponse::Ok()
         .append_header(("Set-Cookie", set_cookie))
         .append_header(("Content-Type", "text/html"))
-        .body(if paste.metadata.favicon.is_some() {
+        .body(if paste.paste.metadata.favicon.is_some() {
             // make the original favicon useless
             body_content.replacen("rel=\"icon\"", "rel=\"old_icon\"", 1)
         } else {
@@ -290,10 +278,7 @@ pub async fn dashboard_request(
     // fetch pastes
     let pastes = data
         .db
-        .get_pastes_by_owner_limited(
-            token_user.clone().unwrap().payload.unwrap().user.username,
-            info.offset,
-        )
+        .get_pastes_by_owner_limited(token_user.clone().unwrap().user.username, info.offset)
         .await;
 
     // ...
@@ -303,7 +288,7 @@ pub async fn dashboard_request(
         .append_header(("Content-Type", "text/html"))
         .body(
             DashboardTemplate {
-                pastes: pastes.payload.unwrap(),
+                pastes: pastes.ok().unwrap(),
                 offset: if info.offset.is_some() {
                     info.offset.unwrap()
                 } else {

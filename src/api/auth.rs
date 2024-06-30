@@ -44,7 +44,13 @@ pub async fn logout(req: HttpRequest, data: web::Data<AppData>) -> impl Responde
 
     if let Err(e) = data
         .db
-        .get_user_by_unhashed(cookie.unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+        .get_user_by_unhashed(
+            cookie
+                .unwrap()
+                .value()
+                .to_string()
+                .replace("__Secure-Token=", ""),
+        ) // if the user is returned, that means the ID is valid
         .await
     {
         return HttpResponse::NotAcceptable().body(e.to_string());
@@ -71,7 +77,13 @@ pub async fn whoami(req: HttpRequest, data: web::Data<AppData>) -> impl Responde
 
     match data
         .db
-        .get_user_by_unhashed(cookie.unwrap().value().to_string()) // if the user is returned, that means the ID is valid
+        .get_user_by_unhashed(
+            cookie
+                .unwrap()
+                .value()
+                .to_string()
+                .replace("__Secure-Token=", ""),
+        ) // if the user is returned, that means the ID is valid
         .await
     {
         Ok(ua) => HttpResponse::Ok()
@@ -118,7 +130,12 @@ pub async fn ban_request(req: HttpRequest, data: web::Data<db::AppData>) -> impl
     // get token user
     let token_cookie = req.cookie("__Secure-Token");
     let token_user = match token_cookie {
-        Some(c) => match data.db.auth.get_user_by_unhashed(c.to_string()).await {
+        Some(c) => match data
+            .db
+            .auth
+            .get_user_by_unhashed(c.to_string().replace("__Secure-Token=", ""))
+            .await
+        {
             Ok(ua) => Some(ua),
             Err(_) => None,
         },

@@ -125,7 +125,10 @@ impl Database {
 
         Database {
             base: db.clone(),
-            auth: dorsal::AuthDatabase { base: db.clone() },
+            auth: dorsal::AuthDatabase {
+                base: db.clone(),
+                options: dorsal::db::special::auth_db::DatabaseOptions::default(),
+            },
             logs: log_db::LogDatabase { base: db },
         }
     }
@@ -342,7 +345,7 @@ impl Database {
                     .await
                 {
                     Ok(ua) => Some(ua),
-                    Err(_) => return Err(DatabaseError::Other),
+                    Err(_) => None,
                 }
             } else {
                 None
@@ -400,7 +403,7 @@ impl Database {
                 .await
             {
                 Ok(ua) => Some(ua),
-                Err(_) => return Err(DatabaseError::Other),
+                Err(_) => None,
             }
         } else {
             None
@@ -614,7 +617,7 @@ impl Database {
         &self,
         mut props: Paste<String>,
         as_user: Option<String>, // id of paste owner
-    ) -> Result<String> {
+    ) -> Result<Paste<String>> {
         // create default metadata
         let metadata: PasteMetadata = PasteMetadata {
             owner: if as_user.is_some() {
@@ -757,7 +760,7 @@ impl Database {
                 }
 
                 // return
-                Ok(props.edit_password.clone())
+                Ok(props)
             }
             Err(_) => Err(DatabaseError::Other),
         }
@@ -1036,7 +1039,7 @@ impl Database {
                         String::from("view_paste"),
                         format!("{}::{}", &url, &view_as),
                     )
-                    .await;
+                    .await?;
 
                 // update cache
                 let existing_in_cache = self.base.cachedb.get(format!("paste:{}", url)).await;

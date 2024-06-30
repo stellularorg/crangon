@@ -68,7 +68,7 @@ pub async fn dashboard_request(req: HttpRequest, data: web::Data<db::AppData>) -
     }
 
     // validate role
-    let user = token_user.as_ref().unwrap().payload.as_ref().unwrap();
+    let user = token_user.as_ref().unwrap();
 
     if !user
         .level
@@ -113,7 +113,7 @@ pub async fn staff_users_dashboard_request(
     }
 
     // validate role
-    let user = token_user.as_ref().unwrap().payload.as_ref().unwrap();
+    let user = token_user.as_ref().unwrap();
 
     if !user
         .level
@@ -173,7 +173,7 @@ pub async fn staff_pastes_dashboard_request(
     }
 
     // validate role
-    let user = token_user.as_ref().unwrap().payload.as_ref().unwrap();
+    let user = token_user.as_ref().unwrap();
 
     if !user
         .level

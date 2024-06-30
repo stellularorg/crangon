@@ -4,7 +4,7 @@ use actix_web::{get, web, HttpRequest, Responder};
 use super::base;
 use askama::Template;
 
-use crate::db::{self, AppData, FullPaste, Paste, PasteMetadata};
+use crate::db::{AppData, Paste, PasteMetadata};
 use crate::pages::paste_view;
 
 #[derive(Template)]
@@ -66,19 +66,16 @@ pub async fn paste_settings_request(
     // get paste
     let url: String = req.match_info().get("url").unwrap().to_string();
 
-    let paste: db::DefaultReturn<Option<FullPaste<PasteMetadata, String>>> =
-        data.db.get_paste_by_url(url).await;
-
-    if paste.success == false {
-        return HttpResponse::NotFound().body(paste.message);
-    }
+    let paste = match data.db.get_paste_by_url(url).await {
+        Ok(p) => p,
+        Err(e) => return HttpResponse::NotFound().body(e.to_string()),
+    };
 
     // verify auth status
     let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
 
     // ...
-    let unwrap = paste.payload.clone().unwrap();
-    let metadata = &unwrap.paste.metadata;
+    let metadata = &paste.paste.metadata;
 
     // handle view password
     match metadata.view_password {
@@ -96,7 +93,7 @@ pub async fn paste_settings_request(
                     .append_header(("Content-Type", "text/html"))
                     .body(
                         super::paste_view::PasswordAskTemplate {
-                            custom_url: unwrap.clone().paste.custom_url,
+                            custom_url: paste.paste.custom_url,
                             // required fields
                             info: base.info,
                             auth_state: base.auth_state,
@@ -127,7 +124,7 @@ pub async fn paste_settings_request(
         .append_header(("Content-Type", "text/html"))
         .body(
             PasteSettingsTemplate {
-                paste: paste.payload.clone().unwrap().paste,
+                paste: paste.paste.clone(),
                 metadata: serde_json::to_string::<PasteMetadata>(metadata)
                     .unwrap()
                     .replace("/", "\\/"),
