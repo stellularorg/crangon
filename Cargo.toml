@@ -17,7 +17,6 @@ sqlite = ["dorsal/sqlite"]
 default = ["dorsal/sqlite"]
 
 [dependencies]
-awc = { version = "3.4.0", features = ["rustls"] }
 actix-files = "0.6.5"
 actix-web = "4.4.1"
 dotenv = "0.15.0"
@@ -37,3 +36,4 @@ sqlx = "0.7.4"
 regex = "1.10.4"
 dorsal = { version = "0.1.7", default-features = false }
 sauropod = "0.1.1"
+awc = "3.5.0"

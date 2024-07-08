@@ -77,12 +77,7 @@ async fn main() -> std::io::Result<()> {
 
     // serve routes
     HttpServer::new(move || {
-        let client = awc::Client::default();
-        let data = web::Data::new(AppData {
-            db: db.clone(),
-            http_client: client,
-        });
-
+        let data = web::Data::new(AppData { db: db.clone() });
         let cors = actix_cors::Cors::default().send_wildcard();
 
         App::new()

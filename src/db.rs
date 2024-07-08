@@ -16,7 +16,6 @@ pub type Result<T> = std::result::Result<T, DatabaseError>;
 #[derive(Clone)]
 pub struct AppData {
     pub db: Database,
-    pub http_client: awc::Client,
 }
 
 // Paste and Group require the type of their metadata to be specified so it can be converted if needed
