@@ -1,0 +1,192 @@
+{% extends "./base.html" %} {% block title %}Editing "{{ paste.url }}" – {{
+base.site_name }}{% endblock %} {% block mainstuff %}style="height: 100%;
+display: flex; flex-direction: column;"{% endblock %}{% block content %}
+<div class="flex flex-col w-full h-full">
+    <!-- toolbar -->
+    <div class="flex">
+        <button class="button tab" id="text_button">Text</button>
+        <button class="button tab secondary" id="preview_button">
+            Preview
+        </button>
+        <a class="button tab secondary" href="/{{ paste.url }}/edit/config">
+            Config
+        </a>
+    </div>
+
+    <!-- editor -->
+    <form class="flex flex-col w-full" id="submit_form" style="flex: 1 0">
+        <div
+            class="card more_padding max-h-[33rem] md:max-h-[43rem] overflow-auto"
+            style="flex: 1 0"
+            id="tab_container"
+        >
+            <div id="text_tab" class="h-full animate-fade-in"></div>
+            <div
+                id="preview_tab"
+                style="display: none"
+                class="animate-fade-in"
+            ></div>
+        </div>
+
+        <!-- actions -->
+        <fieldset class="w-full my-2 flex flex-col gap-2">
+            <!-- inputs -->
+            <div class="gap-2 flex items-center float-right">
+                <!-- prettier-ignore -->
+                <input
+                    name="password"
+                    id="password"
+                    {% if passwordless %}
+                    placeholder="Not needed, you're the owner!"
+                    {% else %}
+                    placeholder="Password"
+                    {% endif %}
+                    required
+                    class="small"
+                    {% if passwordless %}
+                    disabled
+                    {% endif %}
+                />
+
+                <input
+                    name="new_url"
+                    id="new_url"
+                    placeholder="New Custom URL"
+                    class="small"
+                />
+
+                <input
+                    name="new_password"
+                    id="new_password"
+                    placeholder="New Password"
+                    class="small"
+                />
+            </div>
+
+            <!-- submit -->
+            <div class="flex justify-between align-center gap-2">
+                <div class="flex gap-2">
+                    <button
+                        class="round mb-2 !text-emerald-800 dark:!text-emerald-300"
+                    >
+                        Save
+                    </button>
+
+                    <a class="button round mb-2" href="/{{ paste.url }}">
+                        Cancel
+                    </a>
+                </div>
+
+                <button
+                    class="round mb-2 !text-red-800 dark:!text-red-300"
+                    id="delete_paste"
+                    data-endpoint="/api/{{ paste.url }}/delete"
+                    type="button"
+                >
+                    Delete
+                </button>
+            </div>
+        </fieldset>
+    </form>
+</div>
+
+<script>
+    document
+        .getElementById("submit_form")
+        .addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const res = await (
+                await fetch("/api/{{ paste.url }}/edit", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        new_url: (e.target.new_url || { value: "" }).value,
+                        new_content: globalThis.editor.getValue(),
+                        new_password: (e.target.new_password || { value: "" })
+                            .value,
+                        password: e.target.password.value,
+                    }),
+                })
+            ).json();
+
+            if (res.success === false) {
+                window.location.href = `?SECRET=${res.message}&SECRET_TYPE=note-error&SECRET_TITLE=Error`;
+            } else {
+                let url =
+                    (e.target.new_url || { value: "" }).value ||
+                    "{{ paste.url }}";
+
+                window.location.href = `/${url}?SECRET=${res.message}&SECRET_TYPE=note-info&SECRET_TITLE=Notice`;
+            }
+        });
+
+    document
+        .getElementById("delete_paste")
+        .addEventListener("click", async () => {
+            if (
+                !confirm(
+                    "Are you sure you would like to do this? It cannot be undone.",
+                )
+            ) {
+                return;
+            }
+
+            const password = prompt("Enter this paste's edit password:");
+
+            if (!password) {
+                return;
+            }
+
+            const res = await (
+                await fetch("/api/{{ paste.url }}/delete", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        password: password.trim(),
+                    }),
+                })
+            ).json();
+
+            if (res.success === false) {
+                window.location.href = `?SECRET=${res.message}&SECRET_TYPE=note-error&SECRET_TITLE=Error`;
+            } else {
+                window.location.href =
+                    "/?SECRET=Paste%20deleted.&SECRET_TYPE=note-info&SECRET_TITLE=Notice";
+            }
+        });
+</script>
+
+<!-- editor -->
+<script src="https://unpkg.com/codemirror@5.39.2/lib/codemirror.js"></script>
+<script src="https://unpkg.com/codemirror@5.39.2/mode/markdown/markdown.js"></script>
+
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/codemirror@5.39.2/lib/codemirror.css"
+/>
+
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/styles/default.min.css"
+/>
+
+<script src="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/highlight.min.js"></script>
+
+<!-- prettier-ignore -->
+<script type="text/markdown" id="content">{{ paste.content|safe }}</script>
+
+<script>
+    use("markdown", (markdown) => {
+        use("editor", (editor) => {
+            editor.create_editor(document.getElementById("content").innerText);
+            editor.init_tabs();
+            editor.check_url(document.getElementById("new_url"));
+        });
+    });
+</script>
+{% call super() %} {% endblock %}

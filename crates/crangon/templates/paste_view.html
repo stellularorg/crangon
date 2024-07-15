@@ -1,0 +1,66 @@
+{% extends "./base.html" %} {% block head %}
+<meta property="og:title" content="{{ paste.url }}" />
+
+{{ head_stuff|safe }} {% endblock %}{% block content %}
+<div class="flex flex-col w-full h-full gap-2">
+    <div class="card more_padding round min-h-[15rem]" id="tab_container">
+        {{ rendered|safe }}
+    </div>
+
+    <div class="flex w-full gap-2 justify-between">
+        <a href="/{{ paste.url }}/edit" class="button round">Edit</a>
+
+        <div class="flex flex-col items-end g-1 opacity-75">
+            <span>
+                Pub:
+                <span class="date-time-to-localize">
+                    {{ paste.date_published }}
+                </span>
+            </span>
+
+            <span>
+                Edit:
+                <span class="date-time-to-localize">
+                    {{ paste.date_edited }}
+                </span>
+            </span>
+
+            <!-- prettier-ignore -->
+            {% if !base.guppy_root.is_empty() && !paste.metadata.owner.is_empty() %}
+            <span>
+                Owner:
+                <a
+                    href="{{ base.guppy_root }}/{{ paste.metadata.owner }}"
+                    target="_blank"
+                >
+                    <!-- TODO: show owner nickname -->
+                    {{ paste.metadata.owner }}
+                </a>
+            </span>
+            {% endif %}
+
+            <span>Views: {{ views }}</span>
+        </div>
+    </div>
+</div>
+
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/styles/default.min.css"
+/>
+
+<script src="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/highlight.min.js"></script>
+
+<script>
+    use("markdown", (markdown) => {
+        use("bundled_env", (bundled_env) => {
+            markdown.fix_markdown("tab_container");
+        });
+    });
+
+    globalThis._app_base.secret = {
+        type: "note-info",
+        title: "Edit Code",
+    };
+</script>
+{% call super() %} {% endblock %}

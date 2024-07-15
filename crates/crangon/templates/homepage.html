@@ -1,0 +1,109 @@
+{% extends "./base.html" %} {% block title %}{{ base.site_name }} – Markdown
+Pastebin{% endblock %}{% block mainstuff %}style="height: 100%; display: flex;
+flex-direction: column;"{% endblock %}{% block content %}
+<div class="flex flex-col w-full h-full">
+    <!-- toolbar -->
+    <div class="flex">
+        <button class="button tab" id="text_button">Text</button>
+        <button class="button tab secondary" id="preview_button">
+            Preview
+        </button>
+    </div>
+
+    <!-- editor -->
+    <form class="flex flex-col w-full" id="submit_form" style="flex: 1 0">
+        <div
+            class="card more_padding max-h-[34rem] md:max-h-[47rem] overflow-auto"
+            style="flex: 1 0"
+        >
+            <div id="text_tab" class="h-full animate-fade-in"></div>
+            <div
+                id="preview_tab"
+                style="display: none"
+                class="animate-fade-in"
+            ></div>
+        </div>
+
+        <!-- actions -->
+        <fieldset class="w-full my-2">
+            <!-- inputs -->
+            <div class="gap-2 flex items-center float-right mb-2">
+                <input
+                    name="url"
+                    id="url"
+                    placeholder="Custom URL"
+                    class="small"
+                />
+
+                <input
+                    name="password"
+                    id="password"
+                    placeholder="Password"
+                    class="small"
+                />
+            </div>
+
+            <!-- submit -->
+            <button class="round mb-2">Publish</button>
+        </fieldset>
+    </form>
+</div>
+
+<script>
+    document
+        .getElementById("submit_form")
+        .addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            const res = await (
+                await fetch("/api/new", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        url: e.target.url.value,
+                        password: e.target.password.value,
+                        content: globalThis.editor.getValue(),
+                    }),
+                })
+            ).json();
+
+            if (res.success === false) {
+                trigger("crangon:gen_secret", [
+                    "note-error",
+                    "Error",
+                    res.message,
+                ]);
+            } else {
+                window.location.href = `/${res.payload[1].url}?SECRET=${res.payload[0]}`;
+            }
+        });
+</script>
+
+<!-- editor -->
+<script src="https://unpkg.com/codemirror@5.39.2/lib/codemirror.js"></script>
+<script src="https://unpkg.com/codemirror@5.39.2/mode/markdown/markdown.js"></script>
+
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/codemirror@5.39.2/lib/codemirror.css"
+/>
+
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/styles/default.min.css"
+/>
+
+<script src="https://unpkg.com/@highlightjs/cdn-assets@11.9.0/highlight.min.js"></script>
+
+<script>
+    use("markdown", (markdown) => {
+        use("editor", (editor) => {
+            editor.create_editor("");
+            editor.init_tabs();
+            editor.check_url(document.getElementById("url"));
+        });
+    });
+</script>
+{% call super() %} {% endblock %}

@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+    {% let base = crate::base::BaseStore::new() %}
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+        <meta
+            http-equiv="content-security-policy"
+            content="default-src 'self' blob:; img-src * data:; media-src *; font-src *; style-src 'unsafe-inline' 'self' blob: *; script-src 'self' 'unsafe-inline' blob: *; object-src 'self' blob: *; upgrade-insecure-requests; connect-src *; frame-src 'self' blob: data: *"
+        />
+
+        <title>{% block title %}{{ title }}{% endblock %}</title>
+
+        <meta name="theme-color" content="#6ee7b7" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="{{ base.site_name }}" />
+
+        <link rel="icon" href="/static/favicon.svg" />
+
+        {% block head %}{% endblock %}
+
+        <link rel="stylesheet" href="/static/style.css" />
+
+        <!-- prefer default user color theme -->
+        <script>
+            if (
+                window.matchMedia("(prefers-color-scheme: dark)").matches &&
+                !window.localStorage.getItem("theme")
+            ) {
+                document.documentElement.classList.add("dark");
+                window.localStorage.setItem("theme", "dark");
+            } else if (
+                window.matchMedia("(prefers-color-scheme: light)").matches &&
+                !window.localStorage.getItem("theme")
+            ) {
+                document.documentElement.classList.remove("dark");
+                window.localStorage.setItem("theme", "light");
+            } else if (window.localStorage.getItem("theme")) {
+                /* restore theme */
+                const current = window.localStorage.getItem("theme");
+                document.documentElement.className = current;
+            }
+        </script>
+
+        <!-- ... -->
+        <script>
+            globalThis._app_base = {
+                ns_store: {}, // global page functions
+                guppy_root: "{{ base.guppy_root }}",
+            };
+        </script>
+    </head>
+
+    <body>
+        <script src="https://unpkg.com/regns@1.0.0/index.js"></script>
+
+        <!-- page content -->
+        <div id="_page" style="display: contents">
+            <main class="min-h-full" {% block mainstuff %}{% endblock %}>
+                <noscript>
+                    <div class="mdnote note-error">
+                        <b class="mdnote-title">
+                            Please allow JavaScript to edit
+                        </b>
+                        <p>
+                            All editing functions require JavaScript access to
+                            be enabled. You can view pastes just fine without
+                            it.
+                        </p>
+                    </div>
+                </noscript>
+
+                <div id="_footer_base_page" class="h-full">
+                    {% block content %}{% endblock %}
+                </div>
+
+                <!-- footer -->
+                <footer class="flex flex-col items-center gap-2 w-full mt-8">
+                    <hr class="md:w-[350px] w-full my-2" />
+
+                    <div class="footernav">
+                        <span class="item">
+                            <a href="/">new</a>
+                        </span>
+
+                        {% if !base.info_url.is_empty() %}
+                        <span class="item">
+                            <a href="/{{ base.info_url }}">what</a>
+                        </span>
+                        {% endif %} {% if base.secret == false %}
+                        <span class="item">
+                            <a href="https://github.com/stellularorg/crangon">
+                                source
+                            </a>
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <!-- theme -->
+                    <div class="relative w-full">
+                        <div style="position: absolute; bottom: 11px; right: 0">
+                            <a
+                                id="theme_button"
+                                href="javascript:trigger('crangon:toggle_theme')"
+                                title="Toggle Theme"
+                                class="block opacity-50 flush"
+                            >
+                                <div id="theme_icon_sun">
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        width="18"
+                                        height="18"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        class="lucide lucide-sun"
+                                    >
+                                        <circle cx="12" cy="12" r="4" />
+                                        <path d="M12 2v2" />
+                                        <path d="M12 20v2" />
+                                        <path d="m4.93 4.93 1.41 1.41" />
+                                        <path d="m17.66 17.66 1.41 1.41" />
+                                        <path d="M2 12h2" />
+                                        <path d="M20 12h2" />
+                                        <path d="m6.34 17.66-1.41 1.41" />
+                                        <path d="m19.07 4.93-1.41 1.41" />
+                                    </svg>
+                                </div>
+
+                                <div id="theme_icon_moon">
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        width="18"
+                                        height="18"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="2"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        class="lucide lucide-moon"
+                                    >
+                                        <path
+                                            d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"
+                                        />
+                                    </svg>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </footer>
+            </main>
+        </div>
+
+        <script src="/static/js/footer.js"></script>
+        {{ base.body_embed|safe }}
+    </body>
+</html>

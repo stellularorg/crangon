@@ -1,0 +1,120 @@
+{% extends "./base.html" %} {% block title %}Editing "{{ paste.url }}" – {{
+base.site_name }}{% endblock %} {% block mainstuff %}style="height: 100%;
+display: flex; flex-direction: column;"{% endblock %} {% block content %}
+<script>
+    globalThis._app_base.auth_user = "{{ auth_user }}";
+</script>
+
+<div class="flex flex-col w-full h-full">
+    <!-- toolbar -->
+    <div class="flex">
+        <a class="button tab secondary" href="/{{ paste.url }}/edit">Text</a>
+        <button class="button tab secondary" disabled>Preview</button>
+        <button class="button tab">Config</button>
+    </div>
+
+    <!-- editor -->
+    <form class="flex flex-col w-full" id="submit_form" style="flex: 1 0">
+        <div
+            class="card flex flex-col gap-2 animate-fade-in"
+            style="flex: 1 0"
+            id="metadata_editor"
+        >
+            <!-- auth form -->
+            {% if !base.guppy_root.is_empty() %}
+            <div
+                class="card secondary round flex justify-between items-center gap-2"
+            >
+                {% if auth_user.is_empty() %}
+                <span>Not authenticated!</span>
+
+                <!-- actions -->
+                <div class="flex gap-2">
+                    <a
+                        href="{{ base.guppy_root }}/flow/auth/login"
+                        data-wants-redirect="true"
+                        class="button round !text-sky-800 dark:!text-sky-300"
+                    >
+                        Login
+                    </a>
+
+                    <a
+                        href="{{ base.guppy_root }}/flow/auth/register"
+                        data-wants-redirect="true"
+                        class="button round !text-sky-800 dark:!text-sky-300"
+                    >
+                        Register
+                    </a>
+                </div>
+                {% else %}
+                <span>
+                    Logged in as:
+                    <b>{{ auth_user }}</b>
+                </span>
+
+                <!-- actions -->
+                <div class="flex gap-2">
+                    <a
+                        href="/api/auth/logout"
+                        class="button round !text-red-800 dark:!text-red-300"
+                    >
+                        Logout
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+            <hr />
+            {% endif %}
+
+            <!-- ... -->
+        </div>
+
+        <!-- actions -->
+        <fieldset class="w-full my-2">
+            <!-- inputs -->
+            <div class="gap-2 flex items-center float-right mb-2">
+                <!-- prettier-ignore -->
+                <input
+                    name="password"
+                    id="password"
+                    {% if passwordless %}
+                    placeholder="Not needed, you're the owner!"
+                    {% else %}
+                    placeholder="Password"
+                    {% endif %}
+                    required
+                    class="small"
+                    {% if passwordless %}
+                    disabled
+                    {% endif %}
+                />
+            </div>
+
+            <!-- submit -->
+            <button class="round mb-2 !text-emerald-800 dark:!text-emerald-300">
+                Save
+            </button>
+        </fieldset>
+    </form>
+</div>
+
+<!-- init editor -->
+<!-- prettier-ignore -->
+<script type="application/json" id="metadata">{{ paste_metadata|safe }}</script>
+
+<script>
+    globalThis._app_base.secret = {
+        type: "note-info",
+        title: "Notice",
+    };
+
+    use("metadata", (metadata) => {
+        metadata.metadata_editor(
+            document.getElementById("metadata_editor"),
+            "{{ paste.url }}",
+            JSON.parse(document.getElementById("metadata").innerHTML),
+        );
+    });
+</script>
+{% call super() %} {% endblock %}

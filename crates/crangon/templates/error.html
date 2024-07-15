@@ -1,0 +1,4 @@
+{% extends "./base.html" %} {% block title %}Error! – {{ base.site_name }}{%
+endblock %} {% block content %}
+<div class="card round">{{ error }}</div>
+{% call super() %} {% endblock %}
