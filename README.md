@@ -1,5 +1,9 @@
 # 🦐 Crangon
 
+**Crangon is barely maintained!** Crangon receives mostly security and performance updates. For the new stuff, move to [sealable](https://github.com/hkauso/sealable)!
+
+***
+
 * `crates/pastemd` - backend (forked from [pastemd](https://docs.rs/pastemd))
 * `crates/crangon` - frontend (forked from [sealable](https://github.com/hkauso/sealable))
 
