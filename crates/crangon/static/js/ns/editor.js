@@ -16,9 +16,8 @@
                     viewportMargin: Infinity,
                     lineWrapping: true,
                     inputStyle: "contenteditable",
-                    highlightFormatting: false,
+                    highlightFormatting: true,
                     fencedCodeBlockHighlighting: false,
-                    xml: false,
                     smartIndent: false,
                     extraKeys: {
                         Home: "goLineLeft",

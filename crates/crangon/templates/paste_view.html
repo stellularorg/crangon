@@ -3,7 +3,10 @@
 
 {{ head_stuff|safe }} {% endblock %}{% block content %}
 <div class="flex flex-col w-full h-full gap-2">
-    <div class="card more_padding round min-h-[15rem]" id="tab_container">
+    <div
+        class="card more_padding round min-h-[15rem] tab_container tab-container"
+        id="tab_container"
+    >
         {{ rendered|safe }}
     </div>
 

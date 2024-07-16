@@ -68,6 +68,67 @@ reg_ns("markdown", ["crangon", "bundled_env"]).define(
 
         // highlight
         hljs.highlightAll();
+
+        // group modification blocks
+        const groups = {
+            /// Primary elements using the main background color
+            main: [
+                "body",
+                "button.secondary",
+                ".button.secondary",
+                ".card.secondary",
+            ],
+            /// Raised elements using the secondary background color
+            raised: [
+                ".card",
+                "button:not(.secondary)",
+                ".button:not(.secondary)",
+                "input",
+            ],
+        };
+
+        for (const group of Object.entries(groups)) {
+            // allow use to select by [group=NAME]
+            for (const selector of group[1]) {
+                for (const element of Array.from(
+                    document.querySelectorAll(selector),
+                )) {
+                    element.setAttribute("group", group[0]);
+                }
+            }
+        }
+
+        for (const script of Array.from(
+            document.querySelectorAll(
+                `#${root_id} script[type="env/group-mod"]`,
+            ),
+        )) {
+            try {
+                const mods = JSON.parse(script.innerHTML);
+
+                // get group
+                const group = groups[mods.group || "main"];
+
+                // update group elements
+                for (const selector of group) {
+                    for (const element of Array.from(
+                        document.querySelectorAll(selector),
+                    )) {
+                        // update attributes
+                        for (const entry of Object.entries(mods)) {
+                            element.setAttribute(entry[0], entry[1]);
+                        }
+
+                        element.setAttribute("data-env-group-modified", "true");
+                    }
+                }
+
+                script.remove();
+            } catch (err) {
+                console.error("GROUP MOD:", err);
+                continue;
+            }
+        }
     },
     ["string"],
 );

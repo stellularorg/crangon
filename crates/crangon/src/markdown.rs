@@ -18,6 +18,14 @@ pub fn parse_markdown(input: String) -> String {
             // these contain a json list that will update the attributes of the previous element
             out = regex_replace_exp(
                 &out,
+                RegexBuilder::new(r"@&lt;\((.*?)\)&gt;")
+                    .multi_line(true)
+                    .dot_matches_new_line(true),
+                "<script type=\"env/group-mod\">$1</script>",
+            );
+
+            out = regex_replace_exp(
+                &out,
                 RegexBuilder::new(r"&lt;\((.*?)\)&gt;")
                     .multi_line(true)
                     .dot_matches_new_line(true),
