@@ -65,6 +65,13 @@ pub fn parse_markdown(input: String) -> String {
                 );
             }
 
+            // subtext
+            out = regex_replace_exp(
+                &out,
+                RegexBuilder::new(r"^-#\s*(.*?)$").multi_line(true),
+                "<p style=\"opacity: 75%\" role=\"subtext\">$1</p>",
+            );
+
             // return
             out
         }],
