@@ -1,6 +1,8 @@
 {% extends "./base.html" %} {% block title %}Editing "{{ paste.url }}" – {{
 base.site_name }}{% endblock %} {% block mainstuff %}style="height: 100%;
-display: flex; flex-direction: column;"{% endblock %}{% block content %}
+display: flex; flex-direction: column;"{% endblock %}{% block head %}
+<link rel="icon" href="/static/favicon.svg" />
+{% endblock %}{% block content %}
 <div class="flex flex-col w-full h-full">
     <!-- toolbar -->
     <div class="flex">

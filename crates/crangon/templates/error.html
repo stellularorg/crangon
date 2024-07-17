@@ -1,4 +1,6 @@
 {% extends "./base.html" %} {% block title %}Error! – {{ base.site_name }}{%
-endblock %} {% block content %}
+endblock %} {% block head %}
+<link rel="icon" href="/static/favicon.svg" />
+{% endblock %} {% block content %}
 <div class="card round">{{ error }}</div>
 {% call super() %} {% endblock %}
