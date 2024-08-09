@@ -251,10 +251,7 @@ impl Database {
                 res.get(&self.options.table_pastes.metadata).unwrap(),
             ) {
                 Ok(m) => m,
-                Err(e) => {
-                    dbg!(e);
-                    return Err(PasteError::ValueError);
-                }
+                Err(_) => return Err(PasteError::ValueError),
             },
         };
 
@@ -357,10 +354,7 @@ impl Database {
             .await
         {
             Ok(_) => return Ok((props.password, paste)),
-            Err(e) => {
-                dbg!(e);
-                return Err(PasteError::Other);
-            }
+            Err(_) => return Err(PasteError::Other),
         };
     }
 
@@ -453,10 +447,7 @@ impl Database {
             .await
         {
             Ok(_) => return Ok((props.password, paste)),
-            Err(e) => {
-                dbg!(e);
-                return Err(PasteError::Other);
-            }
+            Err(_) => return Err(PasteError::Other),
         };
     }
 
