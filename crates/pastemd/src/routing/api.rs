@@ -1,6 +1,7 @@
 //! Responds to API requests
 use crate::model::{
-    PasteCreate, PasteDelete, PasteEdit, PasteError, PasteEditMetadata, Paste, PublicPaste,
+    PasteCreate, PasteClone, PasteDelete, PasteEdit, PasteError, PasteEditMetadata, Paste,
+    PublicPaste,
 };
 use crate::database::Database;
 use dorsal::DefaultReturn;
@@ -16,6 +17,7 @@ use axum_extra::extract::cookie::CookieJar;
 pub fn routes(database: Database) -> Router {
     Router::new()
         .route("/new", post(create_paste))
+        .route("/clone", post(clone_paste))
         // pastes
         .route("/:url", get(get_paste_by_url))
         .route("/:url/delete", post(delete_paste_by_url))
@@ -39,6 +41,23 @@ async fn create_paste(
         Ok(paste) => Ok(Json(DefaultReturn {
             success: true,
             message: String::from("Paste created"),
+            payload: paste,
+        })),
+        Err(e) => Err(e),
+    }
+}
+
+/// Clone an existing paste (`/api/clone`)
+async fn clone_paste(
+    State(database): State<Database>,
+    Json(paste_to_create): Json<PasteClone>,
+) -> Result<Json<DefaultReturn<(String, Paste)>>, PasteError> {
+    let res = database.clone_paste(paste_to_create).await;
+
+    match res {
+        Ok(paste) => Ok(Json(DefaultReturn {
+            success: true,
+            message: String::from("Paste cloned"),
             payload: paste,
         })),
         Err(e) => Err(e),

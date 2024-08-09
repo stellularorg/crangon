@@ -4,7 +4,7 @@ Crangon-compatible pastebin using [`pastemd`](https://github.com/hkauso/pastemd)
 
 ## Configuration
 
-Sealable supports the following configuration options through environment variables:
+Crangon supports the following configuration options through environment variables:
 
 * `SITE_NAME` - the name of the site
 * `INFO_URL` - the url (relative to root `/`) that will be served from the "what" link in the footer

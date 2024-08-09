@@ -3,15 +3,23 @@
 
 {{ head_stuff|safe }} {% endblock %}{% block content %}
 <div class="flex flex-col w-full h-full gap-2">
-    <div
-        class="card more_padding round min-h-[15rem] tab_container tab-container"
-        id="tab_container"
-    >
+    <div class="card more_padding round min-h-[15rem]" id="tab_container">
         {{ rendered|safe }}
     </div>
 
     <div class="flex w-full gap-2 justify-between">
-        <a href="/{{ paste.url }}/edit" class="button round">Edit</a>
+        <div class="flex gap-2">
+            {% if paste.metadata.template == "@" %}
+            <button
+                class="theme:primary round"
+                onclick="trigger('markdown:use_template', ['{{ paste.url }}'])"
+            >
+                Use Template
+            </button>
+            {% endif %}
+
+            <a href="/{{ paste.url }}/edit" class="button round">Edit</a>
+        </div>
 
         <div class="flex flex-col items-end g-1 opacity-75">
             <span>
@@ -66,4 +74,42 @@
         title: "Edit Code",
     };
 </script>
+
+<dialog id="template_dialog" class="animate-fade-in">
+    <div style="width: 25rem; max-width: 100%" class="p-4">
+        <div class="flex flex-col gap-2">
+            <form id="template_form">
+                <div class="gap-2 flex flex-col mb-2">
+                    <input
+                        name="url"
+                        id="url"
+                        placeholder="Custom URL"
+                        class="small"
+                    />
+
+                    <input
+                        name="password"
+                        id="password"
+                        placeholder="Password"
+                        class="small"
+                    />
+                </div>
+
+                <!-- submit -->
+                <button class="round mb-2 green">Publish</button>
+            </form>
+        </div>
+
+        <hr class="my-4" />
+
+        <div class="w-full flex justify-end gap-2">
+            <a
+                class="button round red"
+                href="javascript:document.getElementById('template_dialog').close();"
+            >
+                Close
+            </a>
+        </div>
+    </div>
+</dialog>
 {% call super() %} {% endblock %}

@@ -430,13 +430,29 @@ nav button.selected {
     @apply flex flex-col absolute bottom-0;
     @apply backdrop-blur-lg bg-neutral-200/75 dark:bg-neutral-800/75;
     @apply shadow shadow-neutral-800/5 dark:shadow-neutral-800/25;
-    @apply max-w-full max-h-full w-[25rem] h-max z-50;
+    @apply max-w-full max-h-full w-full md:w-[25rem] h-max z-50;
     overflow: hidden auto;
+}
+
+.link-list.elevated {
+    @apply bg-neutral-100/75 dark:bg-neutral-700/75;
+}
+
+.link-list.round {
+    @apply rounded;
 }
 
 .link-list .option {
     @apply flex justify-center bg-transparent p-4 transition-colors duration-150;
     @apply hover:!bg-neutral-300/25 hover:dark:!bg-neutral-700/25;
+}
+
+.link-list.elevated .option {
+    @apply hover:!bg-neutral-300/25 hover:dark:!bg-neutral-800/25;
+}
+
+.link-list .option.small {
+    @apply p-2 justify-start;
 }
 
 .link-list .option button,

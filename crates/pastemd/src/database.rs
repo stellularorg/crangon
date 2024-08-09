@@ -439,12 +439,12 @@ impl Database {
 
         let c = &self.base.db.client;
         match sqlquery(&query)
-            .bind::<&String>(&paste.id)
             .bind::<&String>(&paste.url)
+            .bind::<&String>(&paste.id)
             .bind::<&String>(&paste.password)
-            .bind::<&String>(&paste.content)
             .bind::<&String>(&paste.date_published.to_string())
             .bind::<&String>(&paste.date_edited.to_string())
+            .bind::<&String>(&paste.content)
             .bind::<&String>(match serde_json::to_string(&paste.metadata) {
                 Ok(ref s) => s,
                 Err(_) => return Err(PasteError::ValueError),
@@ -453,7 +453,10 @@ impl Database {
             .await
         {
             Ok(_) => return Ok((props.password, paste)),
-            Err(_) => return Err(PasteError::Other),
+            Err(e) => {
+                dbg!(e);
+                return Err(PasteError::Other);
+            }
         };
     }
 
