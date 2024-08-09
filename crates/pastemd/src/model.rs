@@ -39,6 +39,23 @@ pub struct PasteMetadata {
     /// Paste owner username
     #[serde(default)]
     pub owner: String,
+    /// Paste template settings
+    ///
+    /// * blank/no value = not a template and not using a template
+    /// * `@` = this paste is a template
+    /// * anything else = the URL of the template paste this paste is derived from
+    #[serde(default)]
+    pub template: String,
+}
+
+impl From<Paste> for PasteMetadata {
+    /// Convert the given paste into [`PasteMetadata`] which uses the paste as a template
+    fn from(value: Paste) -> Self {
+        Self {
+            template: value.url,
+            ..Default::default()
+        }
+    }
 }
 
 fn dumb_property<'de, D>(deserializer: D) -> Result<String, D::Error>
@@ -58,6 +75,7 @@ impl Default for PasteMetadata {
             favicon: String::new(),
             view_password: String::new(),
             owner: String::new(),
+            template: String::new(),
         }
     }
 }
@@ -87,31 +105,53 @@ impl From<Paste> for PublicPaste {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PasteCreate {
+    /// The paste url
     #[serde(default)]
     pub url: String,
+    /// The content of the paste
     pub content: String,
+    /// The paste edit password
+    #[serde(default)]
+    pub password: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PasteClone {
+    /// The url of the paste we're using as a template
+    pub source: String,
+    /// The paste url
+    #[serde(default)]
+    pub url: String,
+    /// The paste edit password
     #[serde(default)]
     pub password: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PasteDelete {
+    /// The password of the paste
     pub password: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PasteEdit {
+    /// The password of the paste
     pub password: String,
+    /// The updated content of the paste
     pub new_content: String,
+    /// The updated password of the paste
     #[serde(default)]
     pub new_password: String,
+    /// The updated url of the paste
     #[serde(default)]
     pub new_url: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PasteEditMetadata {
+    /// The password of the paste
     pub password: String,
+    /// The updated metadata of the paste
     pub metadata: PasteMetadata,
 }
 

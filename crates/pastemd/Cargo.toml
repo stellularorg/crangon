@@ -4,7 +4,7 @@ description = "Pluggable pastebin backend"
 authors = ["hkau"]
 license = "MIT"
 
-version = "0.5.2-compat"
+version = "0.6.0-compat"
 edition = "2021"
 
 documentation = "https://docs.rs/pastemd"
